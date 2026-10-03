@@ -1,4 +1,6 @@
-# Corevia V1
+# Corevia
+
+The `main` branch and `v1.0.0` tag preserve V1. The `develop/v2` branch adds the V2 kernel while retaining the V1 flow and protocol APIs. Start with the [V2 kernel guide](docs/v2/kernel.md) and run `php -n examples/v2/kernel.php` for a database-free lifecycle example. See [phase progress](docs/v2/phases.md) and [compatibility](docs/v2/compatibility.md).
 
 A framework-independent PHP 8.2+ runtime for modular actions, observable flows, isolated failures, events, WebSockets and CVP/1 interoperability. PHP core has no third-party runtime dependencies and does not require Node.js, Python, Redis or a broker.
 

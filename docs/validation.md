@@ -1,5 +1,11 @@
 # Local validation results
 
+## V2 M1 validation — 4 October 2026
+
+All local checks passed on `develop/v2`: 21 existing PHP tests, 14 new kernel tests with PHP extensions disabled, 8 database-free learning-app tests, the optional SQLite task adapter test, 7 JavaScript SDK tests, 5 Python SDK tests, 8 cross-process integration groups, and 4 learning HTTP/CLI groups. Syntax validation passed for 87 PHP files. Composer metadata validation passed with a process-local Git safe-directory setting because the sandbox-created repository and local shell have different owners.
+
+The database-free kernel example ran with `php -n` and produced the expected greeting and lifecycle order. CI includes the new kernel suite and example; hosted CI status has not been verified. No MySQL server was used. See `v2/phases.md` for milestone scope.
+
 Validated on 3 October 2026 in the requested workspace, using Windows, PHP 8.3.35, Node.js 22.14.0 and Python 3.13.3.
 
 | Check | Result |
