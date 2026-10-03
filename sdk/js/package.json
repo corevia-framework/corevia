@@ -1,0 +1,11 @@
+{
+  "name": "@corevia/js",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "CVP/1 client for browsers, Node.js and React Native",
+  "license": "MIT",
+  "exports": {".": {"types": "./index.d.ts", "default": "./index.js"}, "./react": "./react.js"},
+  "scripts": {"test": "node --test test/*.test.js"},
+  "peerDependencies": {"react": ">=18"},
+  "peerDependenciesMeta": {"react": {"optional": true}}
+}

@@ -1,0 +1,8 @@
+[
+  {"cvp":"1.0","id":"req_fixture","type":"action.call","target":"ai.analyze","payload":{"text":"hello"},"meta":{"trace_id":"trace_fixture"},"future_field":true},
+  {"cvp":"1.0","id":"req_fixture","ok":true,"result":{"words":1},"error":null,"meta":{"trace_id":"trace_fixture"}},
+  {"cvp":"1.0","id":"req_error","ok":false,"result":null,"error":{"code":"PAYMENT_DECLINED","message":"Payment declined","retryable":false}},
+  {"cvp":"1.0","id":"req_sub","type":"subscribe","target":"orders","payload":{}},
+  {"cvp":"1.0","id":"req_event","type":"event","target":"orders","payload":{"event":"order.updated","data":{"order_id":"ord_1"}}},
+  {"cvp":"1.0","id":"req_ping","type":"ping","payload":{}}
+]

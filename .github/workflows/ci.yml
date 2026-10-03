@@ -1,0 +1,35 @@
+name: Corevia tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_sqlite
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: composer validate --strict
+      - run: composer install --no-interaction --prefer-dist
+      - run: composer lint
+      - run: composer test
+      - run: php -n test-project/tests/run.php
+      - run: php test-project/tests/pdo.php
+      - run: node test-project/tests/http.mjs
+      - run: node --test sdk/js/test/*.test.js
+      - run: python -m unittest discover -s sdk/python/tests -v
+        env:
+          PYTHONPATH: sdk/python
+      - run: node tests/integration.mjs
+        env:
+          PYTHON: python

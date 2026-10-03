@@ -1,0 +1,10 @@
+{
+  "name": "corevia/corevia",
+  "description": "Modular PHP application runtime with flows, events and CVP/1 interoperability",
+  "type": "project",
+  "license": "MIT",
+  "require": {"php": ">=8.2", "ext-json": "*", "ext-pdo": "*"},
+  "autoload": {"psr-4": {"Corevia\\Core\\": "packages/core/src/", "Corevia\\Http\\": "packages/http/src/", "Corevia\\Protocol\\": "packages/protocol/src/", "Corevia\\Persistence\\": "packages/persistence-pdo/src/", "Corevia\\Realtime\\": "packages/realtime/src/", "Corevia\\Cli\\": "packages/cli/src/", "App\\": "app/"}},
+  "scripts": {"test": "@php tests/run.php", "lint": "@php tests/lint.php"},
+  "bin": ["corevia"]
+}

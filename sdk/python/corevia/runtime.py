@@ -1,0 +1,185 @@
+import hmac
+import json
+import logging
+import math
+import socket
+import uuid
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
+from urllib.request import Request, urlopen
+
+TYPES = {"action.call", "action.result", "event", "subscribe", "unsubscribe", "ping", "pong"}
+
+
+class CoreviaError(Exception):
+    def __init__(self, code, message, retryable=False, request_id=None, trace_id=None):
+        super().__init__(message)
+        self.code, self.retryable = code, retryable
+        self.request_id, self.trace_id = request_id, trace_id
+
+
+def validate_envelope(value):
+    if not isinstance(value, dict) or value.get("cvp") != "1.0" or not isinstance(value.get("id"), str) or not 0 < len(value["id"]) <= 128:
+        raise CoreviaError("INVALID_ENVELOPE", "Invalid CVP/1 envelope.")
+    meta = value.get("meta", {})
+    if not isinstance(meta, dict) or (meta.get("trace_id") is not None and (not isinstance(meta["trace_id"], str) or len(meta["trace_id"]) > 128)):
+        raise CoreviaError("INVALID_META", "Invalid metadata.")
+    if "ok" in value:
+        error = value.get("error")
+        if not isinstance(value["ok"], bool) or "result" not in value or "error" not in value or (value["ok"] and error is not None) or (not value["ok"] and (not isinstance(error, dict) or not isinstance(error.get("code"), str) or not isinstance(error.get("message"), str) or not isinstance(error.get("retryable"), bool))):
+            raise CoreviaError("INVALID_RESPONSE", "Invalid CVP response.")
+    elif value.get("type") not in TYPES or not isinstance(value.get("payload"), (dict, list)) or (value["type"] in {"action.call", "event", "subscribe", "unsubscribe"} and (not isinstance(value.get("target"), str) or not 0 < len(value["target"]) <= 128)):
+        raise CoreviaError("INVALID_ENVELOPE", "Invalid CVP message.")
+    # Python's JSON decoder accepts NaN by default; CVP never does.
+    def safe(item):
+        if not isinstance(item, (dict, list, str, int, float, bool, type(None))) or (isinstance(item, float) and not math.isfinite(item)):
+            raise CoreviaError("NON_JSON_VALUE", "JSON-compatible values required.")
+        if isinstance(item, (dict, list)):
+            for child in item.values() if isinstance(item, dict) else item:
+                safe(child)
+    safe(value)
+    return value
+
+
+def response(request_id, result=None, error=None, trace_id=None):
+    return {"cvp": "1.0", "id": request_id, "ok": error is None, "result": result, "error": error, "meta": {"trace_id": trace_id}}
+
+
+class Worker:
+    def __init__(self, url="http://127.0.0.1:8090", token=None, authorize=None, timeout=5.0, max_bytes=65536):
+        parsed = urlparse(url)
+        if parsed.scheme != "http" or not parsed.hostname or timeout <= 0:
+            raise ValueError("Worker requires an HTTP bind URL and positive timeout; terminate TLS at a proxy.")
+        if parsed.hostname not in {"127.0.0.1", "localhost", "::1"} and token is None and authorize is None:
+            raise ValueError("Public workers require authorization.")
+        self.host, self.port = parsed.hostname, parsed.port if parsed.port is not None else 8090
+        self.token, self.authorize = token, authorize
+        self.timeout, self.max_bytes = timeout, max_bytes
+        self.actions = {}
+        self.server = None
+
+    def action(self, name):
+        def register(handler):
+            if name in self.actions:
+                raise ValueError("Duplicate action: " + name)
+            self.actions[name] = handler
+            return handler
+        return register
+
+    def dispatch(self, envelope, authorization=None):
+        validate_envelope(envelope)
+        trace = envelope.get("meta", {}).get("trace_id")
+        target = envelope.get("target")
+        try:
+            permitted = self.authorize(authorization, target) if self.authorize else (self.token is None or hmac.compare_digest(authorization or "", "Bearer " + self.token))
+        except Exception as error:
+            logging.getLogger("corevia").error("Authorization failed exception=%s", type(error).__name__)
+            permitted = False
+        if not permitted:
+            return response(envelope["id"], error={"code": "UNAUTHORIZED", "message": "Unauthorized.", "retryable": False}, trace_id=trace)
+        if envelope.get("type") != "action.call" or target not in self.actions:
+            return response(envelope["id"], error={"code": "ACTION_NOT_FOUND", "message": "Action not registered.", "retryable": False}, trace_id=trace)
+        try:
+            result = self.actions[target](envelope["payload"])
+            json.dumps(result, allow_nan=False)
+            return response(envelope["id"], result, trace_id=trace)
+        except CoreviaError as error:
+            return response(envelope["id"], error={"code": error.code, "message": str(error), "retryable": error.retryable}, trace_id=trace)
+        except Exception as error:
+            logging.getLogger("corevia").error("Action failed target=%s trace_id=%s exception=%s", target, trace, type(error).__name__)
+            return response(envelope["id"], error={"code": "ACTION_EXCEPTION", "message": "Worker action failed.", "retryable": False}, trace_id=trace)
+
+    def run(self):
+        worker = self
+
+        class Handler(BaseHTTPRequestHandler):
+            def setup(self):
+                super().setup()
+                self.connection.settimeout(worker.timeout)
+
+            def do_POST(self):
+                request_id, trace = "invalid", None
+                try:
+                    if self.path != "/cvp":
+                        raise CoreviaError("NOT_FOUND", "Endpoint not found.")
+                    length = int(self.headers.get("Content-Length", "0"))
+                    if self.headers.get("Transfer-Encoding") or not 0 < length <= worker.max_bytes:
+                        raise CoreviaError("PAYLOAD_TOO_LARGE", "Invalid body size.")
+                    raw = self.rfile.read(length)
+                    if len(raw) != length:
+                        raise CoreviaError("INVALID_REQUEST", "Incomplete request.")
+                    envelope = json.loads(raw)
+                    validate_envelope(envelope)
+                    request_id, trace = envelope["id"], envelope.get("meta", {}).get("trace_id")
+                    value = worker.dispatch(envelope, self.headers.get("Authorization"))
+                    status = 200 if value["ok"] else (401 if value["error"]["code"] == "UNAUTHORIZED" else 422)
+                except (ValueError, CoreviaError, socket.timeout) as error:
+                    value = response(request_id, error={"code": getattr(error, "code", "INVALID_REQUEST"), "message": "Invalid worker request.", "retryable": False}, trace_id=trace)
+                    status = 400
+                wire = json.dumps(value, allow_nan=False).encode()
+                if len(wire) > worker.max_bytes:
+                    wire = json.dumps(response(request_id, error={"code": "PAYLOAD_TOO_LARGE", "message": "Worker result too large.", "retryable": False}, trace_id=trace)).encode()
+                    status = 413
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(wire)))
+                self.end_headers()
+                self.wfile.write(wire)
+
+            def log_message(self, format, *args):
+                logging.getLogger("corevia.http").info("HTTP status %s", args[1] if len(args) > 1 else "unknown")
+
+        self.server = ThreadingHTTPServer((self.host, self.port), Handler)
+        self.server.daemon_threads = True
+        try:
+            self.server.serve_forever(poll_interval=0.2)
+        finally:
+            self.server.server_close()
+
+    def stop(self):
+        if self.server:
+            self.server.shutdown()
+
+
+class Client:
+    def __init__(self, base_url, token=None, timeout=5.0, max_bytes=65536):
+        if timeout <= 0 or urlparse(base_url).scheme not in {"http", "https"}:
+            raise ValueError("HTTP(S) URL and positive timeout required.")
+        self.base_url, self.token, self.timeout, self.max_bytes = base_url.rstrip("/"), token, timeout, max_bytes
+
+    def call(self, target, payload, trace_id=None, request_id=None):
+        request_id, trace_id = request_id or str(uuid.uuid4()), trace_id or str(uuid.uuid4())
+        envelope = {"cvp": "1.0", "id": request_id, "type": "action.call", "target": target, "payload": payload, "meta": {"trace_id": trace_id}}
+        validate_envelope(envelope)
+        wire = json.dumps(envelope, allow_nan=False).encode()
+        if len(wire) > self.max_bytes:
+            raise CoreviaError("PAYLOAD_TOO_LARGE", "Request too large.")
+        headers = {"Content-Type": "application/json", "X-Trace-Id": trace_id, "X-Request-Id": request_id}
+        token = self.token() if callable(self.token) else self.token
+        if token:
+            headers["Authorization"] = "Bearer " + token
+        try:
+            try:
+                stream = urlopen(Request(self.base_url + "/cvp", wire, headers), timeout=self.timeout)
+            except HTTPError as error:
+                stream = error
+            with stream:
+                raw = stream.read(self.max_bytes + 1)
+                status = stream.status
+            if len(raw) > self.max_bytes:
+                raise CoreviaError("PAYLOAD_TOO_LARGE", "Response too large.")
+            value = validate_envelope(json.loads(raw))
+            if value["id"] != request_id or "ok" not in value:
+                raise CoreviaError("PROTOCOL_ERROR", "Mismatched response.")
+            if not value["ok"]:
+                raise CoreviaError(value["error"]["code"], value["error"]["message"], value["error"]["retryable"], request_id, trace_id)
+            if status >= 400:
+                raise CoreviaError("HTTP_ERROR", "HTTP error.", request_id=request_id, trace_id=trace_id)
+            return value
+        except CoreviaError:
+            raise
+        except (URLError, TimeoutError) as error:
+            raise CoreviaError("REMOTE_UNAVAILABLE", "Remote runtime unavailable.", True, request_id, trace_id) from error
+        except (ValueError, KeyError) as error:
+            raise CoreviaError("PROTOCOL_ERROR", "Invalid remote response.", False, request_id, trace_id) from error

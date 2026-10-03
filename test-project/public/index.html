@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Corevia · Learn by building</title>
+  <style>
+    :root{font-family:system-ui,sans-serif;color:#253c39;background:#f2f5ef;line-height:1.5}
+    *{box-sizing:border-box}body{margin:0}header,main{max-width:1120px;margin:auto;padding:24px}
+    header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #d4ded5}
+    .brand{font-size:21px;font-weight:750}.tag{font-size:12px;background:#e1eadf;padding:7px 11px;border-radius:30px}
+    h1{font-size:clamp(32px,5vw,48px);letter-spacing:-1.5px;margin:24px 0 10px}h2{font-size:19px;margin:0 0 14px}
+    p{color:#61726a}.intro{max-width:680px}.path{padding:18px;background:#e1eadf;border-radius:12px;margin:28px 0;font-size:14px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}.card{background:#fff;border:1px solid #d9e2d8;border-radius:14px;padding:24px}
+    input[type=text]{font:inherit;width:100%;padding:12px;border:1px solid #bdcec2;border-radius:7px;margin:8px 0 14px}
+    label{font-size:14px}.check{display:flex;gap:8px;margin:0 0 18px;align-items:start}.check input{margin-top:5px}
+    button{font:inherit;font-size:14px;border:0;border-radius:7px;background:#255e49;color:white;padding:11px 16px;cursor:pointer}button:disabled{opacity:.5}
+    .task{display:flex;gap:12px;justify-content:space-between;align-items:center;padding:16px 0;border-top:1px solid #e4eae3}.task span{overflow-wrap:anywhere}.task small{display:block;font-size:11px;color:#76877c;margin-top:4px}
+    .task button{background:#e8efe8;color:#315440;white-space:nowrap;padding:7px 10px}.done{text-decoration:line-through;color:#829186}
+    .message{font-size:14px;min-height:24px}.step{padding:13px 0;border-top:1px solid #e4eae3}.step-head{display:flex;justify-content:space-between;gap:8px;font-size:14px}.step small{font-size:12px;color:#76877c}.status{color:#236249}.failed{color:#a45026}.source{display:block;overflow-wrap:anywhere;font:11px/1.5 monospace;margin-top:5px;color:#61726a}
+    details{margin-top:20px}summary{cursor:pointer;font-size:13px}pre{background:#eef3ec;padding:14px;font:11px/1.6 monospace;overflow:auto;max-height:340px;border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere}
+    .tip{font-size:13px;padding-top:14px;border-top:1px solid #e4eae3}a{color:#255e49}button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid #9abc9c;outline-offset:3px}@media(max-width:760px){.grid{grid-template-columns:1fr}header,main{padding:20px}.tag{font-size:10px}}
+  </style>
+</head>
+<body>
+  <header><span class="brand">◈ Corevia / learning lab</span><span class="tag">PHP + JSON files · no database</span></header>
+  <main>
+    <h1>Build a task. Follow the flow.</h1>
+    <p class="intro">This small project shows how Corevia turns a request into actions. Add a task, inspect the steps, then try a failure to see how the flow responds.</p>
+    <div class="path">Browser → HTTP route → <strong>tasks.create flow</strong> → Validate → Save → Event → Reminder → Result</div>
+    <div class="grid">
+      <section class="card">
+        <h2>Your task list</h2>
+        <form id="task-form">
+          <label for="title">What would you like to learn?</label>
+          <input id="title" type="text" placeholder="Learn how an Action works" autocomplete="off" aria-describedby="title-tip">
+          <label class="check"><input id="fail-reminder" type="checkbox"><span>Simulate a reminder failure<br><small>The reminder is non-critical. The task should still be saved.</small></span></label>
+          <button id="submit" type="submit">Create task →</button>
+        </form>
+        <p id="message" class="message" role="status" aria-live="polite">Loading your tasks…</p>
+        <div id="tasks"></div>
+        <p id="title-tip" class="tip">Try an empty title to trigger a critical validation failure. Then create a task with the failure checkbox selected to compare the results.</p>
+      </section>
+      <section class="card">
+        <h2>What just executed?</h2>
+        <p id="flow-status" role="status">Create or complete a task to inspect its flow.</p>
+        <div id="steps"></div>
+        <details><summary>See the full JSON response</summary><pre id="response">No request yet.</pre></details>
+        <p class="tip">Task data lives in <code>test-project/storage/tasks.json</code>. Execution logs live in <code>test-project/storage/runtime.log</code>.<br><br>Read <code>test-project/README.md</code> for the guided code walkthrough.</p>
+      </section>
+    </div>
+  </main>
+  <script>
+    const el = id => document.getElementById(id);
+    const files = {
+      'tasks.validateTitle':'src/Tasks/Actions/ValidateTitle.php',
+      'tasks.save':'src/Tasks/Actions/SaveTask.php',
+      'tasks.publishCreated':'src/Tasks/Actions/PublishTaskCreated.php',
+      'tasks.createReminder':'src/Tasks/Actions/CreateReminder.php',
+      'tasks.complete':'src/Tasks/Actions/CompleteTask.php',
+    };
+    async function request(path, options = {}) {
+      const response = await fetch(path, {...options, signal:AbortSignal.timeout(8000)});
+      // Flow errors are displayed as useful results, including their execution steps.
+      const value = await response.json();
+      if (!response.ok && !value.result?.steps) throw new Error(value.error?.message || 'Request failed.');
+      return value;
+    }
+    function showRun(value) {
+      el('response').textContent = JSON.stringify(value,null,2);
+      el('flow-status').textContent = `${value.result.flow_name}: ${value.result.status}`;
+      el('steps').replaceChildren();
+      for (const [index,step] of value.result.steps.entries()) {
+        const row=document.createElement('div');row.className='step';
+        const head=document.createElement('div');head.className='step-head';
+        const name=document.createElement('strong');name.textContent=`${index+1}. ${step.action}`;
+        const status=document.createElement('span');status.className=step.status==='failed'?'failed':'status';status.textContent=step.status;
+        head.append(name,status);
+        const info=document.createElement('small');info.textContent=`${step.critical?'Critical':'Non-critical'} · ${step.duration_ms.toFixed(2)} ms`;
+        const source=document.createElement('span');source.className='source';source.textContent=files[step.action];
+        row.append(head,info,source);
+        if (step.error) {const error=document.createElement('p');error.className='failed';error.textContent=step.error.message;row.append(error)}
+        el('steps').append(row);
+      }
+    }
+    async function loadTasks() {
+      const {tasks}=await request('/api/tasks');el('tasks').replaceChildren();
+      if (!tasks.length) {const empty=document.createElement('p');empty.textContent='No tasks yet. Create your first one above.';el('tasks').append(empty)}
+      for (const task of tasks) {
+        const row=document.createElement('div');row.className='task';
+        const title=document.createElement('span');title.textContent=task.title;if(task.completed)title.className='done';
+        const id=document.createElement('small');id.textContent=task.id;title.append(id);row.append(title);
+        if (!task.completed) {
+          const button=document.createElement('button');button.textContent='Complete';
+          button.onclick=async()=>{
+            button.disabled=true;
+            try {const value=await request(`/api/tasks/${encodeURIComponent(task.id)}/complete`,{method:'PATCH'});showRun(value);await loadTasks();el('message').textContent=value.ok?'Task completed.':value.error.message}
+            catch(error){el('message').textContent=error.message;button.disabled=false}
+          };row.append(button);
+        }
+        el('tasks').append(row);
+      }
+    }
+    el('task-form').onsubmit=async event=>{
+      event.preventDefault();el('submit').disabled=true;el('message').textContent='Running tasks.create…';
+      try {
+        const value=await request('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:el('title').value,simulate_reminder_failure:el('fail-reminder').checked})});
+        showRun(value);await loadTasks();
+        el('message').textContent=value.ok?(value.result.status==='completed_with_warnings'?'Task saved. The non-critical reminder failed.':'Task saved. All actions completed.'):value.error.message;
+        if(value.ok)el('title').value='';
+      } catch(error){el('message').textContent=error.message}
+      finally{el('submit').disabled=false}
+    };
+    loadTasks().then(()=>{el('message').textContent='Ready. Try creating a task.'}).catch(error=>{el('message').textContent=error.message});
+  </script>
+</body>
+</html>

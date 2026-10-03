@@ -1,0 +1,56 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Corevia\Protocol;
+
+use Corevia\Core\ActionResult;
+
+final class RemoteAction
+{
+    public function __construct(private readonly string $url, private readonly ?string $token = null, private readonly float $timeout = 5.0, private readonly Protocol $protocol = new Protocol())
+    {
+        if ($timeout <= 0 || !in_array(parse_url($url, PHP_URL_SCHEME), ['http', 'https'], true)) {
+            throw new \InvalidArgumentException('Remote calls require HTTP(S) and a positive timeout.');
+        }
+    }
+
+    public function call(string $name, array $payload, ?string $traceId = null, ?string $requestId = null): ActionResult
+    {
+        $request = Protocol::request('action.call', $name, $payload, $requestId, $traceId);
+        $headers = "Content-Type: application/json\r\n";
+        if ($this->token !== null) {
+            if (preg_match('/[\r\n]/', $this->token)) {
+                return ActionResult::failure('INVALID_AUTH', 'Invalid token.');
+            }
+            $headers .= 'Authorization: Bearer ' . $this->token . "\r\n";
+        }
+        $context = stream_context_create(['http' => ['method' => 'POST', 'header' => $headers, 'content' => $this->protocol->encode($request), 'timeout' => $this->timeout, 'ignore_errors' => true, 'follow_location' => 0]]);
+        set_error_handler(static function (): bool { return true; });
+        try {
+            $stream = fopen($this->url, 'rb', false, $context);
+            if ($stream === false) {
+                return ActionResult::failure('REMOTE_UNAVAILABLE', 'Remote runtime unavailable.', true);
+            }
+            try {
+                $raw = stream_get_contents($stream, $this->protocol->maxBytes + 1);
+                if ($raw === false || (stream_get_meta_data($stream)['timed_out'] ?? false)) {
+                    return ActionResult::failure('REMOTE_TIMEOUT', 'Remote runtime timed out.', true);
+                }
+            } finally {
+                fclose($stream);
+            }
+        } finally {
+            restore_error_handler();
+        }
+        try {
+            $response = $this->protocol->decode($raw);
+            if ($response['id'] !== $request['id'] || !array_key_exists('ok', $response)) {
+                throw new \InvalidArgumentException('Mismatched response.');
+            }
+            return $response['ok'] ? ActionResult::success($response['result']) : ActionResult::failure($response['error']['code'], $response['error']['message'], $response['error']['retryable']);
+        } catch (\Throwable) {
+            return ActionResult::failure('REMOTE_PROTOCOL_ERROR', 'Invalid remote response.');
+        }
+    }
+}

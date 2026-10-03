@@ -1,0 +1,33 @@
+# Local validation results
+
+Validated on 3 October 2026 in the requested workspace, using Windows, PHP 8.3.35, Node.js 22.14.0 and Python 3.13.3.
+
+| Check | Result |
+| --- | --- |
+| `composer validate --strict` | Pass |
+| `composer install --no-interaction --prefer-dist` | Pass; lockfile and autoload generated, no external PHP packages required |
+| PHP lint | 60 PHP executable/source/test files passed |
+| PHP test suite | 21 tests passed |
+| JavaScript SDK suite | 7 tests passed |
+| Python SDK suite | 5 tests passed |
+| Cross-process integration | 8 check groups passed |
+| CLI `doctor`, `routes`, `modules`, `flow:list` | Pass |
+
+Integration check groups:
+
+1. PHP → Python CVP/1 remote action call.
+2. WebSocket handshake and public/private subscription authorization.
+3. Origin denial, control ping/pong, text fragmentation, payload size rejection and frame rate limiting.
+4. HTTP checkout → Python fraud check → preserved order with notification warning → JavaScript realtime event.
+5. Persistent duplicate flow requests, changed-input conflict and critical payment failure.
+6. CLI persisted run inspection/manual notification retry and authenticated JavaScript action gateway call.
+7. Real WebSocket reconnect, subscription restoration and subsequent event reception.
+8. CLI commands and generated PHP syntax, overwrite rejection and unsafe generator name rejection.
+
+The first Composer install attempted advisory/filter metadata access. Network access was restricted and the Composer cache directory outside the workspace was unwritable, so Composer emitted warnings; installation still exited successfully because there are no third-party PHP packages. The lockfile is included for repeatable installation.
+
+Hosted CI, a browser automation run, native mobile execution, production TLS/proxy deployment and a production payment/email provider were not run. The React hook is optional and was not exercised in a React renderer. Heartbeat/stale-client implementation is included; explicit heartbeat expiration is not part of the timed local integration checks. See deployment documentation for V1 operational limits.
+
+## Learning project added on 4 October 2026
+
+`test-project/` is a separate database-free task application using the same framework. Its eight tests passed with `php -n` (PDO/database extensions disabled). Four real HTTP/CLI check groups passed with the same minimal PHP configuration, covering the learning page, flows/failures, task completion/file persistence and shared CLI data. The optional PDO task adapter passed a separate in-memory SQLite check; no MySQL server was used. The existing 21 framework tests still passed, and lint passed for all 78 PHP files. UI JavaScript was syntax-checked and HTML was served over HTTP; browser interactions were not automated. Hosted CI was updated but has not run here.

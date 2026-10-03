@@ -1,0 +1,16 @@
+/vendor/
+/storage/*
+!/storage/.gitkeep
+__pycache__/
+*.pyc
+node_modules/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+/.aws/
+/test-project/storage/*
+!/test-project/storage/.gitkeep

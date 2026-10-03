@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://corevia.local/protocol/cvp-1.schema.json",
+  "title": "Corevia Protocol 1.0",
+  "type": "object",
+  "required": ["cvp", "id"],
+  "properties": {
+    "cvp": {"const": "1.0"},
+    "id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "meta": {"type": "object", "properties": {"trace_id": {"type": ["string", "null"], "maxLength": 128}}}
+  },
+  "oneOf": [
+    {
+      "required": ["type", "payload"],
+      "not": {"required": ["ok"]},
+      "properties": {
+        "type": {"enum": ["action.call", "action.result", "event", "subscribe", "unsubscribe", "ping", "pong"]},
+        "target": {"type": "string", "minLength": 1, "maxLength": 128},
+        "payload": {"type": ["object", "array"]}
+      },
+      "if": {"properties": {"type": {"enum": ["action.call", "event", "subscribe", "unsubscribe"]}}},
+      "then": {"required": ["target"]}
+    },
+    {
+      "required": ["ok", "result", "error"],
+      "properties": {"ok": {"type": "boolean"}},
+      "if": {"properties": {"ok": {"const": true}}},
+      "then": {"properties": {"error": {"type": "null"}}},
+      "else": {"properties": {"error": {"type": "object", "required": ["code", "message", "retryable"], "properties": {"code": {"type": "string"}, "message": {"type": "string"}, "retryable": {"type": "boolean"}}}}}
+    }
+  ]
+}

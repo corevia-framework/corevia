@@ -1,0 +1,9 @@
+[
+  {"cvp":"2.0","id":"x","type":"ping","payload":{}},
+  {"cvp":"1.0","id":"","type":"ping","payload":{}},
+  {"cvp":"1.0","id":"x","type":"unknown","payload":{}},
+  {"cvp":"1.0","id":"x","type":"action.call","payload":{}},
+  {"cvp":"1.0","id":"x","ok":"yes","result":{},"error":null},
+  {"cvp":"1.0","id":"x","ok":false,"result":null,"error":null},
+  {"cvp":"1.0","id":"x","type":"subscribe","target":"orders","payload":"bad"}
+]
