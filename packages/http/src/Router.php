@@ -14,6 +14,7 @@ final class Router
 
     public function __construct(private readonly Corevia $app, private readonly array $origins = [], private readonly int $maxBytes = 65536)
     {
+        $app->capabilities->define('http', metadata: ['adapter' => self::class]);
     }
 
     public function add(string $method, string $path, callable $handler): Route

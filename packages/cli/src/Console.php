@@ -112,6 +112,10 @@ final readonly class Console
         } catch (\Throwable $exception) {
             fwrite(STDERR, 'Corevia: ' . $exception->getMessage() . PHP_EOL);
             return 1;
+        } finally {
+            if (isset($app)) {
+                $app->shutdown();
+            }
         }
     }
 

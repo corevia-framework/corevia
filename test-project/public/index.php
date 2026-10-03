@@ -24,4 +24,8 @@ try {
 } catch (Throwable $exception) {
     error_log('Learning app failed: ' . $exception::class);
     (new Response(['ok' => false, 'error' => ['code' => 'APP_UNAVAILABLE', 'message' => 'Check the application storage and logs.']], 500))->send();
+} finally {
+    if (isset($runtime)) {
+        $runtime['app']->shutdown();
+    }
 }

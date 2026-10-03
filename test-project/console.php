@@ -24,8 +24,12 @@ try {
         default => throw new InvalidArgumentException('Unknown command. Run console.php help.'),
     };
     echo json_encode($result, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES) . PHP_EOL;
+    $runtime['app']->shutdown();
     exit($result instanceof \Corevia\Core\FlowResult && $result->status() === 'failed' ? 1 : 0);
 } catch (Throwable $exception) {
+    if (isset($runtime)) {
+        $runtime['app']->shutdown();
+    }
     fwrite(STDERR, 'Learning app: ' . $exception->getMessage() . PHP_EOL);
     exit(1);
 }

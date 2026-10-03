@@ -23,4 +23,8 @@ try {
 } catch (Throwable $exception) {
     error_log('Corevia bootstrap failed: ' . $exception::class);
     (new Response(Protocol::response('invalid', ActionResult::failure('INTERNAL_ERROR', 'Runtime unavailable.')), 500))->send();
+} finally {
+    if (isset($runtime)) {
+        $runtime['app']->shutdown();
+    }
 }
