@@ -185,6 +185,7 @@ final class FlowEngine
                         $state = $result->data;
                     }
                 } elseif ($result->data !== null) {
+                    $state = new ($state::class)($state->data);
                     $state->data[$step->action] = $result->data;
                 } else {
                     $state = $candidate;

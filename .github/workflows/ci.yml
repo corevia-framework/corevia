@@ -8,6 +8,8 @@ jobs:
         php: ['8.2', '8.3', '8.4']
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
@@ -41,6 +43,7 @@ jobs:
         env:
           PYTHON: python
       - run: python tests/v2/install.py
+      - run: python tests/v2/history.py
   dart:
     runs-on: ubuntu-latest
     steps:
@@ -51,4 +54,6 @@ jobs:
       - run: dart analyze
         working-directory: sdk/dart
       - run: dart run test/contracts.dart
+        working-directory: sdk/dart
+      - run: dart run test/io.dart
         working-directory: sdk/dart

@@ -18,7 +18,13 @@ phar = Path(composer_executable).parent / 'composer.phar'
 composer = [php, str(phar)] if phar.exists() else [composer_executable]
 
 def run(command, cwd=root):
-    subprocess.run(command, cwd=cwd, check=True)
+    environment = dict(os.environ)
+    index = int(environment.get('GIT_CONFIG_COUNT', '0'))
+    environment['GIT_CONFIG_COUNT'] = str(index + 1)
+    environment['GIT_CONFIG_KEY_' + str(index)] = 'safe.directory'
+    environment['GIT_CONFIG_VALUE_' + str(index)] = root.as_posix()
+    environment['COMPOSER_ROOT_VERSION'] = '2.0.0-alpha.2'
+    subprocess.run(command, cwd=cwd, check=True, env=environment)
 
 archive = directory / 'source.zip'
 run(['git', '-c', 'safe.directory=' + root.as_posix(), 'archive', '--format=zip', '-o', str(archive), 'HEAD'])

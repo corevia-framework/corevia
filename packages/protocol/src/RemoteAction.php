@@ -13,6 +13,9 @@ final class RemoteAction
         if ($timeout <= 0 || $timeout > 300 || !in_array($version, Protocol::SUPPORTED, true) || !in_array(parse_url($url, PHP_URL_SCHEME), ['http', 'https'], true)) {
             throw new \InvalidArgumentException('Remote calls require HTTP(S) and a positive timeout.');
         }
+        $host = parse_url($url, PHP_URL_HOST);
+        if (!is_string($host) || preg_match('/[\x00-\x20]/', $url) || parse_url($url, PHP_URL_USER) !== null || parse_url($url, PHP_URL_PASS) !== null) { throw new \InvalidArgumentException('Invalid remote endpoint.'); }
+        if (!in_array(strtolower($host), ['localhost','127.0.0.1','::1','[::1]'], true) && $token === null && $sign === null) { throw new \InvalidArgumentException('Remote endpoints require a bearer token or signing policy.'); }
     }
 
     public function call(string $name, array $payload, ?string $traceId = null, ?string $requestId = null, ?string $parentTraceId = null): ActionResult
@@ -34,9 +37,11 @@ final class RemoteAction
         }
         $context = stream_context_create(['http' => ['method' => 'POST', 'header' => $headers, 'content' => $wire, 'timeout' => $this->timeout, 'ignore_errors' => true, 'follow_location' => 0]]);
         set_error_handler(static function (): bool { return true; });
+        $started = hrtime(true);
         try {
             $stream = fopen($this->url, 'rb', false, $context);
             if ($stream === false) {
+                if ((hrtime(true) - $started) / 1e9 >= $this->timeout) { return ActionResult::failure('REMOTE_TIMEOUT', 'Remote runtime timed out.', true); }
                 return ActionResult::failure('REMOTE_UNAVAILABLE', 'Remote runtime unavailable.', true);
             }
             try {

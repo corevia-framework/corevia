@@ -13,10 +13,11 @@ class CoreviaError implements Exception {
 }
 
 Map<String, dynamic> validateEnvelope(dynamic value) {
-  void safe(dynamic item) {
+  void safe(dynamic item, [int depth = 0]) {
+    if (depth > 60) throw CoreviaError('NON_JSON_VALUE', 'Envelope nesting exceeds the limit.');
     if (item == null || item is String || item is bool || item is num && item.isFinite) return;
-    if (item is List) { for (final child in item) { safe(child); } return; }
-    if (item is Map<String, dynamic>) { for (final child in item.values) { safe(child); } return; }
+    if (item is List) { for (final child in item) { safe(child, depth + 1); } return; }
+    if (item is Map<String, dynamic>) { for (final child in item.values) { safe(child, depth + 1); } return; }
     throw CoreviaError('NON_JSON_VALUE', 'Finite JSON values required.');
   }
   safe(value);

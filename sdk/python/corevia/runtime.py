@@ -42,12 +42,12 @@ def validate_envelope(value):
     elif value.get("type") not in TYPES or not isinstance(value.get("payload"), (dict, list)) or (value["type"] in {"action.call", "event", "subscribe", "unsubscribe"} and (not isinstance(value.get("target"), str) or not 0 < len(value["target"]) <= 128)):
         raise CoreviaError("INVALID_ENVELOPE", "Invalid CVP message.")
     # Python's JSON decoder accepts NaN by default; CVP never does.
-    def safe(item):
-        if not isinstance(item, (dict, list, str, int, float, bool, type(None))) or (isinstance(item, float) and not math.isfinite(item)):
+    def safe(item, depth=0):
+        if depth > 60 or not isinstance(item, (dict, list, str, int, float, bool, type(None))) or (isinstance(item, float) and not math.isfinite(item)):
             raise CoreviaError("NON_JSON_VALUE", "JSON-compatible values required.")
         if isinstance(item, (dict, list)):
             for child in item.values() if isinstance(item, dict) else item:
-                safe(child)
+                safe(child, depth + 1)
     safe(value)
     return value
 
@@ -115,7 +115,7 @@ class Worker:
                 self.connection.settimeout(worker.timeout)
 
             def do_POST(self):
-                request_id, trace = "invalid", None
+                request_id, trace, version = "invalid", None, "1.0"
                 try:
                     if self.path != "/cvp":
                         raise CoreviaError("NOT_FOUND", "Endpoint not found.")
@@ -128,14 +128,15 @@ class Worker:
                     envelope = json.loads(raw)
                     validate_envelope(envelope)
                     request_id, trace = envelope["id"], envelope.get("meta", {}).get("trace_id")
+                    version = envelope["cvp"]
                     value = worker.dispatch(envelope, self.headers.get("Authorization"))
                     status = 200 if value["ok"] else (401 if value["error"]["code"] == "UNAUTHORIZED" else 422)
-                except (ValueError, CoreviaError, socket.timeout) as error:
-                    value = response(request_id, error={"code": getattr(error, "code", "INVALID_REQUEST"), "message": "Invalid worker request.", "retryable": False}, trace_id=trace)
+                except (ValueError, CoreviaError, socket.timeout, RecursionError) as error:
+                    value = response(request_id, error={"code": getattr(error, "code", "INVALID_REQUEST"), "message": "Invalid worker request.", "retryable": False}, trace_id=trace, version=version)
                     status = 400
                 wire = json.dumps(value, allow_nan=False).encode()
                 if len(wire) > worker.max_bytes:
-                    wire = json.dumps(response(request_id, error={"code": "PAYLOAD_TOO_LARGE", "message": "Worker result too large.", "retryable": False}, trace_id=trace)).encode()
+                    wire = json.dumps(response(request_id, error={"code": "PAYLOAD_TOO_LARGE", "message": "Worker result too large.", "retryable": False}, trace_id=trace, version=version)).encode()
                     status = 413
                 self.send_response(status)
                 self.send_header("Content-Type", "application/json")

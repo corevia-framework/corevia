@@ -1,14 +1,14 @@
 # Corevia
 
-The `main` branch and `v1.0.0` tag preserve V1. The `develop/v2` branch adds the V2 kernel while retaining the V1 flow and protocol APIs. Start with the [V2 kernel guide](docs/v2/kernel.md) and run `php -n examples/v2/kernel.php` for a database-free lifecycle example. See [phase progress](docs/v2/phases.md) and [compatibility](docs/v2/compatibility.md).
+The `main` branch and `v1.0.0` tag preserve V1. The `develop/v2` branch includes the V2 kernel, durable flows, compensation, CVP/2, presence channels, SDKs, and developer tooling while retaining V1 APIs. Start with the [V2 kernel guide](docs/v2/kernel.md), [flow guide](docs/v2/flows.md), and [installation guide](docs/v2/installation.md). Run `php -n examples/v2/kernel.php` for a database-free example. See [milestone progress](docs/v2/phases.md), [migration notes](docs/v2/migration.md), and [release validation](docs/v2/release.md).
 
-A framework-independent PHP 8.2+ runtime for modular actions, observable flows, isolated failures, events, WebSockets and CVP/1 interoperability. PHP core has no third-party runtime dependencies and does not require Node.js, Python, Redis or a broker.
+A standalone PHP 8.2+ framework for modular actions, observable flows, isolated failures, events, WebSockets and CVP/1–2 interoperability. PHP core has no third-party runtime dependencies and does not require Node.js, Python, Redis or a broker.
 
 ## Setup
 
 New to Corevia? Start with the separate [database-free learning project](test-project/README.md). Run `php test-project/console.php serve` and open http://127.0.0.1:8091 to create tasks and inspect each flow step. Its [database guide](test-project/DATABASE.md) explains how to switch task storage to PDO/MySQL later.
 
-Requirements: PHP 8.2+ with JSON and PDO; PDO SQLite for the sample app and persistence adapter. Composer is supported; the included PSR-4 loader also allows immediate local use. Node.js 22+ and Python 3.10+ are needed only for SDKs and cross-language tests.
+Requirements: PHP 8.2+ with JSON. PDO SQLite is optional for the checkout sample and persistence adapter. Composer is supported; the included PSR-4 loader also allows immediate local use. Node.js 22+ and Python 3.10+ are needed only for SDKs and cross-language tests.
 
 ```sh
 composer install

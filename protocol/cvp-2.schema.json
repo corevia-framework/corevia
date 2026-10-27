@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://corevia.local/protocol/cvp-2.schema.json",
+  "title": "Corevia Protocol 2.0",
+  "type": "object",
+  "required": ["cvp", "id"],
+  "properties": {
+    "cvp": {"const": "2.0"},
+    "id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "meta": {
+      "type": "object",
+      "properties": {
+        "trace_id": {"type": ["string", "null"], "minLength": 1, "maxLength": 128},
+        "parent_trace_id": {"type": ["string", "null"], "minLength": 1, "maxLength": 128},
+        "timeout_ms": {"type": "integer", "minimum": 1, "maximum": 300000}
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "required": ["type", "payload"],
+      "not": {"required": ["ok"]},
+      "properties": {
+        "type": {"enum": ["action.call", "action.result", "event", "subscribe", "unsubscribe", "ping", "pong"]},
+        "target": {"type": "string", "minLength": 1, "maxLength": 128},
+        "payload": {"type": ["object", "array"]}
+      },
+      "if": {"properties": {"type": {"enum": ["action.call", "event", "subscribe", "unsubscribe"]}}},
+      "then": {"required": ["target"]}
+    },
+    {
+      "required": ["type", "ok", "result", "error"],
+      "properties": {"type": {"const": "action.result"}, "ok": {"type": "boolean"}},
+      "if": {"properties": {"ok": {"const": true}}},
+      "then": {"properties": {"error": {"type": "null"}}},
+      "else": {"properties": {"error": {"type": "object", "required": ["code", "message", "retryable"], "properties": {"code": {"type": "string"}, "message": {"type": "string"}, "retryable": {"type": "boolean"}}}}}
+    }
+  ]
+}

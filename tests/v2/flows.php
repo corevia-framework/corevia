@@ -15,11 +15,12 @@ final class Flaky implements Action {
     public function handle(State $s, ExecutionContext $c): State { if (++self::$calls < 3) { throw new \RuntimeException('private'); } return $s; }
 }
 final class Slow implements Action { public function handle(State $s, ExecutionContext $c): State { usleep(4000); $s->data['late'] = true; return $s; } }
+final class ResultData implements Action { public function handle(State $s, ExecutionContext $c): ActionResult { return ActionResult::success(['value'=>1]); } }
 final class Fixture implements Module {
     public function __construct(private Flow $flow) {}
     public function name(): string { return 'fixture'; }
     public function dependencies(): array { return []; }
-    public function register(ModuleContext $c): void { $c->actions(['work'=>Work::class,'undo'=>Undo::class,'fail'=>Fail::class,'flaky'=>Flaky::class,'slow'=>Slow::class]); $c->flows([$this->flow]); }
+    public function register(ModuleContext $c): void { $c->actions(['work'=>Work::class,'undo'=>Undo::class,'fail'=>Fail::class,'flaky'=>Flaky::class,'slow'=>Slow::class,'result'=>ResultData::class]); $c->flows([$this->flow]); }
 }
 function check(bool $v): void { if (!$v) { throw new \RuntimeException('Assertion failed'); } }
 function app(Flow $f, ?JsonRunStore $store = null, ?ParallelExecutor $parallel = null): Corevia { $a=Corevia::create(__DIR__, store:$store, logger:new Quiet()); if ($parallel) { $a->container->set(ParallelExecutor::class,$parallel); } $a->modules([new Fixture($f)]); $a->boot(); return $a; }
@@ -49,6 +50,7 @@ $tests['deadline does not commit late output or repeat side effects'] = function
     $a=app(Flow::define('timeout')->step('slow')->timeout(1)->retry(2)); $r=$a->run('timeout',[]); check($r->run['error']['code']==='ACTION_TIMEOUT'); check(!isset($r->run['state']['late'])); check($r->run['steps'][0]['attempts']===1); $a->shutdown();
 };
 $tests['output contract rejects state and parallel needs adapter'] = function (): void {
+    $a=app(Flow::define('result-output')->step('result')->outputs(['missing'])); $r=$a->run('result-output',[]); check($r->run['state']===[]); $a->shutdown();
     $a=app(Flow::define('output')->step('work')->outputs(['missing'])); $r=$a->run('output',[]); check($r->run['error']['code']==='OUTPUT_CONTRACT'); check($r->run['state']===[]); $a->shutdown();
     $a=app(Flow::define('parallel')->parallel(['work','work'])); check($a->run('parallel',[])->run['error']['code']==='PARALLEL_UNAVAILABLE'); $a->shutdown();
 };

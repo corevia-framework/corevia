@@ -19,14 +19,15 @@ const byteLength = text => {
 const types = ['action.call', 'action.result', 'event', 'subscribe', 'unsubscribe', 'ping', 'pong'];
 export function validateEnvelope(value) {
   const visited = new Set();
-  const safe = item => {
+  const safe = (item, depth = 0) => {
+    if (depth > 60) throw new CoreviaError('NON_JSON_VALUE', 'Envelope nesting exceeds the limit.');
     if (item === null || typeof item === 'string' || typeof item === 'boolean') return;
     if (typeof item === 'number' && Number.isFinite(item)) return;
     if (typeof item !== 'object' || (!Array.isArray(item) && ![Object.prototype, null].includes(Object.getPrototypeOf(item))) || visited.has(item)) {
       throw new CoreviaError('NON_JSON_VALUE', 'Envelopes require finite JSON-compatible values.');
     }
     visited.add(item);
-    for (const child of Object.values(item)) safe(child);
+    for (const child of Object.values(item)) safe(child, depth + 1);
     visited.delete(item);
   };
   safe(value);
@@ -57,7 +58,7 @@ export function validateEnvelope(value) {
 
 export class CoreviaClient {
   constructor({ baseUrl, realtimeUrl, token = () => null, timeout = 5000, reconnectDelay = 250, maxReconnectDelay = 10000, maxBytes = 65536, version = '1.0', fetch: fetchImpl = globalThis.fetch, WebSocket: Socket = globalThis.WebSocket }) {
-    if (!baseUrl || timeout <= 0) throw new TypeError('baseUrl and a positive timeout are required.');
+    if (!baseUrl || !Number.isInteger(timeout) || timeout < 1 || timeout > 300000 || !Number.isInteger(maxBytes) || maxBytes < 1 || reconnectDelay < 1 || maxReconnectDelay < reconnectDelay) throw new TypeError('baseUrl, bounded timeout/size and valid reconnect delays are required.');
     Object.assign(this, { baseUrl: baseUrl.replace(/\/$/, ''), realtimeUrl, token, timeout, reconnectDelay, maxReconnectDelay, maxBytes, fetchImpl, Socket });
     if (!['1.0', '2.0'].includes(version)) throw new TypeError('Unsupported protocol version.');
     this.version = version;

@@ -1,5 +1,11 @@
 # Local validation results
 
+## V2 remaining milestones — 28 October 2026
+
+The local release gate passed: 21 original PHP tests, 14 kernel tests, 8 flow groups, 13 shared CVP/2 fixtures, process timeout/crash checks, queue/upgrade/query/security checks, and the original database-free learning app and SQLite adapter tests. JavaScript passed 9 tests and Python 7; Dart static analysis, shared fixtures, authenticated HTTP and realtime reconnect checks passed using a workspace-local official SDK. Live CVP/2 JS→PHP→Python and presence/wildcard/heartbeat checks passed, as did the original 8 cross-process groups and 4 learning HTTP/CLI groups. PHP lint passed for 108 source/test files.
+
+Real clean Composer installs from committed archives passed for the skeleton and standalone core package, with PDO-disabled smoke tests. These use local path repositories; public packages are not published. The reachable-history credential-pattern scan is recorded separately and is not an exhaustive secret audit. Hosted CI and owner acceptance remain separate release gates. See `v2/release.md` for operational boundaries and the review report.
+
 ## V2 M1 validation — 4 October 2026
 
 All local checks passed on `develop/v2`: 21 existing PHP tests, 14 new kernel tests with PHP extensions disabled, 8 database-free learning-app tests, the optional SQLite task adapter test, 7 JavaScript SDK tests, 5 Python SDK tests, 8 cross-process integration groups, and 4 learning HTTP/CLI groups. Syntax validation passed for 87 PHP files. Composer metadata validation passed with a process-local Git safe-directory setting because the sandbox-created repository and local shell have different owners.
