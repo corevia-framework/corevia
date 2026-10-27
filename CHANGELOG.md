@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.0 — release preparation
+
+- Add named lazy SQL/document connections, prepared query builder, nested transactions and explicit portable SQL flow-store migration for MySQL, PostgreSQL and SQLite.
+- Add optional native MongoDB and local JSON document adapters with a shared contract and extensible connectors.
+- Add a database-free responsive starter website, web routes file, controllers, escaped PHP views, named URL generation, groups, constraints, resource routes and safe local redirects.
+- Add signed CSRF middleware, validation examples, HTML/HEAD responses and database CLI commands.
+- Add real database-service CI contracts and live starter-page/form tests.
+
 ## Unreleased — V2 M2/M3
 
 - Add durable pause/resume, event and human checkpoints, compensation records, retry policies, output contracts, and cooperative action deadlines.

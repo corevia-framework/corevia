@@ -4,7 +4,7 @@
   "type": "project",
   "license": "MIT",
   "require": {"php": ">=8.2", "ext-json": "*"},
-  "suggest": {"ext-pdo": "Required only for optional PDO adapters and the SQLite checkout demonstration", "ext-pdo_sqlite": "Runs the optional SQLite checkout demonstration"},
+  "suggest": {"ext-pdo": "Required only for optional SQL adapters", "ext-pdo_sqlite": "SQLite connections and the checkout demonstration", "ext-pdo_mysql": "MySQL/MariaDB connections", "ext-pdo_pgsql": "PostgreSQL connections", "ext-mongodb": "Optional MongoDB document storage"},
   "autoload": {"psr-4": {"Corevia\\Core\\": "packages/core/src/", "Corevia\\Http\\": "packages/http/src/", "Corevia\\Protocol\\": "packages/protocol/src/", "Corevia\\Persistence\\": "packages/persistence-pdo/src/", "Corevia\\Realtime\\": "packages/realtime/src/", "Corevia\\Cli\\": "packages/cli/src/", "App\\": "app/"}},
   "scripts": {"test": "@php corevia test", "lint": "@php tests/lint.php"},
   "bin": ["corevia"]

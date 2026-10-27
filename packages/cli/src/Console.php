@@ -6,6 +6,7 @@ namespace Corevia\Cli;
 
 use Corevia\Realtime\{Server, SocketBroadcaster};
 use Corevia\Core\{ConfigRepository, JobQueue};
+use Corevia\Persistence\{DatabaseManager,SqlConnection,SqlRunStore};
 
 final readonly class Console
 {
@@ -24,6 +25,18 @@ final readonly class Console
             }
         }
         try {
+            if(in_array($command,['route:list','db:status','db:check','db:migrate'],true)){
+                if($command==='route:list'){$bootstrap=require $this->basePath.'/config/web.php';$runtime=$bootstrap($this->basePath);$app=$runtime['app'];$this->print($runtime['router']->routes());return 0;}
+                $environment=getenv('APP_ENV') ?: 'development';$storage=getenv('COREVIA_STORAGE') ?: $this->basePath.'/storage';
+                $configuration=ConfigRepository::load($this->basePath.'/config/settings',$environment,$storage.'/config-'.$environment.'.json');
+                $database=new DatabaseManager($configuration->get('database',[]));
+                if($command==='db:status'){$this->print(['configured'=>$database->configured(),'pdo_drivers'=>class_exists(\PDO::class)?\PDO::getAvailableDrivers():[],'mongodb_extension'=>extension_loaded('mongodb')]);return 0;}
+                $name=$argv[2] ?? null;
+                if($command==='db:migrate'){$store=new SqlRunStore($database->sql($name));$store->migrate();echo "Framework run-store tables are ready.\n";return 0;}
+                $connection=$database->connection($name);
+                if($connection instanceof SqlConnection){$connection->select('SELECT 1');}else{$connection->find('corevia_connection_check',[],1);}
+                $this->print(['connected'=>true,'connection'=>$name ?? 'default']);return 0;
+            }
             if ($command === 'about') {
                 $this->print(['framework'=>'Corevia','version'=>'2.0.0-alpha.2','protocols'=>['1.0','2.0'],'php'=>PHP_VERSION,'database'=>'optional; checkout demo uses SQLite']); return 0;
             }
@@ -42,7 +55,7 @@ final readonly class Console
             }
             if ($command === 'test') {
                 $status=0;
-                foreach (['tests/run.php','tests/v2/kernel.php','tests/v2/flows.php','tests/v2/protocol.php','tests/v2/tooling.php','tests/v2/upgrade.php','tests/v2/diagnostics.php','tests/v2/security.php'] as $test) {
+                foreach (['tests/run.php','tests/v2/kernel.php','tests/v2/flows.php','tests/v2/protocol.php','tests/v2/tooling.php','tests/v2/upgrade.php','tests/v2/diagnostics.php','tests/v2/security.php','tests/features/databases.php','tests/features/web.php'] as $test) {
                     passthru(escapeshellarg(PHP_BINARY).' '.escapeshellarg($this->basePath.'/'.$test),$code); if ($code!==0) { $status=1; }
                 }
                 return $status;
@@ -52,6 +65,7 @@ final readonly class Console
                 passthru('composer outdated --direct --format=json --working-dir='.escapeshellarg($this->basePath),$code); return $code;
             }
             if ($command === 'help') {
+                echo "Web starter: route:list | db:status | db:check <connection> | db:migrate <connection>\n";
                 echo "Corevia V2\n\nserve [--host=127.0.0.1 --port=8081]\nabout | routes | modules | flow:list | doctor\nflow:run <name> --input=file.json [--key=key]\nflow:show <run-id> | flow:inspect <run-id>\nflow:retry <run-id> <zero-based-step-index>\nflow:resume <run-id> [--event=name]\nrealtime:start [--host=127.0.0.1 --port=8080]\nrealtime:stop\nworker:start [--once] | worker:dispatch <flow> --input=file.json [--delay=seconds]\nmake:module <Name> | make:action <Name> | make:flow <Name> | make:event <Name>\nconfig:cache | cache:clear [--env=development]\ntest | upgrade:check | update:check [--offline]\n";
                 return 0;
             }

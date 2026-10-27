@@ -10,13 +10,16 @@ use App\Payments\PaymentsModule;
 use App\Shared\DemoLedger;
 use Corevia\Core\{ConfigRepository, Corevia, JsonLogger, RunStore};
 use Corevia\Http\{Request, Router};
-use Corevia\Persistence\PdoRunStore;
+use Corevia\Persistence\{DatabaseManager,PdoRunStore};
 use Corevia\Protocol\RemoteAction;
 use Corevia\Realtime\{Broadcaster, SocketBroadcaster};
 
 require_once dirname(__DIR__) . '/autoload.php';
 
 return static function (string $basePath): array {
+    if(!class_exists(PDO::class) || !in_array('sqlite',PDO::getAvailableDrivers(),true)){
+        $web=require $basePath.'/config/web.php';return $web($basePath);
+    }
     $storage = getenv('COREVIA_STORAGE') ?: $basePath . '/storage';
     if (!is_dir($storage) && !mkdir($storage, 0700, true) && !is_dir($storage)) {
         throw new RuntimeException('Cannot create storage.');
@@ -40,6 +43,9 @@ return static function (string $basePath): array {
     $environment = getenv('APP_ENV') ?: 'development';
     $configuration = ConfigRepository::load($basePath . '/config/settings', $environment, $storage . '/config-' . $environment . '.json');
     $app = Corevia::create($basePath, $store, $logger, $configuration);
+    $database=new DatabaseManager($configuration->get('database',[]));
+    $app->container->set(DatabaseManager::class,$database);
+    $app->onShutdown(static fn()=>$database->disconnect());
     $ledger = new DemoLedger($pdo);
     $controlPort = (int) (getenv('COREVIA_CONTROL_PORT') ?: 8082);
     $broadcast = new SocketBroadcaster($secret, $controlPort);

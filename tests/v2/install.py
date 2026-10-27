@@ -36,6 +36,7 @@ application = directory / 'application'
 run(composer + ['create-project', '--no-interaction', '--no-progress', '--no-scripts', '--repository=' + json.dumps(repository), 'corevia-framework/corevia', str(application), '2.0.0-alpha.2'])
 run([php, '-n', 'corevia', 'about'], application)
 run([php, '-n', 'test-project/tests/run.php'], application)
+run([php, '-n', 'tests/features/web.php'], application)
 core_project = directory / 'core-only'
 core_project.mkdir()
 manifest = {'name': 'corevia-install-test/core-only', 'require': {'corevia-framework/core': '2.0.0-alpha.2'}, 'repositories': [{'type': 'path', 'url': str(source / 'packages/core'), 'options': {'symlink': False, 'versions': {'corevia-framework/core': '2.0.0-alpha.2'}}}]}
