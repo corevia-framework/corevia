@@ -30,26 +30,38 @@ export function validateEnvelope(value) {
     visited.delete(item);
   };
   safe(value);
-  if (!value || Array.isArray(value) || value.cvp !== '1.0' || typeof value.id !== 'string' || !value.id || value.id.length > 128) {
+  if (!value || Array.isArray(value) || !['1.0', '2.0'].includes(value.cvp) || typeof value.id !== 'string' || !value.id || value.id.length > 128) {
     throw new CoreviaError('INVALID_ENVELOPE', 'Invalid CVP/1 envelope.');
   }
   if (value.meta != null && (typeof value.meta !== 'object' || Array.isArray(value.meta) || (value.meta.trace_id != null && (typeof value.meta.trace_id !== 'string' || value.meta.trace_id.length > 128)))) {
     throw new CoreviaError('INVALID_META', 'Invalid metadata.');
   }
   if ('ok' in value) {
+    if (value.cvp === '2.0' && value.type !== 'action.result') throw new CoreviaError('INVALID_MESSAGE_TYPE', 'Invalid response type.');
     if (typeof value.ok !== 'boolean' || !('result' in value) || !('error' in value) || (value.ok && value.error !== null) || (!value.ok && (typeof value.error?.code !== 'string' || typeof value.error?.message !== 'string' || typeof value.error?.retryable !== 'boolean'))) {
       throw new CoreviaError('INVALID_RESPONSE', 'Invalid CVP response.');
     }
   } else if (!types.includes(value.type) || !value.payload || typeof value.payload !== 'object' || (['action.call', 'event', 'subscribe', 'unsubscribe'].includes(value.type) && (typeof value.target !== 'string' || !value.target || value.target.length > 128))) {
     throw new CoreviaError('INVALID_ENVELOPE', 'Invalid CVP message.');
   }
+  if (value.cvp === '2.0') {
+    for (const key of ['trace_id', 'parent_trace_id']) {
+      const v = value.meta?.[key];
+      if (v != null && (typeof v !== 'string' || !v || v.length > 128)) throw new CoreviaError('INVALID_META', 'Invalid trace metadata.');
+    }
+    const timeout = value.meta?.timeout_ms ?? 5000;
+    if (!Number.isInteger(timeout) || timeout < 1 || timeout > 300000) throw new CoreviaError('INVALID_TIMEOUT', 'Invalid timeout.');
+  }
   return value;
 }
 
 export class CoreviaClient {
-  constructor({ baseUrl, realtimeUrl, token = () => null, timeout = 5000, reconnectDelay = 250, maxReconnectDelay = 10000, maxBytes = 65536, fetch: fetchImpl = globalThis.fetch, WebSocket: Socket = globalThis.WebSocket }) {
+  constructor({ baseUrl, realtimeUrl, token = () => null, timeout = 5000, reconnectDelay = 250, maxReconnectDelay = 10000, maxBytes = 65536, version = '1.0', fetch: fetchImpl = globalThis.fetch, WebSocket: Socket = globalThis.WebSocket }) {
     if (!baseUrl || timeout <= 0) throw new TypeError('baseUrl and a positive timeout are required.');
     Object.assign(this, { baseUrl: baseUrl.replace(/\/$/, ''), realtimeUrl, token, timeout, reconnectDelay, maxReconnectDelay, maxBytes, fetchImpl, Socket });
+    if (!['1.0', '2.0'].includes(version)) throw new TypeError('Unsupported protocol version.');
+    this.version = version;
+    if (typeof this.token !== 'function') { const fixed = this.token; this.token = () => fixed; }
     this.channels = new Map();
     this.errorHandlers = new Set();
     this.socket = null;
@@ -60,11 +72,11 @@ export class CoreviaClient {
   }
 
   envelope(type, target, payload = {}) {
-    return { cvp: '1.0', id: id(), type, target, payload, meta: { trace_id: id() } };
+    return { cvp: this.version, id: id(), type, target, payload, meta: { trace_id: id(), ...(this.version === '2.0' ? { timeout_ms: this.timeout } : {}) } };
   }
 
-  async call(target, payload, { traceId = id(), requestId = id(), signal } = {}) {
-    const envelope = { ...this.envelope('action.call', target, payload), id: requestId, meta: { trace_id: traceId } };
+  async call(target, payload, { traceId = id(), requestId = id(), parentTraceId, signal } = {}) {
+    const envelope = { ...this.envelope('action.call', target, payload), id: requestId, meta: { trace_id: traceId, ...(this.version === '2.0' ? { timeout_ms: this.timeout, ...(parentTraceId ? { parent_trace_id: parentTraceId } : {}) } : {}) } };
     validateEnvelope(envelope);
     const controller = new AbortController();
     const relay = () => controller.abort();
@@ -86,7 +98,7 @@ export class CoreviaClient {
         if (byteLength(text) > this.maxBytes) throw new CoreviaError('PAYLOAD_TOO_LARGE', 'Response exceeds maximum size.');
         let value;
         try { value = validateEnvelope(JSON.parse(text)); } catch { throw new CoreviaError('PROTOCOL_ERROR', 'Invalid server response.', { requestId, traceId }); }
-        if (value.id !== requestId || typeof value.ok !== 'boolean') throw new CoreviaError('PROTOCOL_ERROR', 'Response request id does not match.', { requestId, traceId });
+        if (value.id !== requestId || value.cvp !== this.version || typeof value.ok !== 'boolean') throw new CoreviaError('PROTOCOL_ERROR', 'Response request id or version does not match.', { requestId, traceId });
         if (!value.ok) throw new CoreviaError(value.error.code, value.error.message, { retryable: value.error.retryable, requestId, traceId: value.meta?.trace_id ?? traceId });
         if (!response.ok) throw new CoreviaError('HTTP_ERROR', `HTTP ${response.status}`, { requestId, traceId });
         return { data: value.result, requestId: value.id, traceId: value.meta?.trace_id ?? traceId };
@@ -99,6 +111,8 @@ export class CoreviaClient {
       signal?.removeEventListener('abort', relay);
     }
   }
+
+  action(target, payload, options) { return this.call(target, payload, options); }
 
   onError(handler) { this.errorHandlers.add(handler); return () => this.errorHandlers.delete(handler); }
   report(error) { for (const handler of this.errorHandlers) handler(error); }
@@ -123,8 +137,10 @@ export class CoreviaClient {
         const message = validateEnvelope(JSON.parse(data));
         if ('ok' in message && !message.ok) this.report(new CoreviaError(message.error.code, message.error.message, { requestId: message.id, traceId: message.meta?.trace_id, retryable: message.error.retryable }));
         if (message.type === 'event') {
-          const handlers = this.channels.get(message.target)?.get(message.payload.event);
-          for (const handler of handlers ?? []) handler(message.payload.data, message);
+          for (const [name, events] of this.channels) {
+            const matches = name === message.target || (name.endsWith('.*') && !/^(private-|presence-)/.test(message.target) && message.target.startsWith(name.slice(0, -1)));
+            if (matches) for (const handler of events.get(message.payload.event) ?? []) handler(message.payload.data, message);
+          }
         }
         if (message.type === 'ping') this.send({ ...this.envelope('pong', '', {}), id: message.id });
       } catch (error) { this.report(error instanceof CoreviaError ? error : new CoreviaError('PROTOCOL_ERROR', 'Invalid realtime message.')); }
@@ -158,7 +174,7 @@ export class CoreviaClient {
   }
 
   channel(name) {
-    if (!/^[a-zA-Z0-9_.:-]{1,128}$/.test(name)) throw new TypeError('Invalid channel name.');
+    if (!/^[a-zA-Z0-9_.:*-]{1,128}$/.test(name) || (name.includes('*') && (!name.endsWith('.*') || name.slice(0, -1).includes('*') || /^(private-|presence-)/.test(name)))) throw new TypeError('Invalid channel name.');
     if (!this.channels.has(name)) {
       this.channels.set(name, new Map());
       if (this.socket?.readyState === 1) this.subscribe(name);
@@ -190,4 +206,9 @@ export class CoreviaClient {
     this.socket?.close();
     this.socket = null;
   }
+}
+
+/** V2 entry point; the CoreviaClient constructor retains the V1 default. */
+export function createCorevia({ baseURL, ...options }) {
+  return new CoreviaClient({ ...options, baseUrl: baseURL ?? options.baseUrl, version: options.version ?? '2.0' });
 }

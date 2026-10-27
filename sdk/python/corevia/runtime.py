@@ -4,6 +4,7 @@ import logging
 import math
 import socket
 import uuid
+from functools import partial
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
@@ -20,11 +21,20 @@ class CoreviaError(Exception):
 
 
 def validate_envelope(value):
-    if not isinstance(value, dict) or value.get("cvp") != "1.0" or not isinstance(value.get("id"), str) or not 0 < len(value["id"]) <= 128:
+    if not isinstance(value, dict) or value.get("cvp") not in {"1.0", "2.0"} or not isinstance(value.get("id"), str) or not 0 < len(value["id"]) <= 128:
         raise CoreviaError("INVALID_ENVELOPE", "Invalid CVP/1 envelope.")
     meta = value.get("meta", {})
     if not isinstance(meta, dict) or (meta.get("trace_id") is not None and (not isinstance(meta["trace_id"], str) or len(meta["trace_id"]) > 128)):
         raise CoreviaError("INVALID_META", "Invalid metadata.")
+    if value["cvp"] == "2.0":
+        for key in ("trace_id", "parent_trace_id"):
+            if meta.get(key) is not None and (not isinstance(meta[key], str) or not 0 < len(meta[key]) <= 128):
+                raise CoreviaError("INVALID_META", "Invalid trace metadata.")
+        timeout = meta.get("timeout_ms", 5000)
+        if type(timeout) is not int or not 1 <= timeout <= 300000:
+            raise CoreviaError("INVALID_TIMEOUT", "Invalid timeout.")
+        if "ok" in value and value.get("type") != "action.result":
+            raise CoreviaError("INVALID_MESSAGE_TYPE", "Invalid response type.")
     if "ok" in value:
         error = value.get("error")
         if not isinstance(value["ok"], bool) or "result" not in value or "error" not in value or (value["ok"] and error is not None) or (not value["ok"] and (not isinstance(error, dict) or not isinstance(error.get("code"), str) or not isinstance(error.get("message"), str) or not isinstance(error.get("retryable"), bool))):
@@ -42,8 +52,13 @@ def validate_envelope(value):
     return value
 
 
-def response(request_id, result=None, error=None, trace_id=None):
-    return {"cvp": "1.0", "id": request_id, "ok": error is None, "result": result, "error": error, "meta": {"trace_id": trace_id}}
+def response(request_id, result=None, error=None, trace_id=None, version="1.0", parent_trace_id=None):
+    value = {"cvp": version, "id": request_id, "ok": error is None, "result": result, "error": error, "meta": {"trace_id": trace_id}}
+    if version == "2.0":
+        value["type"] = "action.result"
+        if parent_trace_id is not None:
+            value["meta"]["parent_trace_id"] = parent_trace_id
+    return value
 
 
 class Worker:
@@ -71,24 +86,25 @@ class Worker:
         validate_envelope(envelope)
         trace = envelope.get("meta", {}).get("trace_id")
         target = envelope.get("target")
+        reply = partial(response, version=envelope["cvp"], parent_trace_id=envelope.get("meta", {}).get("parent_trace_id"))
         try:
             permitted = self.authorize(authorization, target) if self.authorize else (self.token is None or hmac.compare_digest(authorization or "", "Bearer " + self.token))
         except Exception as error:
             logging.getLogger("corevia").error("Authorization failed exception=%s", type(error).__name__)
             permitted = False
         if not permitted:
-            return response(envelope["id"], error={"code": "UNAUTHORIZED", "message": "Unauthorized.", "retryable": False}, trace_id=trace)
+            return reply(envelope["id"], error={"code": "UNAUTHORIZED", "message": "Unauthorized.", "retryable": False}, trace_id=trace)
         if envelope.get("type") != "action.call" or target not in self.actions:
-            return response(envelope["id"], error={"code": "ACTION_NOT_FOUND", "message": "Action not registered.", "retryable": False}, trace_id=trace)
+            return reply(envelope["id"], error={"code": "ACTION_NOT_FOUND", "message": "Action not registered.", "retryable": False}, trace_id=trace)
         try:
             result = self.actions[target](envelope["payload"])
             json.dumps(result, allow_nan=False)
-            return response(envelope["id"], result, trace_id=trace)
+            return reply(envelope["id"], result, trace_id=trace)
         except CoreviaError as error:
-            return response(envelope["id"], error={"code": error.code, "message": str(error), "retryable": error.retryable}, trace_id=trace)
+            return reply(envelope["id"], error={"code": error.code, "message": str(error), "retryable": error.retryable}, trace_id=trace)
         except Exception as error:
             logging.getLogger("corevia").error("Action failed target=%s trace_id=%s exception=%s", target, trace, type(error).__name__)
-            return response(envelope["id"], error={"code": "ACTION_EXCEPTION", "message": "Worker action failed.", "retryable": False}, trace_id=trace)
+            return reply(envelope["id"], error={"code": "ACTION_EXCEPTION", "message": "Worker action failed.", "retryable": False}, trace_id=trace)
 
     def run(self):
         worker = self
@@ -143,14 +159,21 @@ class Worker:
 
 
 class Client:
-    def __init__(self, base_url, token=None, timeout=5.0, max_bytes=65536):
+    def __init__(self, base_url, token=None, timeout=5.0, max_bytes=65536, version="1.0"):
         if timeout <= 0 or urlparse(base_url).scheme not in {"http", "https"}:
             raise ValueError("HTTP(S) URL and positive timeout required.")
         self.base_url, self.token, self.timeout, self.max_bytes = base_url.rstrip("/"), token, timeout, max_bytes
+        if version not in {"1.0", "2.0"}:
+            raise ValueError("Unsupported protocol version.")
+        self.version = version
 
-    def call(self, target, payload, trace_id=None, request_id=None):
+    def call(self, target, payload, trace_id=None, request_id=None, parent_trace_id=None):
         request_id, trace_id = request_id or str(uuid.uuid4()), trace_id or str(uuid.uuid4())
-        envelope = {"cvp": "1.0", "id": request_id, "type": "action.call", "target": target, "payload": payload, "meta": {"trace_id": trace_id}}
+        envelope = {"cvp": self.version, "id": request_id, "type": "action.call", "target": target, "payload": payload, "meta": {"trace_id": trace_id}}
+        if self.version == "2.0":
+            envelope["meta"]["timeout_ms"] = max(1, int(self.timeout * 1000))
+            if parent_trace_id is not None:
+                envelope["meta"]["parent_trace_id"] = parent_trace_id
         validate_envelope(envelope)
         wire = json.dumps(envelope, allow_nan=False).encode()
         if len(wire) > self.max_bytes:
@@ -170,7 +193,7 @@ class Client:
             if len(raw) > self.max_bytes:
                 raise CoreviaError("PAYLOAD_TOO_LARGE", "Response too large.")
             value = validate_envelope(json.loads(raw))
-            if value["id"] != request_id or "ok" not in value:
+            if value["id"] != request_id or value["cvp"] != self.version or "ok" not in value:
                 raise CoreviaError("PROTOCOL_ERROR", "Mismatched response.")
             if not value["ok"]:
                 raise CoreviaError(value["error"]["code"], value["error"]["message"], value["error"]["retryable"], request_id, trace_id)
