@@ -91,8 +91,12 @@ final class ModuleRegistry
             }
             foreach ($context->registeredFlows as $flow) {
                 foreach ($flow->steps as $step) {
-                    if (!isset($permitted[$step->action]) && !in_array($step->action, $permitted, true)) {
-                        throw new \RuntimeException('Undeclared action dependency: ' . $step->action);
+                    $referenced = $step->checkpoint !== null ? [] : ($step->parallelActions ?: [$step->action]);
+                    if ($step->compensation !== null) { $referenced[] = $step->compensation; }
+                    foreach ($referenced as $action) {
+                        if (!isset($permitted[$action]) && !in_array($action, $permitted, true)) {
+                            throw new \RuntimeException('Undeclared action dependency: ' . $action);
+                        }
                     }
                 }
             }

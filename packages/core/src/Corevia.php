@@ -99,7 +99,7 @@ final class Corevia
                 $this->events->on($event, $handler);
             }
         }
-        $this->engine = new FlowEngine(new ActionRunner($this->container), $this->store, $this->events, $this->logger, $this->actions);
+        $this->engine = new FlowEngine(new ActionRunner($this->container), $this->store, $this->events, $this->logger, $this->actions, $this->container->has(ParallelExecutor::class) ? $this->container->get(ParallelExecutor::class) : null);
     }
 
     public function flows(): array
@@ -124,6 +124,13 @@ final class Corevia
         $this->kernel->assertReady();
         $run = $this->store->get($runId) ?? throw new \OutOfBoundsException('Run not found.');
         return ($this->engine ?? throw new \LogicException('Boot first.'))->retry($this->flow($run['flow_name']), $runId, $step);
+    }
+
+    public function resume(string $runId, ?string $event = null): FlowResult
+    {
+        $this->kernel->assertReady();
+        $run = $this->store->get($runId) ?? throw new \OutOfBoundsException('Run not found.');
+        return $this->engine->resume($this->flow($run['flow_name']), $runId, $event);
     }
 
     public function call(string $name, array $input, string $traceId, string $requestId): ActionResult
