@@ -8,16 +8,17 @@ use Corevia\Core\ActionResult;
 
 final class RemoteAction
 {
-    public function __construct(private readonly string $url, private readonly ?string $token = null, private readonly float $timeout = 5.0, private readonly Protocol $protocol = new Protocol())
+    public function __construct(private readonly string $url, private readonly ?string $token = null, private readonly float $timeout = 5.0, private readonly Protocol $protocol = new Protocol(), private readonly string $version = Protocol::VERSION, private readonly ?\Closure $sign = null)
     {
-        if ($timeout <= 0 || !in_array(parse_url($url, PHP_URL_SCHEME), ['http', 'https'], true)) {
+        if ($timeout <= 0 || $timeout > 300 || !in_array($version, Protocol::SUPPORTED, true) || !in_array(parse_url($url, PHP_URL_SCHEME), ['http', 'https'], true)) {
             throw new \InvalidArgumentException('Remote calls require HTTP(S) and a positive timeout.');
         }
     }
 
-    public function call(string $name, array $payload, ?string $traceId = null, ?string $requestId = null): ActionResult
+    public function call(string $name, array $payload, ?string $traceId = null, ?string $requestId = null, ?string $parentTraceId = null): ActionResult
     {
-        $request = Protocol::request('action.call', $name, $payload, $requestId, $traceId);
+        $request = Protocol::request('action.call', $name, $payload, $requestId, $traceId, $this->version, $parentTraceId, max(1, (int) ($this->timeout * 1000)));
+        $wire = $this->protocol->encode($request);
         $headers = "Content-Type: application/json\r\n";
         if ($this->token !== null) {
             if (preg_match('/[\r\n]/', $this->token)) {
@@ -25,7 +26,13 @@ final class RemoteAction
             }
             $headers .= 'Authorization: Bearer ' . $this->token . "\r\n";
         }
-        $context = stream_context_create(['http' => ['method' => 'POST', 'header' => $headers, 'content' => $this->protocol->encode($request), 'timeout' => $this->timeout, 'ignore_errors' => true, 'follow_location' => 0]]);
+        if ($this->sign !== null) {
+            foreach (($this->sign)($wire) as $name => $value) {
+                if (!is_string($name) || !preg_match('/^[A-Za-z0-9-]+$/D', $name) || !is_string($value) || preg_match('/[\r\n]/', $value)) { return ActionResult::failure('INVALID_AUTH', 'Invalid signature headers.'); }
+                $headers .= $name . ': ' . $value . "\r\n";
+            }
+        }
+        $context = stream_context_create(['http' => ['method' => 'POST', 'header' => $headers, 'content' => $wire, 'timeout' => $this->timeout, 'ignore_errors' => true, 'follow_location' => 0]]);
         set_error_handler(static function (): bool { return true; });
         try {
             $stream = fopen($this->url, 'rb', false, $context);
@@ -45,7 +52,7 @@ final class RemoteAction
         }
         try {
             $response = $this->protocol->decode($raw);
-            if ($response['id'] !== $request['id'] || !array_key_exists('ok', $response)) {
+            if ($response['id'] !== $request['id'] || $response['cvp'] !== $this->version || !array_key_exists('ok', $response)) {
                 throw new \InvalidArgumentException('Mismatched response.');
             }
             return $response['ok'] ? ActionResult::success($response['result']) : ActionResult::failure($response['error']['code'], $response['error']['message'], $response['error']['retryable']);

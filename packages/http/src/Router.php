@@ -29,7 +29,7 @@ final class Router
     {
         return $this->add($method, $path, function (Request $request) use ($flow): Response {
             $result = $this->app->run($flow, $request->json(), $request->header('idempotency-key') ?: null, $request->header('x-trace-id'), $request->header('x-request-id'));
-            $status = match ($result->status()) { 'failed' => 422, 'running' => 202, default => 200 };
+            $status = match ($result->status()) { 'failed' => 422, 'running', 'paused', 'compensating' => 202, default => 200 };
             $envelope = Protocol::response($request->header('x-request-id'), $result->status() === 'failed' ? ActionResult::failure($result->run['error']['code'], $result->run['error']['message'], $result->run['error']['retryable']) : ActionResult::success($result->run), $request->header('x-trace-id'));
             $envelope['result'] = $result->run;
             return new Response($envelope, $status);
@@ -43,10 +43,10 @@ final class Router
             $envelope = (new Protocol($this->maxBytes))->decode($request->body);
             $trace = $envelope['meta']['trace_id'] ?? $request->header('x-trace-id');
             if (($envelope['type'] ?? '') !== 'action.call' || !in_array($envelope['target'], $allowlist, true) || !$authorize($request, $envelope['target'])) {
-                return new Response(Protocol::response($envelope['id'], ActionResult::failure('FORBIDDEN', 'Action call is not authorized.'), $trace), 403);
+                return new Response(Protocol::response($envelope['id'], ActionResult::failure('FORBIDDEN', 'Action call is not authorized.'), $trace, $envelope['cvp']), 403);
             }
             $result = $this->app->call($envelope['target'], $envelope['payload'], $trace, $envelope['id']);
-            return new Response(Protocol::response($envelope['id'], $result, $trace), $result->ok ? 200 : 422);
+            return new Response(Protocol::response($envelope['id'], $result, $trace, $envelope['cvp'], $envelope['meta']['parent_trace_id'] ?? null), $result->ok ? 200 : 422);
         });
     }
 
