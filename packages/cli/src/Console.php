@@ -141,7 +141,7 @@ final readonly class Console
                     if ($probe) {
                         fclose($probe);
                     }
-                    echo "Protocol versions            1.0, 2.0\n";
+                    echo "Protocol version             1.0 (also supports 2.0)\n";
                     echo 'Fraud runtime                ' . (getenv('COREVIA_FRAUD_URL') ? 'remote HTTP (start Python worker)' : 'local demo rule') . PHP_EOL;
                     foreach ($app->registry->health() as $name => $health) {
                         $ok = $ok && $health['status'] === 'healthy';

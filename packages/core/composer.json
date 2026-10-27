@@ -1,0 +1,8 @@
+{
+  "name": "corevia-framework/core",
+  "description": "Corevia standalone kernel, actions, durable flows and module runtime",
+  "type": "library",
+  "license": "MIT",
+  "require": {"php": ">=8.2", "ext-json": "*"},
+  "autoload": {"psr-4": {"Corevia\\Core\\": "src/"}}
+}

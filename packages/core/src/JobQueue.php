@@ -14,10 +14,11 @@ final class JobQueue
         if ($flow === '') { throw new \InvalidArgumentException('Flow is required.'); }
         $id = bin2hex(random_bytes(16));
         $job = ['id'=>$id,'flow'=>$flow,'input'=>$input,'not_before'=>$notBefore ?? time(),'status'=>'pending'];
+        if (strlen(json_encode($job,JSON_THROW_ON_ERROR))>1048576) { throw new \LengthException('Job exceeds 1MiB.'); }
         $path=$this->directory.'/'.$id.'.json';
         $file=fopen($path,'x+b');
         if ($file===false) { throw new \RuntimeException('Cannot create job.'); }
-        try { chmod($path,0600); $this->write($file,$job); } finally { fclose($file); }
+        try { if (!flock($file,LOCK_EX)) { throw new \RuntimeException('Cannot lock new job.'); } chmod($path,0600); $this->write($file,$job); } finally { flock($file,LOCK_UN); fclose($file); }
         return $id;
     }
     private function write($file, array $job): void

@@ -76,14 +76,14 @@ final class Protocol
         }
     }
 
-    private function jsonSafe(mixed $value): void
+    private function jsonSafe(mixed $value, int $depth = 0): void
     {
-        if (is_object($value) || is_resource($value) || (is_float($value) && !is_finite($value))) {
+        if ($depth > 60 || is_object($value) || is_resource($value) || (is_float($value) && !is_finite($value))) {
             throw new \InvalidArgumentException('NON_JSON_VALUE');
         }
         if (is_array($value)) {
             foreach ($value as $item) {
-                $this->jsonSafe($item);
+                $this->jsonSafe($item, $depth + 1);
             }
         }
     }

@@ -10,7 +10,7 @@ final class JsonRunStore implements RunStore
     {
         if (!is_dir(dirname($path))) { throw new \InvalidArgumentException('Create a private run-store directory first.'); }
     }
-    private function transaction(callable $operation): mixed
+    private function transaction(callable $operation, bool $write = true): mixed
     {
         $lock = fopen($this->path . '.lock', 'c+b');
         if ($lock === false || !flock($lock, LOCK_EX)) { throw new \RuntimeException('Cannot lock run store.'); }
@@ -22,6 +22,7 @@ final class JsonRunStore implements RunStore
                 if (!is_array($data['runs'] ?? null) || !is_array($data['keys'] ?? null)) { throw new \RuntimeException('Invalid run store.'); }
             }
             $result = $operation($data);
+            if (!$write) { return $result; }
             $json = json_encode($data, JSON_THROW_ON_ERROR);
             if (strlen($json) > 16777216) { throw new \LengthException('Run store exceeds 16MiB.'); }
             $temporary = $this->path . '.' . bin2hex(random_bytes(8)) . '.tmp';
@@ -42,7 +43,7 @@ final class JsonRunStore implements RunStore
         });
     }
     public function save(array $run): void { $this->transaction(function (array &$data) use ($run): void { $data['runs'][$run['run_id']] = $run; }); }
-    public function get(string $runId): ?array { return $this->transaction(fn (array $data): ?array => $data['runs'][$runId] ?? null); }
+    public function get(string $runId): ?array { return $this->transaction(fn (array $data): ?array => $data['runs'][$runId] ?? null, false); }
     public function lock(string $runId): bool
     {
         if (isset($this->leases[$runId])) { return false; }
