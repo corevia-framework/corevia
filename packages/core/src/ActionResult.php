@@ -6,7 +6,7 @@ namespace Corevia\Core;
 
 final readonly class ActionResult implements \JsonSerializable
 {
-    private function __construct(public bool $ok, public mixed $data, public ?Error $error)
+    private function __construct(public bool $ok, public mixed $data, public ?Error $error, public array $metadata = [])
     {
     }
 
@@ -15,9 +15,9 @@ final readonly class ActionResult implements \JsonSerializable
         return new self(true, $data, null);
     }
 
-    public static function failure(string $code, string $message, bool $retryable = false): self
+    public static function failure(string $code, string $message, bool $retryable = false, array $metadata = []): self
     {
-        return new self(false, null, new Error($code, $message, $retryable));
+        return new self(false, null, new Error($code, $message, $retryable), $metadata);
     }
 
     public function jsonSerialize(): array

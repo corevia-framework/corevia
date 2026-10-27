@@ -9,7 +9,7 @@ use Corevia\Core\RunStore;
 /** SQLite reference adapter. SQL is intentionally isolated from the core package. */
 final class PdoRunStore implements RunStore
 {
-    public function __construct(private readonly \PDO $pdo)
+    public function __construct(private readonly \PDO $pdo, private readonly ?QueryDiagnostics $diagnostics = null)
     {
         if ($pdo->getAttribute(\PDO::ATTR_DRIVER_NAME) !== 'sqlite') {
             throw new \InvalidArgumentException('The reference run store requires PDO SQLite.');
@@ -28,10 +28,10 @@ final class PdoRunStore implements RunStore
         try {
             if ($key !== null) {
                 $statement = $this->pdo->prepare('INSERT OR IGNORE INTO corevia_idempotency (flow_name, idem_key, run_id) VALUES (?, ?, ?)');
-                $statement->execute([$run['flow_name'], $key, $run['run_id']]);
+                $this->execute($statement, [$run['flow_name'], $key, $run['run_id']]);
                 if ($statement->rowCount() === 0) {
                     $query = $this->pdo->prepare('SELECT run_id FROM corevia_idempotency WHERE flow_name = ? AND idem_key = ?');
-                    $query->execute([$run['flow_name'], $key]);
+                    $this->execute($query, [$run['flow_name'], $key]);
                     $existing = $this->get($query->fetchColumn()) ?? throw new \RuntimeException('Missing idempotent run.');
                     $this->pdo->commit();
                     return $existing;
@@ -56,10 +56,10 @@ final class PdoRunStore implements RunStore
         }
         try {
             $query = $this->pdo->prepare('INSERT INTO corevia_flow_runs (run_id, flow_name, status, trace_id, started_at, finished_at, input_hash, snapshot) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(run_id) DO UPDATE SET status=excluded.status, finished_at=excluded.finished_at, snapshot=excluded.snapshot');
-            $query->execute([$run['run_id'], $run['flow_name'], $run['status'], $run['trace_id'], $run['started_at'], $run['finished_at'], $run['input_hash'], json_encode($run, JSON_THROW_ON_ERROR)]);
+            $this->execute($query, [$run['run_id'], $run['flow_name'], $run['status'], $run['trace_id'], $run['started_at'], $run['finished_at'], $run['input_hash'], json_encode($run, JSON_THROW_ON_ERROR)]);
             foreach ($run['steps'] as $index => $step) {
                 $query = $this->pdo->prepare('INSERT INTO corevia_flow_steps VALUES (?, ?, ?) ON CONFLICT(run_id, step_index) DO UPDATE SET snapshot=excluded.snapshot');
-                $query->execute([$run['run_id'], $index, json_encode($step, JSON_THROW_ON_ERROR)]);
+                $this->execute($query, [$run['run_id'], $index, json_encode($step, JSON_THROW_ON_ERROR)]);
             }
             if ($ownTransaction) {
                 $this->pdo->commit();
@@ -75,7 +75,7 @@ final class PdoRunStore implements RunStore
     public function get(string $runId): ?array
     {
         $query = $this->pdo->prepare('SELECT snapshot FROM corevia_flow_runs WHERE run_id = ?');
-        $query->execute([$runId]);
+        $this->execute($query, [$runId]);
         $json = $query->fetchColumn();
         return $json === false ? null : json_decode($json, true, 512, JSON_THROW_ON_ERROR);
     }
@@ -83,13 +83,20 @@ final class PdoRunStore implements RunStore
     public function lock(string $runId): bool
     {
         $query = $this->pdo->prepare('UPDATE corevia_flow_runs SET locked=1 WHERE run_id=? AND locked=0');
-        $query->execute([$runId]);
+        $this->execute($query, [$runId]);
         return $query->rowCount() === 1;
     }
 
     public function unlock(string $runId): void
     {
         $query = $this->pdo->prepare('UPDATE corevia_flow_runs SET locked=0 WHERE run_id=?');
-        $query->execute([$runId]);
+        $this->execute($query, [$runId]);
+    }
+
+    private function execute(\PDOStatement $query, array $parameters): void
+    {
+        $start=hrtime(true);
+        try { $query->execute($parameters); }
+        finally { $this->diagnostics?->record($query->queryString,(hrtime(true)-$start)/1e6); }
     }
 }

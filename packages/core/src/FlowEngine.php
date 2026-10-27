@@ -165,6 +165,7 @@ final class FlowEngine
         $context = new ExecutionContext($run['run_id'], $run['trace_id'], $run['flow_name'], $entry['module'] ?? 'unknown', $this->events, $this->logger, $run['request_id']);
         $start = hrtime(true);
         $attempt = 0;
+        $attempts = [];
         do {
             // Failed attempts cannot mutate the state passed to later steps.
             $candidate = new ($state::class)(json_decode(json_encode($state, JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR));
@@ -192,6 +193,7 @@ final class FlowEngine
                     if (!array_key_exists($key, $state->data)) { $state = $before; $result = ActionResult::failure('OUTPUT_CONTRACT', 'Required action output is missing.'); break; }
                 }
             }
+            $attempts[] = ['attempt' => $attempt, 'duration_ms' => (hrtime(true) - $attemptStart) / 1e6, 'status' => $result->ok ? 'completed' : 'failed', 'error_code' => $result->error?->code, 'exception_class' => $result->metadata['exception_class'] ?? null];
             if ($result->ok || !$result->error?->retryable || $attempt > $step->retries) {
                 break;
             }
@@ -203,6 +205,7 @@ final class FlowEngine
             'action' => $step->action, 'status' => $result->ok ? 'completed' : 'failed',
             'critical' => $step->isCritical, 'attempts' => $attempt,
             'retry_limit' => $step->retries, 'duration_ms' => (hrtime(true) - $start) / 1e6,
+            'attempt_timeline' => $attempts,
             'error' => $result->error?->jsonSerialize(),
         ], $state];
     }
@@ -219,6 +222,7 @@ final class FlowEngine
             if ($run['flow_name'] !== $flow->name || !in_array($run['status'], ['completed_with_warnings', 'failed'], true) || $step->isCritical || ($run['steps'][$index]['status'] ?? '') !== 'failed') {
                 throw new \DomainException('Only failed non-critical steps can be retried.');
             }
+            if (($run['compensations'] ?? []) !== []) { throw new \DomainException('Cannot retry a compensated run.'); }
             [$record, $state] = $this->execute($step, new ($flow->stateClass)($run['state']), $run);
             $record['attempts'] += $run['steps'][$index]['attempts'];
             $run['steps'][$index] = $record;

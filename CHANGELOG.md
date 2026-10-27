@@ -6,6 +6,14 @@
 - Add a database-free JSON run store and an optional parallel-executor contract with conflicting-output rejection.
 - Add dual CVP/1 and CVP/2 envelopes, version-matched replies, parent trace metadata, signed HTTP request hooks, and a bounded local process transport.
 
+## Unreleased — V2 M4–M7
+
+- Add authorized presence, public wildcard rooms, versioned events, reconnect metadata, and optional pub/sub fan-out.
+- Add the JavaScript createCorevia/action facade and dual-version Python clients/workers with shared contract fixtures.
+- Add run inspection, scheduled jobs, configuration cache commands, event generation, compatibility scans and explicit update checks.
+- Add persisted per-attempt timing and exception-class metadata without exposing exception messages.
+- Rename the Composer skeleton to corevia-framework/corevia, make PDO optional, and prepare a separable core manifest without publishing packages.
+
 ## Unreleased — V2 M1
 
 - Add kernel lifecycle states, timing records, readiness/shutdown hooks, and execution guards.

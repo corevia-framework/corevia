@@ -24,7 +24,7 @@ final class ActionRunner
             $context->logger->log('error', 'Unexpected action failure', ['module' => $context->module, 'flow' => $context->flow, 'action' => $class, 'run_id' => $context->runId, 'trace_id' => $context->traceId, 'exception' => $exception::class]);
             $retryable = false;
             foreach ($retryableExceptions as $allowed) { if ($exception instanceof $allowed) { $retryable = true; break; } }
-            $result = ActionResult::failure('ACTION_EXCEPTION', 'Action execution failed.', $retryable);
+            $result = ActionResult::failure('ACTION_EXCEPTION', 'Action execution failed.', $retryable, ['exception_class' => $exception::class]);
         }
         $context->logger->log($result->ok ? 'info' : 'warning', 'Action executed', ['module' => $context->module, 'flow' => $context->flow, 'action' => $class, 'run_id' => $context->runId, 'trace_id' => $context->traceId, 'request_id' => $context->requestId, 'duration_ms' => (hrtime(true) - $start) / 1e6, 'error_code' => $result->error?->code]);
         return $result;
