@@ -35,4 +35,4 @@ In-process PHP deadlines are cooperative. Parallel execution and external pub/su
 
 The repository and tagged source support private VCS/path installation. Public Composer/npm/Python/Dart registry publication is separate and has not been performed. Production deployment, secrets, TLS, application schemas and access policies remain explicit operator choices.
 
-V1 is recoverable at v1.0.0. V2 is merged through PR #1 and identified by the annotated v2.0.0 tag.
+V1 is recoverable at v1.0.0. The stable release is prepared in PR #1; after explicit approval, merge it and create the annotated v2.0.0 tag. The merge, stable tag and GitHub release are not yet published.

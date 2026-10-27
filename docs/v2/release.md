@@ -1,6 +1,6 @@
 # V2 release report
 
-Release version: 2.0.0. Work is delivered as scoped commits on develop/v2, reviewed through release/v2.0.0 and PR #1, then merged into main and tagged. The annotated v1.0.0 tag preserves the original baseline. Public package registries are not published automatically.
+Prepared release version: 2.0.0. Work is delivered as scoped commits on develop/v2 and reviewed through release/v2.0.0 and PR #1. The stable merge and tag await explicit approval. The annotated v1.0.0 tag and current main preserve the original baseline. Public package registries are not published automatically.
 
 ## Validation
 
@@ -30,4 +30,4 @@ Package manifests and local installation flows are prepared; the public Composer
 
 ## Stable release acceptance
 
-The supplied PDF says “Merge V2 only after V2 is complete and accepted” and places the stable tag after the final merge. The remaining release was authorized together with the database/web expansion. Final CI precedes the PR merge, and the annotated v2.0.0 tag identifies the accepted merged main commit. V1 history is preserved without force-pushing. See RELEASE_NOTES_V2.md for release contents and deployment boundaries.
+The supplied PDF says “Merge V2 only after V2 is complete and accepted” and places the stable tag after the final merge. Final CI passed for the database/web expansion and stable metadata. Explicit approval for the main merge, v2.0.0 tag and GitHub release is pending. After approval, merge through PR #1 and tag the accepted merged main commit, preserving V1 history without force-pushing. See RELEASE_NOTES_V2.md for release contents and deployment boundaries.
