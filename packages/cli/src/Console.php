@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Corevia\Cli;
 
 use Corevia\Realtime\{Server, SocketBroadcaster};
+use Corevia\Core\{ConfigRepository, JobQueue, Version};
+use Corevia\Persistence\{DatabaseManager,SqlConnection,SqlRunStore};
 
 final readonly class Console
 {
@@ -23,8 +25,48 @@ final readonly class Console
             }
         }
         try {
+            if(in_array($command,['route:list','db:status','db:check','db:migrate'],true)){
+                if($command==='route:list'){$bootstrap=require $this->basePath.'/config/web.php';$runtime=$bootstrap($this->basePath);$app=$runtime['app'];$this->print($runtime['router']->routes());return 0;}
+                $environment=getenv('APP_ENV') ?: 'development';$storage=getenv('COREVIA_STORAGE') ?: $this->basePath.'/storage';
+                $configuration=ConfigRepository::load($this->basePath.'/config/settings',$environment,$storage.'/config-'.$environment.'.json');
+                $database=new DatabaseManager($configuration->get('database',[]));
+                if($command==='db:status'){$this->print(['configured'=>$database->configured(),'pdo_drivers'=>class_exists(\PDO::class)?\PDO::getAvailableDrivers():[],'mongodb_extension'=>extension_loaded('mongodb')]);return 0;}
+                $name=$argv[2] ?? null;
+                if($command==='db:migrate'){$store=new SqlRunStore($database->sql($name));$store->migrate();echo "Framework run-store tables are ready.\n";return 0;}
+                $connection=$database->connection($name);
+                if($connection instanceof SqlConnection){$connection->select('SELECT 1');}else{$connection->find('corevia_connection_check',[],1);}
+                $this->print(['connected'=>true,'connection'=>$name ?? 'default']);return 0;
+            }
+            if ($command === 'about') {
+                $this->print(['framework'=>'Corevia','version'=>Version::VERSION,'protocols'=>['1.0','2.0'],'php'=>PHP_VERSION,'database'=>'PDO MySQL/PostgreSQL/SQLite; MongoDB and JSON documents; optional']); return 0;
+            }
+            if ($command === 'upgrade:check') {
+                $report=(new UpgradeScanner())->scan($this->basePath); $this->print($report); return $report['compatible'] ? 0 : 1;
+            }
+            if (in_array($command, ['config:cache','cache:clear'], true)) {
+                $environment=$options['env'] ?? (getenv('APP_ENV') ?: 'development');
+                if (!preg_match('/^[a-zA-Z0-9_-]{1,64}$/D',$environment)) { throw new \InvalidArgumentException('Invalid environment.'); }
+                $storage=getenv('COREVIA_STORAGE') ?: $this->basePath.'/storage';
+                if (!is_dir($storage) && !mkdir($storage,0700,true) && !is_dir($storage)) { throw new \RuntimeException('Cannot create storage.'); }
+                $path=$storage.'/config-'.$environment.'.json';
+                if ($command==='config:cache') { ConfigRepository::load($this->basePath.'/config/settings',$environment)->cache($path,$environment); echo "Configuration cached for $environment.\n"; }
+                elseif (is_file($path)) { if (!unlink($path)) { throw new \RuntimeException('Cannot remove config cache.'); } echo "Configuration cache cleared for $environment.\n"; }
+                return 0;
+            }
+            if ($command === 'test') {
+                $status=0;
+                foreach (['tests/run.php','tests/v2/kernel.php','tests/v2/flows.php','tests/v2/protocol.php','tests/v2/tooling.php','tests/v2/upgrade.php','tests/v2/diagnostics.php','tests/v2/security.php','tests/features/databases.php','tests/features/web.php'] as $test) {
+                    passthru(escapeshellarg(PHP_BINARY).' '.escapeshellarg($this->basePath.'/'.$test),$code); if ($code!==0) { $status=1; }
+                }
+                return $status;
+            }
+            if ($command === 'update:check') {
+                if (isset($options['offline'])) { $this->print(['current'=>Version::VERSION,'available'=>null,'checked'=>false,'message'=>'Offline mode; use Composer to review and install updates explicitly.']); return 0; }
+                passthru('composer outdated --direct --format=json --working-dir='.escapeshellarg($this->basePath),$code); return $code;
+            }
             if ($command === 'help') {
-                echo "Corevia V1\n\nserve [--host=127.0.0.1 --port=8081]\nroutes | modules | flow:list | doctor\nflow:run <name> --input=file.json [--key=key]\nflow:show <run-id>\nflow:retry <run-id> <zero-based-step-index>\nrealtime:start [--host=127.0.0.1 --port=8080]\nrealtime:stop\nmake:module <Name> | make:action <Name> | make:flow <Name>\n";
+                echo "Web starter: route:list | db:status | db:check <connection> | db:migrate <connection>\n";
+                echo "Corevia V2\n\nserve [--host=127.0.0.1 --port=8081]\nabout | routes | modules | flow:list | doctor\nflow:run <name> --input=file.json [--key=key]\nflow:show <run-id> | flow:inspect <run-id>\nflow:retry <run-id> <zero-based-step-index>\nflow:resume <run-id> [--event=name]\nrealtime:start [--host=127.0.0.1 --port=8080]\nrealtime:stop\nworker:start [--once] | worker:dispatch <flow> --input=file.json [--delay=seconds]\nmake:module <Name> | make:action <Name> | make:flow <Name> | make:event <Name>\nconfig:cache | cache:clear [--env=development]\ntest | upgrade:check | update:check [--offline]\n";
                 return 0;
             }
             if (str_starts_with($command, 'make:')) {
@@ -63,7 +105,22 @@ final readonly class Console
                     $this->print($result);
                     return $result->status() === 'failed' ? 1 : 0;
                 case 'flow:show':
+                case 'flow:inspect':
                     $this->print($app->store->get($argv[2] ?? '') ?? throw new \OutOfBoundsException('Run not found.'));
+                    break;
+                case 'flow:resume':
+                    $result=$app->resume($argv[2] ?? '',$options['event'] ?? null); $this->print($result); return $result->status()==='failed' ? 1 : 0;
+                case 'worker:dispatch':
+                    $file=$options['input'] ?? throw new \InvalidArgumentException('--input is required.');
+                    $delay=$options['delay'] ?? '0'; if (!ctype_digit($delay) || (int)$delay>31536000) { throw new \InvalidArgumentException('Invalid delay.'); }
+                    $input=json_decode(file_get_contents($file),true,64,JSON_THROW_ON_ERROR);
+                    $flow=$argv[2] ?? ''; $app->flow($flow);
+                    $id=(new JobQueue($runtime['storage'].'/jobs'))->dispatch($flow,$input,time()+(int)$delay); $this->print(['job_id'=>$id]); break;
+                case 'worker:start':
+                    $queue=new JobQueue($runtime['storage'].'/jobs');
+                    $running=true;
+                    if (function_exists('pcntl_async_signals')) { pcntl_async_signals(true); pcntl_signal(SIGTERM, function () use (&$running): void { $running=false; }); pcntl_signal(SIGINT, function () use (&$running): void { $running=false; }); }
+                    do { $worked=$queue->work($app); if (!isset($options['once']) && !$worked) { usleep(250000); } } while (!isset($options['once']) && $running);
                     break;
                 case 'flow:retry':
                     if (!isset($argv[3]) || !ctype_digit($argv[3])) {
@@ -98,7 +155,7 @@ final readonly class Console
                     if ($probe) {
                         fclose($probe);
                     }
-                    echo "Protocol version             1.0\n";
+                    echo "Protocol version             1.0 (also supports 2.0)\n";
                     echo 'Fraud runtime                ' . (getenv('COREVIA_FRAUD_URL') ? 'remote HTTP (start Python worker)' : 'local demo rule') . PHP_EOL;
                     foreach ($app->registry->health() as $name => $health) {
                         $ok = $ok && $health['status'] === 'healthy';
@@ -112,6 +169,10 @@ final readonly class Console
         } catch (\Throwable $exception) {
             fwrite(STDERR, 'Corevia: ' . $exception->getMessage() . PHP_EOL);
             return 1;
+        } finally {
+            if (isset($app)) {
+                $app->shutdown();
+            }
         }
     }
 
@@ -138,6 +199,7 @@ final readonly class Console
             'module' => ["app/$name/{$name}Module.php", $header . "namespace App\\$name;\n\nuse Corevia\\Core\\{Module, ModuleContext};\n\nfinal class {$name}Module implements Module\n{\n    public function name(): string { return '" . strtolower($name) . "'; }\n    public function dependencies(): array { return []; }\n    public function register(ModuleContext \$context): void\n    {\n        \$context->flows([\\Corevia\\Core\\Flow::define('" . strtolower($name) . "')]);\n    }\n}\n"],
             'action' => ["app/Generated/Actions/$name.php", $header . "namespace App\\Generated\\Actions;\n\nuse Corevia\\Core\\{Action, ExecutionContext, State};\n\nfinal class $name implements Action\n{\n    public function handle(State \$state, ExecutionContext \$context): State\n    {\n        \$state->data['executed'][] = self::class;\n        return \$state;\n    }\n}\n"],
             'flow' => ["app/Generated/Flows/$name.php", $header . "namespace App\\Generated\\Flows;\n\nuse Corevia\\Core\\Flow;\n\nfinal class $name\n{\n    public static function define(): Flow\n    {\n        return Flow::define('" . strtolower($name) . "');\n    }\n}\n"],
+            'event' => ["app/Generated/Events/$name.php", $header . "namespace App\\Generated\\Events;\n\nfinal readonly class $name implements \\JsonSerializable\n{\n    public function __construct(public array \$payload) {}\n    public function jsonSerialize(): array { return \$this->payload; }\n}\n"],
             default => throw new \InvalidArgumentException('Unknown generator.'),
         };
         $path = $this->basePath . '/' . $file;

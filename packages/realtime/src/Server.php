@@ -14,6 +14,7 @@ final class Server implements Broadcaster
     private array $connections = [];
     private bool $running = true;
     private readonly Protocol $protocol;
+    private string $nodeId;
 
     public function __construct(
         private readonly Logger $logger,
@@ -25,11 +26,13 @@ final class Server implements Broadcaster
         private readonly ?\Closure $authorize = null,
         private readonly int $maxBytes = 65536,
         private readonly int $heartbeatSeconds = 20,
+        private readonly ?PubSub $pubsub = null,
     ) {
         if (strlen($secret) < 32) {
             throw new \InvalidArgumentException('Realtime secret must have at least 32 characters.');
         }
         $this->protocol = new Protocol($maxBytes);
+        $this->nodeId = bin2hex(random_bytes(12));
     }
 
     public function stop(): void
@@ -93,10 +96,21 @@ final class Server implements Broadcaster
                     }
                 }
                 $this->heartbeat();
+                if ($this->pubsub !== null) {
+                    try {
+                        foreach ($this->pubsub->poll() as $event) {
+                            if (($event['node_id'] ?? '') !== $this->nodeId) {
+                                $this->protocol->encode($event['message']);
+                                if (($event['message']['type'] ?? '') !== 'event') { throw new \RuntimeException('Invalid pub/sub event.'); }
+                                $this->deliver($event['message']);
+                            }
+                        }
+                    } catch (\Throwable $error) { $this->logger->log('warning', 'Pub/sub delivery failed', ['exception' => $error::class]); }
+                }
             }
         } finally {
             foreach (array_keys($this->clients) as $id) {
-                if ($this->clients[$id]['ready']) {
+                if (isset($this->clients[$id]) && $this->clients[$id]['ready']) {
                     @fwrite($this->clients[$id]['socket'], Frame::encode(pack('n', 1001), 8));
                 }
                 $this->drop($id);
@@ -128,7 +142,7 @@ final class Server implements Broadcaster
             return;
         }
         stream_set_blocking($socket, false);
-        $this->clients[(int) $socket] = ['socket' => $socket, 'ipc' => $ipc, 'in' => '', 'out' => '', 'ready' => false, 'closing' => false, 'topics' => [], 'opened' => $now, 'seen' => $now, 'ping' => $now, 'awaiting' => false, 'window' => $now, 'count' => 0, 'fragment' => null];
+        $this->clients[(int) $socket] = ['socket' => $socket, 'ipc' => $ipc, 'in' => '', 'out' => '', 'ready' => false, 'closing' => false, 'topics' => [], 'opened' => $now, 'seen' => $now, 'ping' => $now, 'awaiting' => false, 'window' => $now, 'count' => 0, 'fragment' => null, 'version' => null, 'connection_id' => bin2hex(random_bytes(12))];
     }
 
     private function read(int $id): void
@@ -247,30 +261,44 @@ final class Server implements Broadcaster
 
     private function message(int $id, array $message): void
     {
+        if ($this->clients[$id]['version'] !== null && $this->clients[$id]['version'] !== $message['cvp']) { throw new \RuntimeException('Protocol version changed during connection.'); }
+        $this->clients[$id]['version'] = $message['cvp'];
         $type = $message['type'] ?? '';
         $topic = $message['target'] ?? '';
         if ($type === 'ping') {
             $this->queue($id, Protocol::request('pong', payload: [], id: $message['id'], traceId: $message['meta']['trace_id'] ?? null));
             return;
         }
-        $allowed = in_array($type, ['subscribe', 'unsubscribe'], true) && preg_match('/^[a-zA-Z0-9_.:-]{1,128}$/D', $topic);
-        if ($allowed && $type === 'subscribe' && str_starts_with($topic, 'private-')) {
-            $allowed = $this->authorize !== null && ($this->authorize)($topic, $message['payload']['token'] ?? null);
+        $allowed = in_array($type, ['subscribe', 'unsubscribe'], true) && ChannelPolicy::valid($topic);
+        $member = true;
+        if ($allowed && $type === 'subscribe' && ChannelPolicy::restricted($topic)) {
+            $member = $this->authorize !== null ? ($this->authorize)($topic, $message['payload']['token'] ?? null) : false;
+            $allowed = (bool) $member;
+            if (str_starts_with($topic, 'presence-')) {
+                $allowed = is_array($member) && is_string($member['id'] ?? null) && strlen($member['id']) > 0 && strlen($member['id']) <= 128 && is_array($member['info'] ?? []);
+                if ($allowed) { $member = ['id' => $member['id'], 'info' => $member['info'] ?? []]; }
+            }
         }
         if (!$allowed || ($type === 'subscribe' && !isset($this->clients[$id]['topics'][$topic]) && count($this->clients[$id]['topics']) >= 64)) {
             $this->queue($id, Protocol::response($message['id'], ActionResult::failure('FORBIDDEN', 'Subscription denied.')));
             return;
         }
         if ($type === 'subscribe') {
-            $this->clients[$id]['topics'][$topic] = true;
+            $before = $this->members($topic);
+            if (isset($this->clients[$id]['topics'][$topic])) { $member = $this->clients[$id]['topics'][$topic]; }
+            $this->clients[$id]['topics'][$topic] = $member;
+            if (is_array($member) && !isset($before[$member['id']])) { $this->broadcast($topic, 'PresenceJoined', $member); }
         } else {
-            unset($this->clients[$id]['topics'][$topic]);
+            $this->leave($id, $topic);
         }
-        $this->queue($id, Protocol::response($message['id'], ActionResult::success(['channel' => $topic, 'subscribed' => $type === 'subscribe']), $message['meta']['trace_id'] ?? null));
+        if (isset($this->clients[$id])) { $this->queue($id, Protocol::response($message['id'], ActionResult::success(['channel' => $topic, 'subscribed' => $type === 'subscribe', 'members' => array_values($this->members($topic)), 'connection_id' => $this->clients[$id]['connection_id'], 'heartbeat_seconds' => $this->heartbeatSeconds, 'event_version' => 1]), $message['meta']['trace_id'] ?? null)); }
     }
 
     private function queue(int $id, array $message): void
     {
+        if (!isset($this->clients[$id])) { return; }
+        $message['cvp'] = $this->clients[$id]['version'] ?? Protocol::VERSION;
+        if ($message['cvp'] === Protocol::V2 && array_key_exists('ok', $message)) { $message['type'] = 'action.result'; }
         $this->clients[$id]['out'] .= Frame::encode($this->protocol->encode($message));
         if (strlen($this->clients[$id]['out']) > $this->maxBytes * 4) {
             $this->drop($id);
@@ -307,12 +335,34 @@ final class Server implements Broadcaster
     public function broadcast(string $channel, string $event, array $payload, ?string $traceId = null): void
     {
         $message = Protocol::request('event', $channel, ['event' => $event, 'data' => $payload], traceId: $traceId);
+        $message['meta']['event_version'] = 1;
         $this->protocol->encode($message);
+        $this->deliver($message);
+        if ($this->pubsub !== null) { $this->pubsub->publish(['node_id' => $this->nodeId, 'message' => $message]); }
+    }
+
+    private function deliver(array $message): void
+    {
         foreach (array_keys($this->clients) as $id) {
-            if ($this->clients[$id]['ready'] && isset($this->clients[$id]['topics'][$channel])) {
-                $this->queue($id, $message);
+            if (!isset($this->clients[$id]) || !$this->clients[$id]['ready'] || $this->clients[$id]['closing']) { continue; }
+            foreach (array_keys($this->clients[$id]['topics']) as $subscription) {
+                if (ChannelPolicy::matches($subscription, $message['target'])) { $this->queue($id, $message); break; }
             }
         }
+    }
+
+    private function members(string $topic): array
+    {
+        $members = [];
+        foreach ($this->clients as $client) { $member = $client['topics'][$topic] ?? null; if (is_array($member)) { $members[$member['id']] = $member; } }
+        return $members;
+    }
+
+    private function leave(int $id, string $topic): void
+    {
+        $member = $this->clients[$id]['topics'][$topic] ?? null;
+        unset($this->clients[$id]['topics'][$topic]);
+        if (is_array($member) && !isset($this->members($topic)[$member['id']])) { $this->broadcast($topic, 'PresenceLeft', $member); }
     }
 
     private function heartbeat(): void
@@ -338,8 +388,12 @@ final class Server implements Broadcaster
     private function drop(int $id): void
     {
         if (isset($this->clients[$id])) {
+            $topics = $this->clients[$id]['topics'];
             fclose($this->clients[$id]['socket']);
             unset($this->clients[$id]);
+            foreach ($topics as $topic => $member) {
+                if (is_array($member) && !isset($this->members($topic)[$member['id']])) { $this->broadcast($topic, 'PresenceLeft', $member); }
+            }
         }
     }
 }

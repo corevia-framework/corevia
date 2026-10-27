@@ -8,13 +8,15 @@ use Corevia\Protocol\Protocol;
 
 // Explicit static allowlist keeps storage, source files and credentials inaccessible.
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && in_array($path, ['/', '/demo.html', '/corevia-client.js'], true)) {
-    $file = $path === '/corevia-client.js' ? dirname(__DIR__) . '/sdk/js/index.js' : __DIR__ . '/demo.html';
-    header('Content-Type: ' . ($path === '/corevia-client.js' ? 'text/javascript' : 'text/html') . '; charset=utf-8');
-    readfile($file);
+if (in_array($_SERVER['REQUEST_METHOD'],['GET','HEAD'],true) && in_array($path, ['/demo.html', '/corevia-client.js','/assets/app.css','/assets/icon.svg'], true)) {
+    $file = match($path){'/corevia-client.js'=>dirname(__DIR__).'/sdk/js/index.js','/assets/app.css'=>__DIR__.'/assets/app.css','/assets/icon.svg'=>__DIR__.'/assets/icon.svg',default=>__DIR__.'/demo.html'};
+    header('Content-Type: ' . (match($path){'/corevia-client.js'=>'text/javascript','/assets/app.css'=>'text/css','/assets/icon.svg'=>'image/svg+xml',default=>'text/html'}) . '; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
+    if($_SERVER['REQUEST_METHOD']!=='HEAD'){readfile($file);}
     return;
 }
-$bootstrap = require dirname(__DIR__) . '/config/bootstrap.php';
+require_once dirname(__DIR__).'/autoload.php';
+$bootstrap = require dirname(__DIR__) . (in_array($path,['/checkout','/cvp','/health'],true)?'/config/bootstrap.php':'/config/web.php');
 try {
     $runtime = $bootstrap(dirname(__DIR__));
     $runtime['router']->dispatch(Request::fromGlobals())->send();
@@ -23,4 +25,8 @@ try {
 } catch (Throwable $exception) {
     error_log('Corevia bootstrap failed: ' . $exception::class);
     (new Response(Protocol::response('invalid', ActionResult::failure('INTERNAL_ERROR', 'Runtime unavailable.')), 500))->send();
+} finally {
+    if (isset($runtime)) {
+        $runtime['app']->shutdown();
+    }
 }

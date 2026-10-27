@@ -1,0 +1,19 @@
+{
+  "valid": [
+    {"cvp":"2.0","id":"req_1","type":"action.call","target":"orders.create","payload":{"item":1},"meta":{"trace_id":"trace_1","parent_trace_id":"parent_1","timeout_ms":5000}},
+    {"cvp":"2.0","id":"req_1","type":"action.result","ok":true,"result":{"id":42},"error":null,"meta":{"trace_id":"trace_1"}},
+    {"cvp":"2.0","id":"req_2","type":"action.result","ok":false,"result":null,"error":{"code":"BUSINESS","message":"Rejected","retryable":false},"meta":{}},
+    {"cvp":"2.0","id":"req_3","type":"subscribe","target":"presence-orders","payload":{"token":"test-only"},"meta":{}},
+    {"cvp":"2.0","id":"req_4","type":"event","target":"orders.42","payload":{"event":"Updated","data":{"id":42}},"meta":{"event_version":1}}
+  ],
+  "invalid": [
+    {"cvp":"3.0","id":"req_1","type":"action.call","target":"orders.create","payload":{}},
+    {"cvp":"2.0","id":"req_1","type":"admin.eval","target":"code","payload":{}},
+    {"cvp":"2.0","id":"req_1","type":"action.call","target":"orders.create","payload":{},"meta":{"timeout_ms":0}},
+    {"cvp":"2.0","id":"req_1","type":"action.call","target":"orders.create","payload":{},"meta":{"timeout_ms":true}},
+    {"cvp":"2.0","id":"req_1","type":"action.call","target":"orders.create","payload":{},"meta":{"parent_trace_id":13}},
+    {"cvp":"2.0","id":"req_1","type":"admin.eval","ok":true,"result":null,"error":null},
+    {"cvp":"2.0","id":"req_1","type":"action.result","ok":false,"result":null,"error":{"code":"X","message":"bad","retryable":"yes"}},
+    {"cvp":"2.0","id":"","type":"ping","payload":{}}
+  ]
+}

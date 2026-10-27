@@ -1,0 +1,10 @@
+<section class="hero"><p class="eyebrow"><span class="status-dot"></span> YOUR APPLICATION IS READY</p><h1>Good ideas deserve<br><span>a clear foundation.</span></h1><p class="lede">Welcome to Corevia. Give your application a page, connect its data, and let actions turn intent into work.</p><div class="actions"><a class="button primary" href="<?= $e($route('guide')) ?>">Build your first route <span>↗</span></a><a class="button secondary" href="<?= $e($route('database')) ?>">Connect a database</a></div><div class="runtime"><span>PHP 8.2+</span><span>Named routes</span><span>Database optional</span></div></section>
+<section class="section-heading"><div><p class="eyebrow">START SOMETHING</p><h2>Three files. A working page.</h2></div><span class="muted">01 / THE BASICS</span></section>
+<div class="steps-grid"><a class="card" href="<?= $e($route('guide')) ?>"><span class="number">01</span><h3>Define a route <span>↗</span></h3><p>Map a URL to a controller in a single, readable place.</p><code>routes/web.php</code></a><a class="card" href="<?= $e($route('guide')) ?>"><span class="number">02</span><h3>Write the behavior <span>↗</span></h3><p>Keep request handling in a controller and business work in actions.</p><code>app/Http/</code></a><a class="card" href="<?= $e($route('hello',['name'=>'developer'])) ?>"><span class="number">03</span><h3>Make it yours <span>↗</span></h3><p>Render a PHP view with your own content and escaped values.</p><code>resources/views/</code></a></div>
+<section class="code-panel"><div><p class="eyebrow">A ROUTE YOU CAN READ</p><h2>From URL to response.</h2><p>Add this to your routes file.<br>Your application handles the rest.</p><a class="text-link" href="<?= $e($route('hello',['name'=>'developer'])) ?>">Try the parameter route ↗</a></div><pre><span class="code-comment">// routes/web.php</span>
+$route-&gt;get('/hello/{name}',
+    [HomeController::class, 'hello']
+)-&gt;name('hello');
+
+<span class="code-comment">// Generate its URL</span>
+$router-&gt;url('hello', ['name' =&gt; 'Ada']);</pre></section>

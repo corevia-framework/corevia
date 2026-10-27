@@ -10,7 +10,7 @@ final class ActionRunner
     {
     }
 
-    public function run(string $class, State $state, ExecutionContext $context): ActionResult
+    public function run(string $class, State $state, ExecutionContext $context, array $retryableExceptions = []): ActionResult
     {
         $start = hrtime(true);
         try {
@@ -22,7 +22,9 @@ final class ActionRunner
             $result = $output instanceof ActionResult ? $output : ActionResult::success($output);
         } catch (\Throwable $exception) {
             $context->logger->log('error', 'Unexpected action failure', ['module' => $context->module, 'flow' => $context->flow, 'action' => $class, 'run_id' => $context->runId, 'trace_id' => $context->traceId, 'exception' => $exception::class]);
-            $result = ActionResult::failure('ACTION_EXCEPTION', 'Action execution failed.');
+            $retryable = false;
+            foreach ($retryableExceptions as $allowed) { if ($exception instanceof $allowed) { $retryable = true; break; } }
+            $result = ActionResult::failure('ACTION_EXCEPTION', 'Action execution failed.', $retryable, ['exception_class' => $exception::class]);
         }
         $context->logger->log($result->ok ? 'info' : 'warning', 'Action executed', ['module' => $context->module, 'flow' => $context->flow, 'action' => $class, 'run_id' => $context->runId, 'trace_id' => $context->traceId, 'request_id' => $context->requestId, 'duration_ms' => (hrtime(true) - $start) / 1e6, 'error_code' => $result->error?->code]);
         return $result;

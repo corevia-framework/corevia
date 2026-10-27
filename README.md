@@ -1,12 +1,16 @@
-# Corevia V1
+# Corevia
 
-A framework-independent PHP 8.2+ runtime for modular actions, observable flows, isolated failures, events, WebSockets and CVP/1 interoperability. PHP core has no third-party runtime dependencies and does not require Node.js, Python, Redis or a broker.
+Corevia V2 includes a kernel, durable flows, compensation, CVP/2, presence channels, SDKs, database adapters, web routing and developer tooling while retaining V1 APIs. V1 is preserved at `v1.0.0`; stable V2 uses `v2.0.0`. Start with the [V2 kernel guide](docs/v2/kernel.md), [flow guide](docs/v2/flows.md), and [installation guide](docs/v2/installation.md). Run `php -n examples/v2/kernel.php` for a database-free example. See [migration notes](docs/v2/migration.md) and [release notes](RELEASE_NOTES_V2.md).
+
+A standalone PHP 8.2+ framework for modular actions, observable flows, isolated failures, events, WebSockets and CVP/1–2 interoperability. PHP core has no third-party runtime dependencies and does not require Node.js, Python, Redis or a broker.
 
 ## Setup
 
+Start the prebuilt website with `php -n corevia serve` and open **http://127.0.0.1:8081**. Edit `routes/web.php`, `app/Http`, and `resources/views`. See the [web guide](docs/v2/web.md) for named routes, controllers and forms, and the [database guide](docs/v2/databases.md) for PDO/MySQL/PostgreSQL/SQLite, MongoDB and local JSON connections.
+
 New to Corevia? Start with the separate [database-free learning project](test-project/README.md). Run `php test-project/console.php serve` and open http://127.0.0.1:8091 to create tasks and inspect each flow step. Its [database guide](test-project/DATABASE.md) explains how to switch task storage to PDO/MySQL later.
 
-Requirements: PHP 8.2+ with JSON and PDO; PDO SQLite for the sample app and persistence adapter. Composer is supported; the included PSR-4 loader also allows immediate local use. Node.js 22+ and Python 3.10+ are needed only for SDKs and cross-language tests.
+Requirements: PHP 8.2+ with JSON. PDO SQLite is optional for the checkout sample and persistence adapter. Composer is supported; the included PSR-4 loader also allows immediate local use. Node.js 22+ and Python 3.10+ are needed only for SDKs and cross-language tests.
 
 ```sh
 composer install

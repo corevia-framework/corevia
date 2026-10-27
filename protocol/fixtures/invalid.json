@@ -1,5 +1,5 @@
 [
-  {"cvp":"2.0","id":"x","type":"ping","payload":{}},
+  {"cvp":"9.0","id":"x","type":"ping","payload":{}},
   {"cvp":"1.0","id":"","type":"ping","payload":{}},
   {"cvp":"1.0","id":"x","type":"unknown","payload":{}},
   {"cvp":"1.0","id":"x","type":"action.call","payload":{}},
