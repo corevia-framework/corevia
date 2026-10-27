@@ -31,6 +31,6 @@ Scope used for this request: phase 1 is V2 milestone M0 (preserve V1), and phase
 | M5: SDK contracts | Implemented and locally validated | PHP/Python/JS/Dart fixtures, JS→PHP→Python HTTP, Dart HTTP/reconnect |
 | M6: CLI and observability | Implemented and locally validated | Scheduled jobs, inspector, query diagnostics, config/upgrade tools and V1 fixture |
 | M7: release hardening | Local release gates implemented | Clean Composer skeleton/core installs, security and compatibility checks; hosted CI is reported separately |
-| M8: stable release | Ready; explicit merge approval pending | Final CI passed; PR #1 merge, annotated v2.0.0 tag and GitHub release await approval |
+| M8: stable release | v2.0.0 | Approved PR #1 merge, annotated v2.0.0 tag and GitHub release, with passing release gates |
 
-See release.md and RELEASE_NOTES_V2.md for test evidence, database/web additions, release procedure and runtime boundaries. V1 remains on main and recoverable at v1.0.0. The prepared V2 release is delivered on release/v2.0.0 and PR #1 until the stable merge is explicitly approved.
+See release.md and RELEASE_NOTES_V2.md for test evidence, database/web additions, release procedure and runtime boundaries. V1 remains recoverable at v1.0.0. The approved stable V2 release is delivered through release/v2.0.0, PR #1 and the v2.0.0 tag on main.

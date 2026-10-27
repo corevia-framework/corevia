@@ -2,7 +2,7 @@
 
 ## Database and web delivery — 28 October 2026
 
-New local checks passed for JSON documents, SQLite query/transaction/workflow persistence, named routes/controllers/views, signed CSRF, validation, same-origin forms, HTML escaping and private-file denial. Real Chrome checks passed at desktop and mobile widths, including native form submission with no horizontal overflow. PHP lint passed for 131 files before the final Version constant was added. The complete original PHP and live checkout/realtime/task regression suites still pass.
+New local checks passed for JSON documents, SQLite query/transaction/workflow persistence, named routes/controllers/views, signed CSRF, validation, same-origin forms, HTML escaping and private-file denial. Real Chrome checks passed at desktop and mobile widths, including native form submission with no horizontal overflow. PHP lint passed for all 132 files. The complete original PHP and live checkout/realtime/task regression suites still pass.
 
 Hosted [CI run 40572145709](https://github.com/corevia-framework/corevia/actions/runs/40572145709) passed all PHP matrix, Dart and database-service jobs, including real MySQL 8.4, PostgreSQL 16 and MongoDB 7 contracts. These services were provisioned in CI; none was installed as a mandatory dependency on the local machine. The final stable metadata is validated again before tagging. Public registry publication and production deployment were not performed.
 
