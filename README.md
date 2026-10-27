@@ -1,6 +1,6 @@
 # Corevia
 
-The `main` branch and `v1.0.0` tag preserve V1. The `develop/v2` branch includes the V2 kernel, durable flows, compensation, CVP/2, presence channels, SDKs, and developer tooling while retaining V1 APIs. Start with the [V2 kernel guide](docs/v2/kernel.md), [flow guide](docs/v2/flows.md), and [installation guide](docs/v2/installation.md). Run `php -n examples/v2/kernel.php` for a database-free example. See [milestone progress](docs/v2/phases.md), [migration notes](docs/v2/migration.md), and [release validation](docs/v2/release.md).
+Corevia V2 includes a kernel, durable flows, compensation, CVP/2, presence channels, SDKs, database adapters, web routing and developer tooling while retaining V1 APIs. V1 is preserved at `v1.0.0`; stable V2 uses `v2.0.0`. Start with the [V2 kernel guide](docs/v2/kernel.md), [flow guide](docs/v2/flows.md), and [installation guide](docs/v2/installation.md). Run `php -n examples/v2/kernel.php` for a database-free example. See [migration notes](docs/v2/migration.md) and [release notes](RELEASE_NOTES_V2.md).
 
 A standalone PHP 8.2+ framework for modular actions, observable flows, isolated failures, events, WebSockets and CVP/1–2 interoperability. PHP core has no third-party runtime dependencies and does not require Node.js, Python, Redis or a broker.
 

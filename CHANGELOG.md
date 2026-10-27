@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.0.0 — release preparation
+## 2.0.0 — 28 October 2026
 
 - Add named lazy SQL/document connections, prepared query builder, nested transactions and explicit portable SQL flow-store migration for MySQL, PostgreSQL and SQLite.
 - Add optional native MongoDB and local JSON document adapters with a shared contract and extensible connectors.

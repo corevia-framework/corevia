@@ -1,5 +1,11 @@
 # Local validation results
 
+## Database and web delivery — 28 October 2026
+
+New local checks passed for JSON documents, SQLite query/transaction/workflow persistence, named routes/controllers/views, signed CSRF, validation, same-origin forms, HTML escaping and private-file denial. Real Chrome checks passed at desktop and mobile widths, including native form submission with no horizontal overflow. PHP lint passed for 131 files before the final Version constant was added. The complete original PHP and live checkout/realtime/task regression suites still pass.
+
+Hosted [CI run 40572145709](https://github.com/corevia-framework/corevia/actions/runs/40572145709) passed all PHP matrix, Dart and database-service jobs, including real MySQL 8.4, PostgreSQL 16 and MongoDB 7 contracts. These services were provisioned in CI; none was installed as a mandatory dependency on the local machine. The final stable metadata is validated again before tagging. Public registry publication and production deployment were not performed.
+
 ## V2 remaining milestones — 28 October 2026
 
 The local release gate passed: 21 original PHP tests, 14 kernel tests, 8 flow groups, 13 shared CVP/2 fixtures, process timeout/crash checks, queue/upgrade/query/security checks, and the original database-free learning app and SQLite adapter tests. JavaScript passed 9 tests and Python 7; Dart static analysis, shared fixtures, authenticated HTTP and realtime reconnect checks passed using a workspace-local official SDK. Live CVP/2 JS→PHP→Python and presence/wildcard/heartbeat checks passed, as did the original 8 cross-process groups and 4 learning HTTP/CLI groups. PHP lint passed for 108 source/test files.

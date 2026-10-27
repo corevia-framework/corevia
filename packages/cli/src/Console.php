@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Corevia\Cli;
 
 use Corevia\Realtime\{Server, SocketBroadcaster};
-use Corevia\Core\{ConfigRepository, JobQueue};
+use Corevia\Core\{ConfigRepository, JobQueue, Version};
 use Corevia\Persistence\{DatabaseManager,SqlConnection,SqlRunStore};
 
 final readonly class Console
@@ -38,7 +38,7 @@ final readonly class Console
                 $this->print(['connected'=>true,'connection'=>$name ?? 'default']);return 0;
             }
             if ($command === 'about') {
-                $this->print(['framework'=>'Corevia','version'=>'2.0.0-alpha.2','protocols'=>['1.0','2.0'],'php'=>PHP_VERSION,'database'=>'optional; checkout demo uses SQLite']); return 0;
+                $this->print(['framework'=>'Corevia','version'=>Version::VERSION,'protocols'=>['1.0','2.0'],'php'=>PHP_VERSION,'database'=>'PDO MySQL/PostgreSQL/SQLite; MongoDB and JSON documents; optional']); return 0;
             }
             if ($command === 'upgrade:check') {
                 $report=(new UpgradeScanner())->scan($this->basePath); $this->print($report); return $report['compatible'] ? 0 : 1;
@@ -61,7 +61,7 @@ final readonly class Console
                 return $status;
             }
             if ($command === 'update:check') {
-                if (isset($options['offline'])) { $this->print(['current'=>'2.0.0-alpha.2','available'=>null,'checked'=>false,'message'=>'Offline mode; use Composer to review and install updates explicitly.']); return 0; }
+                if (isset($options['offline'])) { $this->print(['current'=>Version::VERSION,'available'=>null,'checked'=>false,'message'=>'Offline mode; use Composer to review and install updates explicitly.']); return 0; }
                 passthru('composer outdated --direct --format=json --working-dir='.escapeshellarg($this->basePath),$code); return $code;
             }
             if ($command === 'help') {

@@ -1,6 +1,6 @@
-# V2 release candidate report
+# V2 release report
 
-Development version: 2.0.0-alpha.2. Work is delivered as scoped commits on develop/v2 and prepared for review on release/v2.0.0. Main and the annotated v1.0.0 tag preserve the original baseline. No stable merge, stable tag, registry publication, or automatic dependency update occurs before acceptance.
+Release version: 2.0.0. Work is delivered as scoped commits on develop/v2, reviewed through release/v2.0.0 and PR #1, then merged into main and tagged. The annotated v1.0.0 tag preserves the original baseline. Public package registries are not published automatically.
 
 ## Validation
 
@@ -16,8 +16,11 @@ Development version: 2.0.0-alpha.2. Work is delivered as scoped commits on devel
 - Live CVP/2 JavaScript → PHP → Python authentication, correlation and network-deadline checks.
 - Live presence identity, duplicate-tab membership, public wildcard/private boundary and stale-heartbeat checks.
 - Clean Composer create-project skeleton and standalone core installs from committed archives, with database-free smoke execution.
+- Prepared queries, nested transactions and portable workflow persistence against real MySQL 8.4, PostgreSQL 16 and SQLite, plus MongoDB 7 and local JSON document contracts.
+- Named web routes, controller injection, templates, CSRF, validation, source-file denial, HEAD and same-origin forms on a custom port.
+- Real desktop/mobile Chrome navigation and form submission, with no horizontal layout overflow.
 
-CI runs the PHP 8.2/8.3/8.4 matrix, Node/Python integrations, clean installs and Dart checks. Hosted results must be checked separately before a stable merge; local validation does not substitute for branch protection or owner acceptance. No native mobile build, React renderer, external pub/sub deployment, MySQL service, or production TLS deployment was tested here.
+CI runs the PHP 8.2/8.3/8.4 matrix, Node/Python integrations, clean installs, Dart and real database-service checks. The database/web feature gate passed in [GitHub Actions](https://github.com/corevia-framework/corevia/actions/runs/40572145709); final version metadata is checked again before merge. No native mobile build, React renderer, external pub/sub deployment or production TLS deployment was tested here.
 
 ## Operational boundaries
 
@@ -27,4 +30,4 @@ Package manifests and local installation flows are prepared; the public Composer
 
 ## Stable release acceptance
 
-The supplied PDF says “Merge V2 only after V2 is complete and accepted” and places the stable tag after the final merge. Review the candidate and passing CI, accept these operational boundaries, then merge through a pull request and tag the accepted main commit v2.0.0. Do not rewrite the preserved V1 history or force-push. This report describes a reviewable development candidate, not an already accepted stable release.
+The supplied PDF says “Merge V2 only after V2 is complete and accepted” and places the stable tag after the final merge. The remaining release was authorized together with the database/web expansion. Final CI precedes the PR merge, and the annotated v2.0.0 tag identifies the accepted merged main commit. V1 history is preserved without force-pushing. See RELEASE_NOTES_V2.md for release contents and deployment boundaries.

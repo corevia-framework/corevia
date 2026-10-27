@@ -20,7 +20,7 @@ final class Corevia
     {
         $this->config = $config ?? new ConfigRepository();
         $this->capabilities = $capabilities ?? new Capabilities();
-        $this->capabilities->define('core.runtime', metadata: ['version' => '2.0.0-alpha.2']);
+        $this->capabilities->define('core.runtime', metadata: ['version' => Version::VERSION]);
         $this->capabilities->define('core.flows');
         $this->capabilities->define('core.events');
         $this->capabilities->define('core.run_store', metadata: ['adapter' => $store::class]);
