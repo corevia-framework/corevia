@@ -30,7 +30,16 @@ archive = directory / 'source.zip'
 run(['git', '-c', 'safe.directory=' + root.as_posix(), 'archive', '--format=zip', '-o', str(archive), 'HEAD'])
 source = directory / 'source'
 with zipfile.ZipFile(archive) as files:
+    names = set(files.namelist())
+    required = {'corevia', 'autoload.php', 'composer.json', 'composer.lock', '.gitignore', '.env.example', 'LICENSE', 'README.md', 'CONTRIBUTING.md', 'SECURITY.md', 'storage/.gitkeep', 'packages/core/src/Corevia.php', 'config/web.php', 'routes/web.php', 'resources/views/welcome.php', 'tests/features/web.php'}
+    missing = required - names
+    if missing:
+        raise SystemExit('Distribution is missing required files: ' + ', '.join(sorted(missing)))
+    excluded = {'CODEX.md', 'docs/implementation.md', 'docs/validation.md', 'docs/v2/phases.md', 'docs/v2/release.md'}
+    if names & excluded or any(name.startswith('.github/') or name.endswith('.secret') for name in names):
+        raise SystemExit('Distribution includes local-only or repository-only files.')
     files.extractall(source)
+print('PASS archive keeps the runnable framework and excludes internal/automation files')
 repository = {'type': 'path', 'url': str(source), 'options': {'symlink': False, 'versions': {'corevia-framework/corevia': '2.0.0'}}}
 application = directory / 'application'
 run(composer + ['create-project', '--no-interaction', '--no-progress', '--no-scripts', '--repository=' + json.dumps(repository), 'corevia-framework/corevia', str(application), '2.0.0'])
