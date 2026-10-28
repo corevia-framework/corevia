@@ -1,0 +1,17 @@
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.zip binary
+
+# Repository automation is useful to contributors, not installed applications.
+/.github export-ignore
+
+# Defense in depth for local notes if archiving an older checkout.
+/CODEX.md export-ignore
+/docs/implementation.md export-ignore
+/docs/validation.md export-ignore
+/docs/v2/phases.md export-ignore
+/docs/v2/release.md export-ignore

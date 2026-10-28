@@ -6,9 +6,24 @@ A standalone PHP 8.2+ framework for modular actions, observable flows, isolated 
 
 ## Setup
 
-Start the prebuilt website with `php -n corevia serve` and open **http://127.0.0.1:8081**. Edit `routes/web.php`, `app/Http`, and `resources/views`. See the [web guide](docs/v2/web.md) for named routes, controllers and forms, and the [database guide](docs/v2/databases.md) for PDO/MySQL/PostgreSQL/SQLite, MongoDB and local JSON connections.
+**Requirements:** PHP 8.2+ with JSON. The starter needs no database, Node.js, Python, Redis, or Docker.
 
-New to Corevia? Start with the separate [database-free learning project](test-project/README.md). Run `php test-project/console.php serve` and open http://127.0.0.1:8091 to create tasks and inspect each flow step. Its [database guide](test-project/DATABASE.md) explains how to switch task storage to PDO/MySQL later.
+Download the [latest source ZIP](https://github.com/corevia-framework/corevia/archive/refs/heads/main.zip), extract it, and open a terminal in the extracted project directory. Or clone it:
+
+```sh
+git clone https://github.com/corevia-framework/corevia.git myapp
+cd myapp
+composer install
+php corevia serve
+```
+
+Open **http://127.0.0.1:8081**. Composer is recommended; the included loader also lets you start directly with `php corevia serve` when Composer is unavailable. Each fresh installation creates its own private signing key and runtime files on first use.
+
+Build your application in `app/`, `routes/web.php`, `resources/views/`, `public/assets/`, and `config/settings/`. The `packages/` directory contains the framework and should normally stay unchanged. `.gitignore` excludes local/generated data; it does not prevent people from modifying files in their own copy.
+
+Read [Getting started](docs/getting-started.md), the [web guide](docs/v2/web.md), and the [database guide](docs/v2/databases.md). This repository supports download/clone installation; its Composer package names have not yet been published on Packagist.
+
+For a separate task tutorial, use the [database-free learning project](test-project/README.md). Run `php test-project/console.php serve` and open http://127.0.0.1:8091 to create tasks and inspect each flow step. Its [database guide](test-project/DATABASE.md) explains how to switch task storage to PDO/MySQL later.
 
 Requirements: PHP 8.2+ with JSON. PDO SQLite is optional for the checkout sample and persistence adapter. Composer is supported; the included PSR-4 loader also allows immediate local use. Node.js 22+ and Python 3.10+ are needed only for SDKs and cross-language tests.
 
@@ -29,7 +44,7 @@ php corevia realtime:start
 php corevia serve
 ```
 
-Open **http://127.0.0.1:8081**. Click **Run checkout** to view step results and receive `order.updated` over WebSocket. The default listener uses port 8080 and authenticated local IPC on port 8082. Keep the realtime process running independently of PHP-FPM.
+Open **http://127.0.0.1:8081/demo.html**. Click **Run checkout** to view step results and receive `order.updated` over WebSocket. The default listener uses port 8080 and authenticated local IPC on port 8082. Keep the realtime process running independently of PHP-FPM.
 
 ```sh
 curl -X POST http://127.0.0.1:8081/checkout \
@@ -150,7 +165,7 @@ Critical failures stop the flow; non-critical failures allow later steps. Every 
 
 Idempotency keys are scoped to flow name. Identical input returns the existing run; changed input yields `IDEMPOTENCY_CONFLICT`. The hash uses PHP's JSON representation of the input, including key ordering. Use the same payload representation for repeated calls. Persisted idempotency lasts until explicitly removed from storage. Failed critical runs are not rerun under the same key.
 
-See [API examples](docs/api.md), [protocol](docs/protocol.md), [deployment and limitations](docs/deployment.md), and [implementation analysis](docs/implementation.md).
+See [API examples](docs/api.md), [protocol](docs/protocol.md), [deployment and limitations](docs/deployment.md), and [contribution guidance](CONTRIBUTING.md).
 
 ## SDK examples
 
