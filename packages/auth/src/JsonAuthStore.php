@@ -3,7 +3,7 @@ declare(strict_types=1);
 namespace Corevia\Auth;
 
 /** Single-node reference store; separate lock plus private atomic replacement. */
-final readonly class JsonAuthStore implements AccountStore
+final readonly class JsonAuthStore implements IdentityStore
 {
     public function __construct(private string $path){}
     private function transaction(callable $work,?int $now=null):mixed
@@ -21,6 +21,8 @@ final readonly class JsonAuthStore implements AccountStore
                 foreach(['users','sessions','limits'] as $key){if(!isset($data[$key]) || !is_array($data[$key])){throw new \RuntimeException('Invalid auth records.');}}
             }
             $data['tokens']??=[];if(!is_array($data['tokens'])){throw new \RuntimeException('Invalid account token records.');}
+            $data['state']??=[];if(!is_array($data['state'])){throw new \RuntimeException('Invalid identity state.');}
+            foreach($data['state'] as $key=>$state){if(isset($state['expires']) && $state['expires']<=($now??time())){unset($data['state'][$key]);}}
             if($now!==null){foreach(['sessions','limits','tokens'] as $key){foreach($data[$key] as $id=>$record){if(!is_array($record) || !is_int($record['expires']??null)){throw new \RuntimeException('Invalid auth expiry record.');}if($record['expires']<=$now){unset($data[$key][$id]);}}}}
             $result=$work($data);$wire=json_encode($data,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);
             if(strlen($wire)>16777216){throw new \RuntimeException('Auth storage exceeds its single-node size limit.');}
@@ -34,7 +36,7 @@ final readonly class JsonAuthStore implements AccountStore
     public function userById(string $id):?array{return $this->transaction(static function(array &$data)use($id):?array{foreach($data['users'] as $user){if(($user['id']??null)===$id){return $user+['auth_version'=>0,'email_verified_at'=>null];}}return null;});}
     public function createUser(string $email,string $name,string $passwordHash):?array{return $this->transaction(static function(array &$data)use($email,$name,$passwordHash):?array{if(isset($data['users'][$email])){return null;}$user=['id'=>bin2hex(random_bytes(16)),'email'=>$email,'name'=>$name,'password_hash'=>$passwordHash,'auth_version'=>0,'email_verified_at'=>null];$data['users'][$email]=$user;return $user;});}
     public function saveSession(string $digest,array $session,int $now):void{$this->transaction(static function(array &$data)use($digest,$session):void{
-        if(($session['user_id']??null)!==null){$user=null;foreach($data['users'] as $row){if($row['id']===$session['user_id']){$user=$row;break;}}if($user===null || ($user['auth_version']??0)!==($session['user_version']??0)){throw new AuthFailure('SESSION_CHANGED','Sign in again.',401);}}
+        if(($session['user_id']??null)!==null){$user=null;foreach($data['users'] as $row){if($row['id']===$session['user_id']){$user=$row;break;}}if($user===null || ($user['auth_version']??0)!==($session['user_version']??0)){throw new AuthFailure('SESSION_CHANGED','Sign in again.',401);}if(isset($data['state']['user:'.$user['id']]['mfa']['secret']) && !($session['mfa_verified']??false)){throw new AuthFailure('MFA_REQUIRED','An authenticator or recovery code is required.',401);}}
         if(count($data['sessions'])>=10000){throw new AuthFailure('CAPACITY','Please try again later.',503);}$data['sessions'][$digest]=$session;
     },$now);}
     public function session(string $digest,int $now):?array{return $this->transaction(static fn(array &$data):?array=>$data['sessions'][$digest]??null,$now);}
@@ -70,4 +72,26 @@ final readonly class JsonAuthStore implements AccountStore
             else{return false;}return true;
         },$now);
     }
+    public function state(string $key):array{return $this->transaction(static fn(array &$data):array=>$data['state'][$key]??[]);}
+    public function changeState(string $key,callable $work):mixed{IdentityRules::transient($key);return $this->transaction(static function(array &$data)use($key,$work):mixed{$state=$data['state'][$key]??[];$result=$work($state);IdentityRules::state($key,$state);if($state===[]){unset($data['state'][$key]);}else{if(count($data['state'])>=20000 && !isset($data['state'][$key])){throw new \LengthException('Identity state limit reached.');}$data['state'][$key]=$state;}return $result;});}
+    public function changeIdentity(string $id,int $version,callable $work):array{return $this->transaction(static function(array &$data)use($id,$version,$work):array{
+        $email=null;foreach($data['users'] as $key=>$row){if($row['id']===$id){$email=$key;break;}}if($email===null || ($data['users'][$email]['auth_version']??0)!==$version){throw new AuthFailure('SESSION_CHANGED','Sign in again.',401);}
+        $before=$data['users'][$email]+['auth_version'=>0,'email_verified_at'=>null];$user=$before;$old=$data['state']['user:'.$id]??[];$security=$old;$change=$work($user,$security);
+        if(!$change instanceof IdentityChange){throw new \LogicException('Identity callback must return IdentityChange.');}$revoke=IdentityRules::validate($before,$user,$old,$security,$change);
+        if($user['email']!==$email && isset($data['users'][$user['email']])){throw new AuthFailure('ACCOUNT_CONFLICT','That account change is unavailable.');}
+        unset($data['users'][$email]);
+        if($change->delete){unset($data['state']['user:'.$id]);foreach($data['state'] as $key=>$record){if(($record['user_id']??null)===$id){unset($data['state'][$key]);}}}
+        else{IdentityRules::state('user:'.$id,$security);$data['users'][$user['email']]=$user;$data['state']['user:'.$id]=$security;}
+        if($revoke){foreach(['sessions','tokens'] as $section){foreach($data[$section] as $key=>$record){if(($record['user_id']??null)===$id){unset($data[$section][$key]);}}}}
+        return ['user'=>$change->delete?null:$user,'value'=>$change->value];
+    });}
+    public function sessionsFor(string $id,int $now):array{return $this->transaction(static function(array &$data)use($id):array{$result=[];foreach($data['sessions'] as $digest=>$row){if(($row['user_id']??null)===$id){$result[]=['id'=>$digest,'expires'=>$row['expires']];}}return $result;},$now);}
+    public function revokeSession(string $id,string $digest):void{$this->transaction(static function(array &$data)use($id,$digest):void{if(($data['sessions'][$digest]['user_id']??null)===$id){unset($data['sessions'][$digest]);}});}
+    public function changeProvider(string $id,int $version,string $provider,?string $subjectHash):array{return $this->transaction(static function(array &$data)use($id,$version,$provider,$subjectHash):array{
+        $email=null;$user=null;foreach($data['users'] as $key=>$row){if($row['id']===$id){$email=$key;$user=$row;break;}}$security=$data['state']['user:'.$id]??[];$hash=$subjectHash??($security['oauth'][$provider]??null);$binding=$hash===null?[]:($data['state']['oid:'.$hash]??[]);ProviderChange::apply($user,$version,$provider,$subjectHash,$security,$binding);IdentityRules::state('user:'.$id,$security);$data['users'][$email]=$user;$data['state']['user:'.$id]=$security;
+        if($hash!==null){if($binding===[]){unset($data['state']['oid:'.$hash]);}else{$data['state']['oid:'.$hash]=$binding;}}foreach(['sessions','tokens'] as $section){foreach($data[$section] as $key=>$record){if(($record['user_id']??null)===$id){unset($data[$section][$key]);}}}return $user;
+    });}
+    public function authority(string $id,string $digest,int $now):?array{return $this->transaction(static function(array &$data)use($id,$digest):?array{
+        $session=$data['sessions'][$digest]??null;if(($session['user_id']??null)!==$id){return null;}foreach($data['users'] as $user){if($user['id']===$id && ($user['auth_version']??0)===($session['user_version']??0)){return $data['state']['user:'.$id]??[];}}return null;
+    },$now);}
 }

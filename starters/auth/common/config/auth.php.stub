@@ -11,4 +11,12 @@ return [
     'delivery'=>getenv('AUTH_DELIVERY')?:(getenv('APP_ENV')==='production'?'disabled':'preview'),
     'outbox'=>(getenv('COREVIA_STORAGE')?:dirname(__DIR__).'/storage').'/auth/outbox',
     'require_verified'=>getenv('AUTH_REQUIRE_VERIFIED_EMAIL')==='true',
+    'mfa'=>getenv('AUTH_MFA')!=='false' && function_exists('openssl_encrypt'),
+    'key_file'=>(getenv('COREVIA_STORAGE')?:dirname(__DIR__).'/storage').'/auth/security.key',
+    'remember_ttl'=>2592000,
+    // Named OAuthProvider class names, resolved by the application container.
+    'oauth'=>[],
+    'roles'=>['admin'=>['admin.access'],'editor'=>['documents.read','documents.update']],
+    'mail_queue'=>(getenv('COREVIA_STORAGE')?:dirname(__DIR__).'/storage').'/auth/mail/queue.json',
+    'smtp'=>['host'=>getenv('SMTP_HOST')?:'','port'=>(int)(getenv('SMTP_PORT')?:587),'encryption'=>getenv('SMTP_ENCRYPTION')?:'starttls','username'=>getenv('SMTP_USERNAME')?:'','password'=>getenv('SMTP_PASSWORD')?:'','from'=>getenv('MAIL_FROM')?:'','cafile'=>getenv('SMTP_CA_FILE')?:null],
 ];

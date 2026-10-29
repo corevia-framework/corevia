@@ -38,7 +38,7 @@ try{
         foreach(['mysql','pgsql'] as $driver){
             $db=SqlConnection::connect(['driver'=>$driver,'host'=>'127.0.0.1','port'=>$driver==='mysql'?3306:5432,'database'=>'corevia_ci','username'=>'corevia','password'=>'ci-only-password']);$prefix='cv_auth_test_'.bin2hex(random_bytes(5));
             try{$store=new SqlAuthStore($db,$prefix);$store->migrate();$store->migrate();contract($store);echo "PASS $driver auth/account storage contract\n";}
-            finally{foreach(['tokens','sessions','limits','users','mutex'] as $name){$db->execute('DROP TABLE IF EXISTS '.$db->quoteIdentifier($prefix.'_'.$name));}}
+            finally{foreach(['state','tokens','sessions','limits','users','mutex'] as $name){$db->execute('DROP TABLE IF EXISTS '.$db->quoteIdentifier($prefix.'_'.$name));}}
         }
     }
 }finally{unset($store,$db);foreach(glob($directory.'/*') as $file){unlink($file);}rmdir($directory);}

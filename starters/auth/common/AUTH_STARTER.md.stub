@@ -11,4 +11,12 @@ To change styling or the React interface, edit frontend/auth and resources/views
 
 Recovery is available at /forgot-password and verification at /verify-email. Development uses a private preview outbox: php corevia auth:outbox lists messages without links; --show=<file> displays one private preview link. No message is sent externally by preview delivery. Tokens are single-use, expire, and reset revokes account sessions. AUTH_REQUIRE_VERIFIED_EMAIL=true gates the dashboard. Production preview delivery is blocked: configure an AccountDelivery implementation through AUTH_DELIVERY, or keep delivery disabled. Recovery links require JavaScript and use URL fragments so bearer tokens stay out of server request URLs.
 
-MFA, OAuth, persistent remember-me, account management and a bundled production mail transport are not included yet. See docs/v3/auth-storage-recovery.md in the framework for configuration, adapter contracts and remaining scope.
+Account settings are at /account, shared across all three kits. MFA uses an authenticator setup secret/URI and eight single-use recovery codes; OpenSSL is required. Login supports authenticator/recovery codes and a fixed maximum 30-day remember-me session. Password recovery preserves MFA. Keep storage/auth/security.key backed up with encrypted records; never commit it or rotate/delete it independently.
+
+Provider-neutral OAuth is configured with named OAuthProvider class names in config/auth.php. Adapters own verified HTTPS token/userinfo exchange and provider validation. Link an existing account from settings first; there is no automatic email-based linking or bundled Google/GitHub/OIDC client. Provider login also requires MFA when enabled.
+
+For queued production SMTP set AUTH_DELIVERY=smtp, SMTP_HOST/PORT/ENCRYPTION/USERNAME/PASSWORD and MAIL_FROM. Only verified SMTPS/STARTTLS is supported. Run php corevia mail:work --once or --max=100 under a scheduler/supervisor; mail:status shows counts. The encrypted spool is single-host and at-least-once. Preview delivery still sends no external messages.
+
+Roles are server-controlled. php corevia auth:roles --email=owner@example.test --set=admin grants the configured global role and revokes sessions. Empty --set revokes roles; --tenant=id selects tenant scope. No user is an admin automatically. /auth/admin demonstrates the gate; business resources need explicit Authorize policies with server-loaded tenant/owner identity.
+
+Existing generated applications require deliberate configuration/route/view merges; run auth:migrate for the additional SQL identity-state table. See docs/v3/identity-mail-authorization.md for setup, contracts, upgrade notes and operational limits. V3 remains unpublished.

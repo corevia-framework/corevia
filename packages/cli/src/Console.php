@@ -27,6 +27,17 @@ final readonly class Console
             }
         }
         try {
+            if(in_array($command,['mail:work','mail:status','auth:roles'],true)){
+                $file=$this->basePath.'/config/auth.php';if(!is_file($file)){throw new \LogicException('Install an auth starter first.');}$settings=require $file;
+                if($command==='auth:roles'){
+                    if(!array_key_exists('set',$options)){throw new \InvalidArgumentException('Provide --set=role[,role] or an explicit empty --set= to revoke roles.');}
+                    $environment=getenv('APP_ENV')?:'development';$configuration=ConfigRepository::load($this->basePath.'/config/settings',$environment);$manager=new DatabaseManager($configuration->get('database',[]));
+                    try{$store=match($settings['driver']){'json'=>new \Corevia\Auth\JsonAuthStore($settings['store']),'sql'=>new \Corevia\Auth\SqlAuthStore($manager->sql($settings['connection']),$settings['prefix']),default=>throw new \InvalidArgumentException('Choose json or sql auth storage.')};$email=strtolower(trim($options['email']??''));$user=$store->findUser($email)??throw new \InvalidArgumentException('Account not found.');$roles=($options['set']??'')===''?[]:explode(',',$options['set']);(new \Corevia\Auth\Gate($store,$settings['roles']))->assign($user['id'],$roles,$options['tenant']??null);$this->print(['updated'=>true,'sessions_revoked'=>true]);}finally{$manager->disconnect();}return 0;
+                }
+                if(($settings['delivery']??null)!=='smtp'){throw new \LogicException('Configure AUTH_DELIVERY=smtp before running a mail worker.');}$queue=\Corevia\Auth\MailQueue::configured($settings);
+                if($command==='mail:status'){$this->print($queue->status());return 0;}$maximum=isset($options['once'])?1:filter_var($options['max']??100,FILTER_VALIDATE_INT);if($maximum===false||$maximum<1||$maximum>1000){throw new \InvalidArgumentException('Choose --max=1..1000 or --once.');}
+                $results=[];for($index=0;$index<$maximum;$index++){$result=$queue->workOnce();if($result['status']==='empty'){break;}$results[]=$result;}$this->print(['processed'=>$results]);return 0;
+            }
             if(in_array($command,['auth:migrate','auth:outbox'],true)){
                 $file=$this->basePath.'/config/auth.php';if(!is_file($file)){throw new \LogicException('Install an auth starter first.');}$settings=require $file;
                 if($command==='auth:migrate'){
@@ -103,7 +114,7 @@ final readonly class Console
             }
             if ($command === 'test') {
                 $status=0;
-                foreach (['tests/run.php','tests/v2/kernel.php','tests/v2/flows.php','tests/v2/protocol.php','tests/v2/tooling.php','tests/v2/upgrade.php','tests/v2/diagnostics.php','tests/v2/security.php','tests/features/databases.php','tests/features/web.php','tests/v3/composition.php','tests/v3/scopes.php','tests/v3/units.php','tests/v3/artifact-boot.php','tests/v3/contracts.php','tests/v3/profiles.php','tests/v3/auth.php','tests/v3/auth-storage.php','tests/v3/auth-recovery.php'] as $test) {
+                foreach (['tests/run.php','tests/v2/kernel.php','tests/v2/flows.php','tests/v2/protocol.php','tests/v2/tooling.php','tests/v2/upgrade.php','tests/v2/diagnostics.php','tests/v2/security.php','tests/features/databases.php','tests/features/web.php','tests/v3/composition.php','tests/v3/scopes.php','tests/v3/units.php','tests/v3/artifact-boot.php','tests/v3/contracts.php','tests/v3/profiles.php','tests/v3/auth.php','tests/v3/auth-storage.php','tests/v3/auth-recovery.php','tests/v3/identity.php','tests/v3/mail.php'] as $test) {
                     passthru(escapeshellarg(PHP_BINARY).' '.escapeshellarg($this->basePath.'/'.$test),$code); if ($code!==0) { $status=1; }
                 }
                 return $status;
@@ -114,6 +125,8 @@ final readonly class Console
             }
             if ($command === 'help') {
                 echo "auth:migrate | auth:outbox [--show=private-preview-file.json]\n";
+                echo "auth:roles --email=address --set=admin[,editor] [--tenant=id] (empty --set revokes roles)\n";
+                echo "mail:status | mail:work [--once | --max=100]\n";
                 echo "starter:auth [--stack=bootstrap|tailwind|react --path=existing-project --dry-run --check]\n";
                 echo "profile:list | profile:show (COREVIA_PROFILE=web|api|worker|realtime|ai|full)\n";
                 echo "V3 foundations (unreleased): app:graph | app:compile | app:verify | app:inspect [--output=path --key-file=path]\ncontract:compile <manifest.json> [--output=directory --check]\n";

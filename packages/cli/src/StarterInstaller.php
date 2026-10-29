@@ -18,7 +18,7 @@ final readonly class StarterInstaller
         }
         foreach(['package.json','package-lock.json'] as $name){$files['frontend/auth/'.$name]=file_get_contents($source.'/stacks/'.$stack.'/'.$name);}
         $files['frontend/auth/build.mjs']=file_get_contents($source.'/frontend/build.mjs');
-        if($stack!=='react'){$files['frontend/auth/src/account.js']=file_get_contents($source.'/frontend/src/account.js');}
+        $files['frontend/auth/src/account.js']=file_get_contents($source.'/frontend/src/account.js');
         if($stack!=='bootstrap'){$files['frontend/auth/src/auth.css']=file_get_contents($source.'/frontend/src/auth.css');if($stack!=='react'){$files['frontend/auth/src/auth.css']=str_replace('@source "./app.jsx";','',$files['frontend/auth/src/auth.css']);}}
         if($stack==='react'){$files['frontend/auth/src/app.jsx']=file_get_contents($source.'/frontend/src/app.jsx');}
         $assets=json_decode(file_get_contents($source.'/assets/manifest.json'),true,64,JSON_THROW_ON_ERROR)['stacks'][$stack]['files']??throw new \RuntimeException('Missing asset manifest.');

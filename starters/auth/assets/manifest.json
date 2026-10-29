@@ -7,7 +7,7 @@
       },
       "files": {
         "auth-LICENSES.txt": "408552a46566195d933e41994e7596dffab200d4304afb918859aa163877260e",
-        "auth-account.js": "c6781e9685df07ed8e58cc599a3964214be6692a7f3ff22f96fcbde65390807d",
+        "auth-account.js": "b25e276e11810527f8b82f4f3208e58b2ad99fcefb745e11e241e89202abf123",
         "auth.css": "26435ac99793cfc83b8a9ee54a389d05adfc224696006bf3b9e638f023cac7c0"
       }
     },
@@ -18,8 +18,8 @@
       },
       "files": {
         "auth-LICENSES.txt": "9c8eda97de33420aa7b221858ada6c5fcd83fbbf513e4eba8d0cdf505bdcf551",
-        "auth-account.js": "c6781e9685df07ed8e58cc599a3964214be6692a7f3ff22f96fcbde65390807d",
-        "auth.css": "dae66a021d51fbfcd1b8924b21413107d8a5af3cd52a2b8ae367ec54a82f1289"
+        "auth-account.js": "b25e276e11810527f8b82f4f3208e58b2ad99fcefb745e11e241e89202abf123",
+        "auth.css": "9c7d7a827815d5c90259eb73ef1515123e76c0cc6297262178a90955955da4a6"
       }
     },
     "react": {
@@ -32,8 +32,9 @@
       },
       "files": {
         "auth-LICENSES.txt": "61f5ce9a64e584379461abe83505d0897f1861f5b043ec0f469c708829c3e31a",
-        "auth.css": "56a8a5598f134d5a245dd05f62f483014c0a58d395e0f654bcfca2d01218952b",
-        "auth.js": "c2e2c2944948c4b51c50f84021f5296380e8a2904997a9e07a7cdb6d0784863b",
+        "auth-account.js": "b25e276e11810527f8b82f4f3208e58b2ad99fcefb745e11e241e89202abf123",
+        "auth.css": "1841fb6b0612586aa053243998fbcf841f0a3ea2a501b656bd5c16c132791ac7",
+        "auth.js": "90e5519ecf86b8d87a0a97a66c29d191c5495c817428930ccdf496d49d75d4bf",
         "auth.js.LEGAL.txt": "573cc95a6417c69a6ca44804f440f00965283c8cdcc50025305a7a50f53940ac"
       }
     }

@@ -21,7 +21,7 @@ final readonly class Request
             $headers[strtolower($key)] = $value;
         }
         $scheme=(!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS']!=='off') || getenv('APP_HTTPS')==='true'?'https':'http';
-        return new self($_SERVER['REQUEST_METHOD'], parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?: '/', $headers, $body, attributes:['scheme'=>$scheme,'client_ip'=>$_SERVER['REMOTE_ADDR']??'']);
+        return new self($_SERVER['REQUEST_METHOD'], parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?: '/', $headers, $body, attributes:['scheme'=>$scheme,'client_ip'=>$_SERVER['REMOTE_ADDR']??'','query'=>$_GET]);
     }
 
     public function header(string $name, string $default = ''): string

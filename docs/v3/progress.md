@@ -22,17 +22,30 @@ Foundation points 9–14 now have local implementations and regression coverage.
 
 The next feature phase adds `starter:auth` for Bootstrap, Tailwind and React, offline-ready assets, explicit auth-store/service contracts, private single-node JSON storage, registration/sign-in/sign-out, session-bound CSRF, rotation/revocation, attempt limits and a protected dashboard. The generator is additive and refuses overwrites. Existing apps stay unchanged until a kit is explicitly installed. See [auth starters](auth-starters.md).
 
-The base auth/UI milestone is followed by the storage/recovery work below. Document auth adapters, bundled production mail transports, MFA/OAuth, account management and distributed operational tooling remain pending. AI model hosting/RAG/GPU tooling and the other planned V3 feature workstreams are not completed by these milestones. The framework version remains 2.0.0 and V3 stays unpublished.
+The base auth/UI milestone is followed by the storage/recovery and identity/delivery/authorization work below. Document auth adapters and distributed operational tooling remain pending. AI model hosting/RAG/GPU tooling and the other planned V3 feature workstreams are not completed by these milestones. The framework version remains 2.0.0 and V3 stays unpublished.
 
 ## Auth storage and recovery phase
 
 Added SQL auth adapters for SQLite/MySQL/PostgreSQL with explicit migrations, versioned sessions, atomic single-use account tokens and stale-login protection. Added password recovery, matching-account email verification, optional verified-dashboard gating, private development delivery previews, a production delivery interface and UI in every starter. See [storage/recovery](auth-storage-recovery.md). No real email is sent by preview delivery.
 
-JSON/SQLite contracts, concurrent token consumption and browser flows passed locally. MySQL/PostgreSQL service contracts are configured in CI but remain unrun for this local phase. Existing apps and generated files are not overwritten; new configuration/wiring must be merged explicitly. Production delivery requires a configured application adapter.
+JSON/SQLite contracts, concurrent token consumption and browser flows passed locally. MySQL/PostgreSQL service contracts are configured in CI but remain unrun for this local phase. Existing apps and generated files are not overwritten; new configuration/wiring must be merged explicitly. Production delivery can use the queued SMTP implementation added below or a configured application adapter.
 
 Local validation passed for extension-free auth/security tests (including concurrent email uniqueness), real browser flows in all three UI stacks with external requests blocked, reproducible bundled assets, signed auth-policy drift, installer overwrite protection, PHP regression/lint, architecture gates and existing live HTTP/WebSocket/Python integration. The browser/rebuild CI job is configured locally; GitHub CI has not been run.
 
 The profile phase adds six database-free boot checks, catalog/override/guard/drift tests and live API/worker/realtime tests. Architecture checks include six test groups with deliberately forbidden PHP, Python, JS and Dart dependencies, plus harmless-comment/string cases. Existing PHP regressions, starter-page/form tests and live HTTP/WebSocket/Python integration passed locally. Updated CI is stored locally and has not been run on GitHub.
+
+## Four subsequent local auth phases
+
+| Workstream | Implemented | Scope |
+| --- | --- | --- |
+| Stronger authentication | TOTP MFA, single-use recovery codes, bounded remember-me, provider-neutral authorization-code/PKCE integration and MFA challenge | No bundled provider-specific client or OIDC verifier; applications implement the provider port. |
+| Account management | Profile/email/password updates, account deletion, session listing and owner-checked revocation | Current password/MFA checks, transactional version changes and session/token invalidation. Application resource deletion needs a domain policy. |
+| Production email | Private encrypted durable spool, leased workers with retries/expiry, TLS-only SMTP, CLI status/work commands and execution scopes | Single-host file spool, at-least-once delivery; real external mail-provider delivery remains untested locally. |
+| Authorization | Exact role/ability maps, scoped tenant memberships, server-loaded resource ownership, deny-default middleware and operator role CLI | Atomic session/version/assignment snapshots. Global roles do not bypass tenant membership. |
+
+See [identity, mail and authorization](identity-mail-authorization.md) for setup, contracts, operational limits and remaining work. The basic JSON kit still works without OpenSSL; encrypted features require it and existing MFA accounts fail closed without a verifier. SQL identity state uses an additional migration table. NoSQL auth, distributed infrastructure, passkeys, provider-specific integrations and the other V3/AI workstreams remain separate work. These phases do not declare all 14 V3 points complete.
+
+Local acceptance passed all nine Chrome combinations (three UI kits with extension-free JSON, encrypted JSON and SQLite), account/role CLI flows, concurrent JSON/SQLite recovery-code consumption and unique provider binding, RFC TOTP vectors, encryption tamper checks, leased mail retries/expiry/cleanup, and loopback SMTPS/STARTTLS certificate/hostname/downgrade checks. PHP regressions/lint, asset reproduction, architecture gates and existing live HTTP/profile/WebSocket/Python integration passed. External email, real OAuth providers and live MySQL/PostgreSQL identity services remain untested locally; CI configuration is local and has not run on GitHub.
 
 ## Validation
 

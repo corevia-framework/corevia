@@ -2,6 +2,8 @@
 
 Corevia V2 includes a kernel, durable flows, compensation, CVP/2, presence channels, SDKs, database adapters, web routing and developer tooling while retaining V1 APIs. V1 is preserved at `v1.0.0`; stable V2 uses `v2.0.0`. Start with the [V2 kernel guide](docs/v2/kernel.md), [flow guide](docs/v2/flows.md), and [installation guide](docs/v2/installation.md). Run `php -n examples/v2/kernel.php` for a database-free example. See [migration notes](docs/v2/migration.md) and [release notes](RELEASE_NOTES_V2.md).
 
+Local V3 development is tracked in [V3 progress](docs/v3/progress.md), including [one-command auth starters](docs/v3/auth-starters.md) and [MFA, account management, queued SMTP and authorization](docs/v3/identity-mail-authorization.md). V3 remains unreleased; the stable version is unchanged.
+
 A standalone PHP 8.2+ framework for modular actions, observable flows, isolated failures, events, WebSockets and CVP/1–2 interoperability. PHP core has no third-party runtime dependencies and does not require Node.js, Python, Redis or a broker.
 
 ## Setup

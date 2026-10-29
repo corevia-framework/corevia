@@ -55,13 +55,13 @@ Auth responses disable caching and apply CSP, frame restrictions and content-typ
 | POST | `/auth/login` | New session and CSRF token, or generic credential error |
 | POST | `/auth/logout` | Revoked session and expired cookie |
 
-These are JSON business endpoints, separate from CVP envelopes. React uses fetch with same-origin credentials. The server session cookie remains inaccessible to JavaScript. CSRF failures return 419; the router may reject forbidden origins earlier with 403. Attempt limits return 429 and Retry-After. Authentication alone does not implement tenant ownership, RBAC or application permission checks: add those when protecting business routes/actions.
+These are JSON business endpoints, separate from CVP envelopes. React uses fetch with same-origin credentials. The server session cookie remains inaccessible to JavaScript. CSRF failures return 419; the router may reject forbidden origins earlier with 403. Attempt limits return 429 and Retry-After. Protect business routes with the explicit role/tenant/ownership [authorization layer](identity-mail-authorization.md#authorization); authentication alone does not grant resource access.
 
 ## Storage and deployment scope
 
 The default `JsonAuthStore` is a bounded, single-node reference adapter. It uses a separate lock, private directories/files and atomic replacement, enforces unique email creation under the lock, expires session/limit records, and preserves corrupt input instead of silently resetting accounts. Records live under private `storage/auth/` and are ignored by Git. Serve only `public/`, preserve storage across restarts, and apply private filesystem permissions/Windows ACLs and appropriate backups. It is not a shared multi-node store.
 
-`AuthStore` is an explicit persistence contract. The [storage/recovery phase](auth-storage-recovery.md) now adds SQLite/MySQL/PostgreSQL auth, password reset, email verification, private preview delivery and a production delivery port. These need the new kit wiring; upgrading older generated files is a deliberate merge. Existing flow tables are not auth tables, and selecting SQL does not import JSON users. Document auth adapters, bundled production mail transports, MFA, OAuth, remember-me and account settings remain pending.
+`AuthStore` is an explicit persistence contract. The [storage/recovery phase](auth-storage-recovery.md) adds SQLite/MySQL/PostgreSQL auth, password reset, email verification, private preview delivery and a production delivery port. [Identity/mail/authorization](identity-mail-authorization.md) extends both stores with MFA, provider-neutral OAuth, remember-me, account settings, queued TLS-only SMTP and scoped permissions. These need the new kit wiring; upgrading older generated files is a deliberate merge. Existing flow tables are not auth tables, and selecting SQL does not import JSON users. Document auth adapters and distributed infrastructure remain pending.
 
 APP_URL must match the browser origin. For another local port, set it explicitly:
 

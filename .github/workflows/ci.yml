@@ -36,6 +36,9 @@ jobs:
       - run: php -n tests/v3/auth.php
       - run: php -n tests/v3/auth-storage.php
       - run: php -n tests/v3/auth-recovery.php
+      - run: php -n tests/v3/identity.php
+      - run: php -n tests/v3/mail.php
+      - run: node tests/v3/smtp.mjs
       - run: node tests/v3/profiles.mjs
       - run: npm ci --ignore-scripts
         working-directory: tools
@@ -87,6 +90,9 @@ jobs:
       - run: node tests/v3/auth-browser.mjs
         env:
           COREVIA_AUTH_SQL: '1'
+      - run: node tests/v3/auth-browser.mjs
+        env:
+          COREVIA_AUTH_CRYPTO: '1'
   dart:
     runs-on: ubuntu-latest
     steps:
@@ -143,5 +149,8 @@ jobs:
         env:
           COREVIA_DB_TESTS: '1'
       - run: php tests/v3/auth-storage.php
+        env:
+          COREVIA_DB_TESTS: '1'
+      - run: php tests/v3/identity.php
         env:
           COREVIA_DB_TESTS: '1'
