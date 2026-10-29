@@ -19,7 +19,7 @@ final readonly class CompositionPlan implements \JsonSerializable
             if ($manifest->id !== $id || $declared !== $dependencies) { throw new \LogicException('Manifest disagrees with module: ' . $id); }
             $requires = $manifest->requires; sort($requires, SORT_STRING);
             $source = (new \ReflectionClass($module))->getFileName();
-            $definitions[$id] = ['class' => $module::class, 'source_hash' => $source === false ? null : hash_file('sha256', $source), 'version' => $manifest->version, 'enabled' => !in_array($id, $disabled, true), 'dependencies' => $dependencies, 'requires' => $requires];
+            $definitions[$id] = ['class' => DeclarationIdentity::normalize($module::class), 'source_hash' => $source === false ? null : hash_file('sha256', $source), 'version' => $manifest->version, 'enabled' => !in_array($id, $disabled, true), 'dependencies' => $dependencies, 'requires' => $requires];
             $manifests[$id] = $manifest;
         }
         $order = []; $visited = []; $active = [];

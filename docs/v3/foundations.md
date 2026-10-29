@@ -25,7 +25,7 @@ Dependencies boot first. Independent modules and dependency names use stable lex
 php corevia app:graph
 ```
 
-The graph records enabled/disabled modules, dependency order, declared action/flow/event registrations, service lifetimes, health and capabilities. It does not introspect arbitrary live object state or factory captures.
+The graph records enabled/disabled modules, dependency order, declared action/flow/event registrations, service lifetimes, health and capabilities. Anonymous class metadata uses source-derived identities instead of machine-specific absolute paths; ambiguous anonymous binding identities fail compilation and should be replaced with named classes. The graph does not introspect arbitrary live object state or factory captures.
 
 ## Per-unit services and cleanup
 

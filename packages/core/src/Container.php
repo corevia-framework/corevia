@@ -50,7 +50,7 @@ final class Container
             }
             $definitions[$id] = ['lifetime' => ($entry['scoped'] ?? false) ? 'scope' : ($entry['shared'] ? 'singleton' : 'transient'), ...$description];
         }
-        ksort($definitions, SORT_STRING); return $definitions;
+        ksort($definitions, SORT_STRING); return DeclarationIdentity::normalize($definitions);
     }
 
     public function has(string $id): bool

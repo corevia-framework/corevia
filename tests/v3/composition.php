@@ -43,6 +43,18 @@ try {
     $wire=CanonicalJson::encode(['ratio'=>0.1]);$precision=ini_get('serialize_precision');
     try{ini_set('serialize_precision','17');check(CanonicalJson::encode(['ratio'=>0.1])===$wire);check(ini_get('serialize_precision')==='17');}finally{ini_set('serialize_precision',$precision);}
     check(CanonicalJson::encode(new \stdClass())==='{}');
+    $fixture= <<<'PHP'
+<?php
+require $argv[1];
+$action=new class implements Corevia\Core\Action{public function handle(Corevia\Core\State $s,Corevia\Core\ExecutionContext $c):Corevia\Core\State{return $s;}};
+$module=new class($action::class) implements Corevia\Core\Module{
+    public function __construct(private string $action){}
+    public function name():string{return 'portable';}public function dependencies():array{return [];}
+    public function register(Corevia\Core\ModuleContext $c):void{$c->actions(['portable'=>$this->action]);}
+};
+$app=Corevia\Core\Corevia::create(__DIR__);$app->container->set($action::class,$action);$app->compose([$module]);$app->boot();echo Corevia\Core\CanonicalJson::encode($app->graph());$app->shutdown();
+PHP;
+    $graphs=[];foreach(['one.php','two.php'] as $name){file_put_contents($root.'/'.$name,$fixture);$output=[];exec(escapeshellarg(PHP_BINARY).' -n '.escapeshellarg($root.'/'.$name).' '.escapeshellarg(dirname(__DIR__,2).'/autoload.php'),$output,$status);check($status===0);$graphs[]=implode("\n",$output);}check($graphs[0]===$graphs[1]);
     $a->shutdown(); $b->shutdown();
     echo "PASS V3 canonical composition, graph stability, private artifacts, drift detection and invalid plans\n";
 } finally { foreach (glob($root . '/app/*') as $file) { unlink($file); } rmdir($root . '/app'); foreach (glob($root . '/*') as $file) { unlink($file); } rmdir($root); }

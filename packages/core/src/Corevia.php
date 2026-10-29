@@ -81,7 +81,7 @@ final class Corevia
             $events = array_map(static fn (array $handler): string => $handler[0], $context->handlers); sort($events, SORT_STRING);
             $modules[$id] = ['actions' => $actions, 'flows' => $flows, 'listeners' => $events];
         }
-        return ['format' => 1, 'plan' => $plan->jsonSerialize(), 'registrations' => $modules, 'bindings' => $this->container->definitions(), 'health' => $this->registry->health(), 'capabilities' => $this->capabilities->all()];
+        return DeclarationIdentity::normalize(['format' => 1, 'plan' => $plan->jsonSerialize(), 'registrations' => $modules, 'bindings' => $this->container->definitions(), 'health' => $this->registry->health(), 'capabilities' => $this->capabilities->all()]);
     }
 
     public function effectiveConfiguration(): array
