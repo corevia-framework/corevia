@@ -32,6 +32,7 @@ final class JobQueue
     /** Returns true if one due job was claimed and processed. */
     public function work(Corevia $app): bool
     {
+        $app->requireFeature('jobs');
         foreach (glob($this->directory.'/*.json') ?: [] as $path) {
             $file=fopen($path,'r+b');
             if ($file===false) { continue; }

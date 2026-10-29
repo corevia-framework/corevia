@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Corevia\Realtime;
 
 use Corevia\Core\ActionResult;
+use Corevia\Core\Corevia;
 use Corevia\Core\Logger;
 use Corevia\Core\ScopeManager;
 use Corevia\Protocol\Protocol;
@@ -30,13 +31,15 @@ final class Server implements Broadcaster
         private readonly int $heartbeatSeconds = 20,
         private readonly ?PubSub $pubsub = null,
         ?ScopeManager $scopes = null,
+        ?Corevia $app = null,
     ) {
+        $app?->requireFeature('websocket');
         if (strlen($secret) < 32) {
             throw new \InvalidArgumentException('Realtime secret must have at least 32 characters.');
         }
         $this->protocol = new Protocol($maxBytes);
         $this->nodeId = bin2hex(random_bytes(12));
-        $this->scopes = $scopes ?? new ScopeManager($logger);
+        $this->scopes = $scopes ?? $app?->scopes ?? new ScopeManager($logger);
     }
 
     public function stop(): void

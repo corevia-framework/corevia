@@ -18,6 +18,7 @@ final class Router
 
     public function __construct(private readonly Corevia $app, private readonly array $origins = [], private readonly int $maxBytes = 65536)
     {
+        $app->requireFeature('http');
         $app->capabilities->define('http', metadata: ['adapter' => self::class]);
     }
 
@@ -64,7 +65,7 @@ final class Router
     public function put(string $path,callable|array|string $handler): Route{return $this->add('PUT',$path,$handler);}
     public function patch(string $path,callable|array|string $handler): Route{return $this->add('PATCH',$path,$handler);}
     public function delete(string $path,callable|array|string $handler): Route{return $this->add('DELETE',$path,$handler);}
-    public function view(string $path,string $view,array $data=[]): Route{return $this->get($path,fn():Response=>Response::html($this->app->container->get(View::class)->render($view,$data)));}
+    public function view(string $path,string $view,array $data=[]): Route{$this->app->requireFeature('views');return $this->get($path,fn():Response=>Response::html($this->app->container->get(View::class)->render($view,$data)));}
     public function redirect(string $path,string $destination,int $status=302): Route{return $this->get($path,fn():Response=>Response::redirect($destination,$status));}
     public function group(string $prefix,callable $routes,array $middleware=[],string $namePrefix=''): void
     {
@@ -109,6 +110,7 @@ final class Router
     /** No action route exists unless explicitly enabled with an allowlist and authorization callback. */
     public function actionGateway(array $allowlist, callable $authorize, ?ContractManifest $contract = null): Route
     {
+        $this->app->requireFeature('actions');
         return $this->add('POST', '/cvp', function (Request $request) use ($allowlist, $authorize, $contract): Response {
             $envelope = (new Protocol($this->maxBytes))->decode($request->body);
             $trace = $envelope['meta']['trace_id'] ?? $request->header('x-trace-id');

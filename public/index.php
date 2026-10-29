@@ -16,9 +16,10 @@ if (in_array($_SERVER['REQUEST_METHOD'],['GET','HEAD'],true) && in_array($path, 
     return;
 }
 require_once dirname(__DIR__).'/autoload.php';
-$bootstrap = require dirname(__DIR__) . (in_array($path,['/checkout','/cvp','/health'],true)?'/config/bootstrap.php':'/config/web.php');
+$bootstrap = require dirname(__DIR__) . (getenv('COREVIA_PROFILE') || getenv('COREVIA_BUILD_ARTIFACT')?'/config/runtime.php':(in_array($path,['/checkout','/cvp','/health'],true)?'/config/bootstrap.php':'/config/web.php'));
 try {
     $runtime = $bootstrap(dirname(__DIR__));
+    if(!isset($runtime['router'])){throw new LogicException('The selected profile has no HTTP adapter.');}
     $runtime['router']->dispatch(Request::fromGlobals())->send();
 } catch (LengthException) {
     (new Response(Protocol::response('invalid', ActionResult::failure('PAYLOAD_TOO_LARGE', 'Request too large.')), 413))->send();

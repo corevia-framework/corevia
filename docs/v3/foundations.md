@@ -88,11 +88,11 @@ php corevia app:verify
 php corevia app:inspect
 ```
 
-The bundled web starter boots canonically for compilation. Defaults are `storage/application.build.json` and a separately generated `storage/build-signing.key`. Both stay in ignored storage. `--output=...` and `--key-file=...` select deployment-specific paths. Use `APP_ENV` and the same configuration environment for compilation and verification.
+The profile-aware runtime bootstrap boots canonically for compilation (Web by default). Defaults are `storage/application.build.json` and a separately generated `storage/build-signing.key`. Both stay in ignored storage. `--output=...` and `--key-file=...` select deployment-specific paths. Use `APP_ENV` and the same configuration environment for compilation and verification. See [runtime profiles](profiles.md) for API/worker/realtime selection.
 
 Identical graph, effective config, source bytes, framework version, environment and signing key produce identical artifact bytes. The fingerprint uses HMAC-SHA256. Key rotation requires recompilation. `app:inspect` prints a verified summary without configuration values; the artifact itself contains private configuration, so restrict its directory and key using your deployment's filesystem permissions/Windows ACLs.
 
-Default source inputs are existing `app/`, `packages/`, `config/`, `routes/`, `contracts/`, `autoload.php`, `composer.json` and `composer.lock`. All regular files in declared directories are hashed; symlinks and roots outside the app are rejected. For a custom bootstrap, use `ApplicationArtifact::build()`/`verify()` with an explicit complete source list, including any additional templates or SDK code your build needs. The bundled CLI targets `config/web.php`, not the legacy checkout bootstrap.
+Default source inputs are existing `app/`, `packages/`, `config/`, `routes/`, `contracts/`, `autoload.php`, `composer.json` and `composer.lock`. All regular files in declared directories are hashed; symlinks and roots outside the app are rejected. For a custom bootstrap, use `ApplicationArtifact::build()`/`verify()` with an explicit complete source list, including any additional templates or SDK code your build needs. The bundled CLI targets `config/runtime.php`, which selects the appropriate adapter bootstrap, rather than the legacy checkout demo.
 
 To boot the bundled starter using compiled configuration in PowerShell:
 

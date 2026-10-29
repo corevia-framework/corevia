@@ -1,0 +1,86 @@
+# Runtime profiles and capability presets
+
+V3 work remains local on `develop/v3`. Profiles are opt-in; existing V2 `modules()` applications retain their boot behavior.
+
+| Profile | Enabled adapters/features |
+| --- | --- |
+| `web` | HTTP, PHP views, explicitly authorized action gateways |
+| `api` | HTTP and action gateways; no PHP view service or starter forms |
+| `worker` | Job consumption |
+| `realtime` | WebSocket server |
+| `ai` | HTTP/action gateways and Python adapter policy |
+| `full` | All of the above |
+
+Core flows, events, storage contracts and scoped DI remain available in every profile. `profile.*` capabilities describe enabled policy; they do not assert that a database, Python service or model is installed/running. An AI profile does not automatically start an LLM, download weights or expose an action endpoint.
+
+## Try it without a database
+
+```sh
+php -n corevia profile:list
+php -n examples/v3/profiles.php web
+php -n examples/v3/profiles.php worker
+```
+
+The example uses two named modules. `web` constructs the greeting module. `worker` selects the queue module, pulls in its greeting dependency, and runs a hello flow. `realtime` selects neither example module. `full` selects both. It uses in-memory storage and needs no extensions beyond JSON.
+
+For the bundled starter in PowerShell:
+
+```powershell
+$env:COREVIA_PROFILE = 'api'
+php corevia profile:show
+php corevia serve
+# GET /health returns {"status":"ok"}. Web/contact/checkout pages are absent.
+```
+
+To run an empty worker once:
+
+```powershell
+$env:COREVIA_PROFILE = 'worker'
+php -n corevia doctor
+php -n corevia worker:start --once
+```
+
+For realtime use `COREVIA_PROFILE=realtime`, then `php corevia realtime:start`. `COREVIA_CONTROL_PORT` selects the private loopback control port. `realtime:stop` reuses the same private storage/key. No HTTP router, view service, database manager or realtime secret is constructed for an ordinary worker boot. A SQL run store remains an explicit exception: choosing it requires its configured SQL adapter.
+
+Clear the environment variable with `Remove-Item Env:COREVIA_PROFILE` to return to the existing starter behavior.
+
+## Explicit lazy module catalog
+
+Add `ModuleDefinition` entries to `config/modules.php`:
+
+```php
+use Corevia\Core\ModuleDefinition;
+return [
+    new ModuleDefinition('users', App\Users\UsersModule::class, ['web', 'api', 'ai']),
+    new ModuleDefinition('reports', App\Reports\ReportsModule::class, ['worker'], ['users']),
+];
+```
+
+Metadata contains the stable ID, named class, profile tags and dependency IDs. It never constructs the referenced class. Unselected classes may be absent from an installation. Every selected module must exist, implement `Module`, and agree with its catalog ID/dependencies. Keep constructors free of acquired process resources; acquire and release resources through module lifecycle hooks.
+
+Custom bootstraps can select directly:
+
+```php
+$app->profile('worker', $catalog, include: ['audit'], exclude: ['optional-export']);
+$app->boot();
+```
+
+Overrides must reference catalog entries. Dependency closure is automatic and deterministic. A missing/excluded dependency or selected cycle fails before registration. An included/excluded overlap fails. An empty profile tag list makes a module dependency-only, while `full` selects every non-excluded catalog entry. Including a module does not add adapter features; choose `full` or separate application instances if you need multiple runtime roles.
+
+Choose one profile before registering modules. After selection, extend the catalog rather than appending modules with `modules()`/`compose()`. Corevia's normal registration API enforces this. Module discovery is never based on directory scanning.
+
+## Bootstraps, guards and build artifacts
+
+`config/runtime.php` selects the appropriate bootstrap. HTTP profiles attach routes; API/AI use `routes/api.php`, while Web/Full use `routes/web.php`. Worker/Realtime boot the catalog and JSON run store without the web/database adapters. Existing legacy checkout boot remains unchanged when profiles are not selected.
+
+The router rejects a profile without HTTP; view registration and action gateways check their features; the queue checks job consumption. CLI realtime commands and `Server(..., app: $app)` check WebSocket policy. Standalone servers and custom adapters must receive the application or explicitly call `requireFeature()`. These are composition policies, not an authorization sandbox. The API starter intentionally exposes only health; add an explicit allowlist and real authorization when wiring an action gateway.
+
+Profiles, selected modules, overrides and catalog metadata are included in the compiled application graph. `app:graph`, `app:compile`, `app:verify` and `app:inspect` now use the profile-aware runtime bootstrap. The private artifact stores `runtime.profile`; boot can restore it without the environment variable. A conflicting profile/catalog/config fails verification. Artifacts generated by the earlier foundation checkpoint should be rebuilt after these source/graph changes.
+
+```powershell
+$env:COREVIA_PROFILE = 'worker'
+php corevia app:compile
+php corevia app:verify
+```
+
+Module selection reduces what boots, not the files included in a source download. Explicit source attestation still covers the configured source roots.

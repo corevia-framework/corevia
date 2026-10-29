@@ -16,6 +16,8 @@ final class Corevia
     private array $actions = [];
     private array $flows = [];
     private ?FlowEngine $engine = null;
+    private ?RuntimeProfile $runtimeProfile = null;
+    private bool $profileRegistration = false;
 
     private function __construct(public readonly string $basePath, public readonly RunStore $store, public readonly Logger $logger, ?ConfigRepository $config = null, ?Capabilities $capabilities = null)
     {
@@ -50,6 +52,7 @@ final class Corevia
     public function modules(array $modules, array $disabled = []): self
     {
         $this->kernel->assertConfigurable();
+        if($this->runtimeProfile!==null && !$this->profileRegistration){throw new \LogicException('Extend the catalog before selecting a runtime profile.');}
         foreach ($modules as $module) {
             $instance = is_string($module) ? $this->container->get($module) : $module;
             $this->registry->add($instance, !in_array($instance->name(), $disabled, true));
@@ -63,6 +66,28 @@ final class Corevia
         $this->kernel->assertConfigurable();
         $this->registry->canonical();
         return $this->modules($modules, $disabled);
+    }
+
+    public function profile(string $name,array $catalog=[],array $include=[],array $exclude=[]):self
+    {
+        $this->kernel->assertConfigurable();
+        if($this->runtimeProfile!==null || $this->registry->health()!==[]){throw new \LogicException('Select one profile before registering modules.');}
+        $profile=RuntimeProfile::resolve($name,$catalog,$include,$exclude);$modules=[];
+        foreach($profile->selected as $id){
+            $definition=$profile->definitions[$id];$module=$this->container->get($definition->class);
+            if(!$module instanceof Module){throw new \LogicException('Catalog class must implement Module.');}
+            $actual=$module->dependencies();$declared=$definition->dependencies;sort($actual,SORT_STRING);sort($declared,SORT_STRING);
+            if($module->name()!==$id || $actual!==$declared){throw new \LogicException('Catalog disagrees with module: '.$id);}$modules[]=$module;
+        }
+        $this->runtimeProfile=$profile;$this->config->set('runtime.profile',$name);
+        foreach($profile->features as $feature){$this->capabilities->define('profile.'.$feature,metadata:['profile'=>$name]);}
+        $this->profileRegistration=true;
+        try{return $this->compose($modules);}finally{$this->profileRegistration=false;}
+    }
+    public function runtimeProfile():?RuntimeProfile{return $this->runtimeProfile;}
+    public function requireFeature(string $feature):void
+    {
+        if($this->runtimeProfile!==null && !$this->runtimeProfile->allows($feature)){throw new \LogicException('Runtime profile '.$this->runtimeProfile->name.' does not enable '.$feature.'.');}
     }
 
     public function graph(): array
@@ -81,7 +106,7 @@ final class Corevia
             $events = array_map(static fn (array $handler): string => $handler[0], $context->handlers); sort($events, SORT_STRING);
             $modules[$id] = ['actions' => $actions, 'flows' => $flows, 'listeners' => $events];
         }
-        return DeclarationIdentity::normalize(['format' => 1, 'plan' => $plan->jsonSerialize(), 'registrations' => $modules, 'bindings' => $this->container->definitions(), 'health' => $this->registry->health(), 'capabilities' => $this->capabilities->all()]);
+        return DeclarationIdentity::normalize(['format' => 1, 'profile'=>$this->runtimeProfile?->jsonSerialize(), 'plan' => $plan->jsonSerialize(), 'registrations' => $modules, 'bindings' => $this->container->definitions(), 'health' => $this->registry->health(), 'capabilities' => $this->capabilities->all()]);
     }
 
     public function effectiveConfiguration(): array

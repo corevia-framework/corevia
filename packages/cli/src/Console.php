@@ -27,6 +27,8 @@ final readonly class Console
             }
         }
         try {
+            if($command==='profile:list'){$this->print(\Corevia\Core\RuntimeProfile::presets());return 0;}
+            if($command==='profile:show'){$bootstrap=require $this->basePath.'/config/runtime.php';$runtime=$bootstrap($this->basePath);$app=$runtime['app'];$this->print($app->runtimeProfile());return 0;}
             if ($command === 'contract:compile') {
                 $manifest=ContractManifest::load($argv[2] ?? throw new \InvalidArgumentException('Provide a contract manifest.'));
                 $output=$options['output'] ?? $this->basePath.'/contracts/generated';
@@ -48,7 +50,7 @@ final readonly class Console
                     if(realpath($path)!==false && strcasecmp(realpath($path),realpath($keyPath))===0){throw new \InvalidArgumentException('Store the signing key separately from the artifact.');}
                 }
                 if($command==='app:inspect'){$this->print(ApplicationArtifact::load($path,$key,$environment)->summary());return 0;}
-                $bootstrap=require $this->basePath.'/config/web.php';$runtime=$bootstrap($this->basePath,true);$app=$runtime['app'];
+                $bootstrap=require $this->basePath.'/config/runtime.php';$runtime=$bootstrap($this->basePath,true);$app=$runtime['app'];
                 if($command==='app:graph'){echo CanonicalJson::encode($app->graph()).PHP_EOL;return 0;}
                 $sources=ApplicationArtifact::defaultSources($this->basePath);
                 if($command==='app:compile'){$artifact=ApplicationArtifact::build($app,$environment,$sources,$key);$artifact->write($path);}
@@ -56,7 +58,7 @@ final readonly class Console
                 $this->print($artifact->summary());return 0;
             }
             if(in_array($command,['route:list','db:status','db:check','db:migrate'],true)){
-                if($command==='route:list'){$bootstrap=require $this->basePath.'/config/web.php';$runtime=$bootstrap($this->basePath);$app=$runtime['app'];$this->print($runtime['router']->routes());return 0;}
+                if($command==='route:list'){$bootstrap=require $this->basePath.(getenv('COREVIA_PROFILE') || getenv('COREVIA_BUILD_ARTIFACT')?'/config/runtime.php':'/config/web.php');$runtime=$bootstrap($this->basePath);$app=$runtime['app'];$app->requireFeature('http');$this->print($runtime['router']->routes());return 0;}
                 $environment=getenv('APP_ENV') ?: 'development';$storage=getenv('COREVIA_STORAGE') ?: $this->basePath.'/storage';
                 $configuration=ConfigRepository::load($this->basePath.'/config/settings',$environment,$storage.'/config-'.$environment.'.json');
                 $database=new DatabaseManager($configuration->get('database',[]));
@@ -85,7 +87,7 @@ final readonly class Console
             }
             if ($command === 'test') {
                 $status=0;
-                foreach (['tests/run.php','tests/v2/kernel.php','tests/v2/flows.php','tests/v2/protocol.php','tests/v2/tooling.php','tests/v2/upgrade.php','tests/v2/diagnostics.php','tests/v2/security.php','tests/features/databases.php','tests/features/web.php','tests/v3/composition.php','tests/v3/scopes.php','tests/v3/units.php','tests/v3/artifact-boot.php','tests/v3/contracts.php'] as $test) {
+                foreach (['tests/run.php','tests/v2/kernel.php','tests/v2/flows.php','tests/v2/protocol.php','tests/v2/tooling.php','tests/v2/upgrade.php','tests/v2/diagnostics.php','tests/v2/security.php','tests/features/databases.php','tests/features/web.php','tests/v3/composition.php','tests/v3/scopes.php','tests/v3/units.php','tests/v3/artifact-boot.php','tests/v3/contracts.php','tests/v3/profiles.php'] as $test) {
                     passthru(escapeshellarg(PHP_BINARY).' '.escapeshellarg($this->basePath.'/'.$test),$code); if ($code!==0) { $status=1; }
                 }
                 return $status;
@@ -95,6 +97,7 @@ final readonly class Console
                 passthru('composer outdated --direct --format=json --working-dir='.escapeshellarg($this->basePath),$code); return $code;
             }
             if ($command === 'help') {
+                echo "profile:list | profile:show (COREVIA_PROFILE=web|api|worker|realtime|ai|full)\n";
                 echo "V3 foundations (unreleased): app:graph | app:compile | app:verify | app:inspect [--output=path --key-file=path]\ncontract:compile <manifest.json> [--output=directory --check]\n";
                 echo "Web starter: route:list | db:status | db:check <connection> | db:migrate <connection>\n";
                 echo "Corevia V2\n\nserve [--host=127.0.0.1 --port=8081]\nabout | routes | modules | flow:list | doctor\nflow:run <name> --input=file.json [--key=key]\nflow:show <run-id> | flow:inspect <run-id>\nflow:retry <run-id> <zero-based-step-index>\nflow:resume <run-id> [--event=name]\nrealtime:start [--host=127.0.0.1 --port=8080]\nrealtime:stop\nworker:start [--once] | worker:dispatch <flow> --input=file.json [--delay=seconds]\nmake:module <Name> | make:action <Name> | make:flow <Name> | make:event <Name>\nconfig:cache | cache:clear [--env=development]\ntest | upgrade:check | update:check [--offline]\n";
@@ -104,6 +107,12 @@ final readonly class Console
                 return $this->generate(substr($command, 5), $argv[2] ?? '');
             }
             if ($command === 'serve') {
+                $profile=getenv('COREVIA_PROFILE')?:null;
+                if(!$profile && ($artifactPath=getenv('COREVIA_BUILD_ARTIFACT'))){
+                    $keyPath=getenv('COREVIA_BUILD_KEY_FILE');if(!$keyPath || !is_file($keyPath)){throw new \RuntimeException('A separate build key file is required.');}
+                    $profile=ApplicationArtifact::load($artifactPath,file_get_contents($keyPath),getenv('APP_ENV')?:'development')->configuration()->get('runtime.profile');
+                }
+                if($profile && !in_array('http',\Corevia\Core\RuntimeProfile::featuresFor($profile),true)){throw new \LogicException('Runtime profile '.$profile.' does not enable http.');}
                 $host = $options['host'] ?? '127.0.0.1';
                 if (!filter_var($host, FILTER_VALIDATE_IP) && $host !== 'localhost') {
                     throw new \InvalidArgumentException('Host must be an IP address or localhost.');
@@ -112,12 +121,14 @@ final readonly class Console
                 passthru(escapeshellarg(PHP_BINARY) . ' -S ' . escapeshellarg($host . ':' . $port) . ' -t ' . escapeshellarg($this->basePath . '/public') . ' ' . escapeshellarg($this->basePath . '/public/index.php'), $status);
                 return $status;
             }
-            $bootstrap = require $this->basePath . '/config/bootstrap.php';
+            $bootstrap = require $this->basePath . (getenv('COREVIA_PROFILE') || getenv('COREVIA_BUILD_ARTIFACT')?'/config/runtime.php':'/config/bootstrap.php');
             $runtime = $bootstrap($this->basePath);
             $app = $runtime['app'];
+            if(in_array($command,['realtime:start','realtime:stop'],true)){$app->requireFeature('websocket');$runtime=$this->realtimeRuntime($runtime,$command==='realtime:start');}
             $execute = function () use ($command,$runtime,$app,$argv,$options): int {
             switch ($command) {
                 case 'routes':
+                    $app->requireFeature('http');
                     $this->print($runtime['router']->routes());
                     break;
                 case 'modules':
@@ -164,13 +175,18 @@ final readonly class Console
                 case 'realtime:start':
                     $privateToken = getenv('COREVIA_PRIVATE_TOKEN');
                     $authorize = $privateToken ? static fn (string $channel, mixed $token): bool => is_string($token) && hash_equals($privateToken, $token) : null;
-                    (new Server($app->logger, $runtime['secret'], $options['host'] ?? '127.0.0.1', $this->port($options['port'] ?? '8080'), $runtime['controlPort'], $runtime['origins'], $authorize, scopes: $app->scopes))->run();
+                    (new Server($app->logger, $runtime['secret'], $options['host'] ?? '127.0.0.1', $this->port($options['port'] ?? '8080'), $runtime['controlPort'], $runtime['origins'], $authorize, scopes: $app->scopes, app:$app))->run();
                     break;
                 case 'realtime:stop':
                     (new SocketBroadcaster($runtime['secret'], $runtime['controlPort']))->command(['command' => 'stop']);
                     echo "Realtime stop acknowledged.\n";
                     break;
                 case 'doctor':
+                    if($profile=$app->runtimeProfile()){
+                        $ok=PHP_VERSION_ID>=80200 && extension_loaded('json') && is_writable($runtime['storage']);
+                        foreach($app->registry->health() as $health){$ok=$ok && $health['status']==='healthy';}
+                        $this->print(['profile'=>$profile->name,'features'=>$profile->features,'healthy'=>$ok,'run_store'=>$app->config->get('runtime.run_store','json'),'modules'=>$app->registry->health()]);return $ok?0:1;
+                    }
                     $ok = true;
                     echo 'PHP version                  ' . PHP_VERSION . (PHP_VERSION_ID >= 80200 ? ' OK' : ' FAIL') . PHP_EOL;
                     foreach (['json', 'PDO', 'pdo_sqlite'] as $extension) {
@@ -210,6 +226,20 @@ final readonly class Console
         }
     }
 
+    private function realtimeRuntime(array $runtime,bool $create):array
+    {
+        if(isset($runtime['secret'])){return $runtime;}
+        $path=$runtime['storage'].'/realtime.secret';$lock=fopen($path.'.lock','c+b');
+        if($lock===false || !flock($lock,LOCK_EX)){throw new \RuntimeException('Cannot lock realtime secret.');}
+        try{
+            if(!is_file($path)){
+                if(!$create){throw new \RuntimeException('Start the realtime server before requesting a stop.');}
+                if(file_put_contents($path,bin2hex(random_bytes(32)),LOCK_EX)===false || !chmod($path,0600)){throw new \RuntimeException('Cannot save realtime secret.');}
+            }
+            $secret=trim(file_get_contents($path));if(strlen($secret)<32){throw new \RuntimeException('Invalid realtime secret.');}
+        }finally{flock($lock,LOCK_UN);fclose($lock);}
+        return $runtime+['secret'=>$secret,'controlPort'=>$this->port(getenv('COREVIA_CONTROL_PORT')?:'8082'),'origins'=>array_filter(explode(',',getenv('COREVIA_ORIGINS')?:'http://localhost:8081,http://127.0.0.1:8081'))];
+    }
     private function port(string $value): int
     {
         if (!ctype_digit($value) || (int) $value < 1 || (int) $value > 65535) {
