@@ -15,6 +15,8 @@ final class ModuleRegistry
     private bool $activated = false;
     private ?Container $container = null;
     private ?Capabilities $capabilities = null;
+    private bool $canonical = false;
+    private ?CompositionPlan $plan = null;
 
     public function __construct(private readonly Logger $logger)
     {
@@ -41,10 +43,27 @@ final class ModuleRegistry
         $this->registered = true;
         $this->container = $container;
         $this->capabilities = $capabilities ?? new Capabilities();
-        foreach (array_keys($this->modules) as $name) {
+        if ($this->canonical) {
+            $disabled = array_keys(array_filter($this->health, static fn (array $health): bool => $health['status'] === 'disabled'));
+            $this->plan = CompositionPlan::resolve($this->modules, $disabled);
+            foreach ($this->plan->order as $name) {
+                foreach ($this->plan->definitions[$name]['requires'] as $capability) {
+                    if (!$this->capabilities->has($capability)) { throw new \LogicException('Unavailable composition capability: ' . $capability); }
+                }
+            }
+        }
+        foreach ($this->plan?->order ?? array_keys($this->modules) as $name) {
             $this->bootOne($name, [], $config);
         }
     }
+
+    public function canonical(): void
+    {
+        if ($this->registered) { throw new \LogicException('Select composition before boot.'); }
+        $this->canonical = true;
+    }
+    public function plan(): ?CompositionPlan { return $this->plan; }
+    private function dependencies(string $name): array { return $this->plan?->definitions[$name]['dependencies'] ?? $this->modules[$name]->dependencies(); }
 
     private function bootOne(string $name, array $stack, array $config): bool
     {
@@ -57,8 +76,8 @@ final class ModuleRegistry
                 throw new \RuntimeException('Circular module dependency.');
             }
             $module = $this->modules[$name];
-            $manifest = $module instanceof ManifestProvider ? $module->manifest() : new ModuleManifest($name, dependencies: $module->dependencies());
-            $declared = $module->dependencies();
+            $manifest = $this->plan?->manifests[$name] ?? ($module instanceof ManifestProvider ? $module->manifest() : new ModuleManifest($name, dependencies: $module->dependencies()));
+            $declared = $this->dependencies($name);
             $manifestDependencies = $manifest->dependencies;
             sort($declared);
             sort($manifestDependencies);
@@ -71,7 +90,7 @@ final class ModuleRegistry
                     throw new \RuntimeException('Unavailable capability: ' . $capability);
                 }
             }
-            foreach ($this->modules[$name]->dependencies() as $dependency) {
+            foreach ($this->dependencies($name) as $dependency) {
                 if (!$this->bootOne($dependency, [...$stack, $name], $config)) {
                     throw new \RuntimeException('Unavailable dependency: ' . $dependency);
                 }
@@ -82,11 +101,11 @@ final class ModuleRegistry
             $permitted = $context->registeredActions;
             $collect = function (string $dependency) use (&$collect, &$permitted): void {
                 $permitted += $this->contexts[$dependency]->registeredActions;
-                foreach ($this->modules[$dependency]->dependencies() as $nested) {
+                foreach ($this->dependencies($dependency) as $nested) {
                     $collect($nested);
                 }
             };
-            foreach ($this->modules[$name]->dependencies() as $dependency) {
+            foreach ($this->dependencies($name) as $dependency) {
                 $collect($dependency);
             }
             foreach ($context->registeredFlows as $flow) {
@@ -146,7 +165,7 @@ final class ModuleRegistry
                 if ($this->health[$name]['status'] !== 'healthy') {
                     continue;
                 }
-                foreach ($this->modules[$name]->dependencies() as $dependency) {
+                foreach ($this->dependencies($name) as $dependency) {
                     if ($this->health[$dependency]['status'] !== 'healthy') {
                         $this->health[$name] = ['status' => 'failed', 'phase' => $phase, 'errors' => ['Unavailable dependency: ' . $dependency]];
                         break;
@@ -174,7 +193,7 @@ final class ModuleRegistry
                     do {
                         $previous = count($affected);
                         foreach ($this->contexts as $dependent => $dependentContext) {
-                            if (!isset($affected[$dependent]) && array_intersect($this->modules[$dependent]->dependencies(), array_keys($affected))) {
+                            if (!isset($affected[$dependent]) && array_intersect($this->dependencies($dependent), array_keys($affected))) {
                                 $affected[$dependent] = true;
                                 $this->health[$dependent] = ['status' => 'failed', 'phase' => $phase, 'errors' => ['Unavailable lifecycle dependency: ' . $name]];
                             }

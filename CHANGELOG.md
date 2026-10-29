@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Begin V3 foundations: explicit canonical module composition and graph inspection; private signed config/source artifacts with drift verification; scoped HTTP, flow, CLI, job, websocket and Python work; shared application-contract generation for PHP, JavaScript/TypeScript, Python and Dart. See `docs/v3/foundations.md` for opt-in APIs and limits. This is not a V3 release.
 - Prepare public source downloads with local-only ignore rules, archive exclusions, contributor/security guidance and first-application setup instructions.
 
 ## 2.0.0 — 28 October 2026

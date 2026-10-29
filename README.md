@@ -237,3 +237,5 @@ make:module <Name>            make:action <Name>           make:flow <Name>
 Generators refuse existing files and require PascalCase names. Generated actions/flows live under `app/Generated`; register them explicitly. Generated modules are added to the bootstrap module list. Server host/port options use `--host=127.0.0.1 --port=8081` for HTTP and port 8080 for realtime.
 
 MIT licensed. Contributions should preserve package boundaries, restrictive defaults and cross-language tests.
+
+V3 work is under development locally. The [foundation guide](docs/v3/foundations.md) explains composition, scoped execution, signed application artifacts and generated application contracts; the [progress record](docs/v3/progress.md) defines this phase's scope. The framework version remains 2.0.0 until a new release is completed.

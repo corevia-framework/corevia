@@ -7,6 +7,7 @@ namespace Corevia\Http;
 use Corevia\Core\ActionResult;
 use Corevia\Core\Corevia;
 use Corevia\Protocol\Protocol;
+use Corevia\Protocol\{ContractManifest,ContractViolation};
 
 final class Router
 {
@@ -106,15 +107,23 @@ final class Router
     }
 
     /** No action route exists unless explicitly enabled with an allowlist and authorization callback. */
-    public function actionGateway(array $allowlist, callable $authorize): Route
+    public function actionGateway(array $allowlist, callable $authorize, ?ContractManifest $contract = null): Route
     {
-        return $this->add('POST', '/cvp', function (Request $request) use ($allowlist, $authorize): Response {
+        return $this->add('POST', '/cvp', function (Request $request) use ($allowlist, $authorize, $contract): Response {
             $envelope = (new Protocol($this->maxBytes))->decode($request->body);
             $trace = $envelope['meta']['trace_id'] ?? $request->header('x-trace-id');
-            if (($envelope['type'] ?? '') !== 'action.call' || !in_array($envelope['target'], $allowlist, true) || !$authorize($request, $envelope['target'])) {
+            if (($envelope['type'] ?? '') !== 'action.call' || !in_array($envelope['target'], $allowlist, true) || !$authorize($request, $envelope['target'], $contract?->requirements($envelope['target']) ?? [])) {
                 return new Response(Protocol::response($envelope['id'], ActionResult::failure('FORBIDDEN', 'Action call is not authorized.'), $trace, $envelope['cvp']), 403);
             }
+            if ($contract !== null) {
+                try { $shape = json_decode($request->body, false, 64, JSON_THROW_ON_ERROR); $contract->assertInput($envelope['target'], $shape->payload); }
+                catch (ContractViolation) { return new Response(Protocol::response($envelope['id'], ActionResult::failure('CONTRACT_INPUT_INVALID', 'Action input does not match its contract.'), $trace, $envelope['cvp']), 400); }
+            }
             $result = $this->app->call($envelope['target'], $envelope['payload'], $trace, $envelope['id']);
+            if ($contract !== null) {
+                try { if ($result->ok) { $contract->assertOutput($envelope['target'], $result->data instanceof \Corevia\Core\State ? $result->data->data : $result->data); } else { $contract->assertError($envelope['target'], $result->error->code, $result->error->retryable); } }
+                catch (ContractViolation) { return new Response(Protocol::response($envelope['id'], ActionResult::failure('CONTRACT_OUTPUT_INVALID', 'Action result does not match its contract.'), $trace, $envelope['cvp']), 500); }
+            }
             return new Response(Protocol::response($envelope['id'], $result, $trace, $envelope['cvp'], $envelope['meta']['parent_trace_id'] ?? null), $result->ok ? 200 : 422);
         });
     }
@@ -126,6 +135,7 @@ final class Router
 
     public function dispatch(Request $request): Response
     {
+        if ($this->app->scopes->current() === null) { return $this->app->scope('http', fn (): Response => $this->dispatch($request)); }
         $safeId = static fn (string $id): string => preg_match('/^[A-Za-z0-9_.:-]{1,128}$/D', $id) ? $id : bin2hex(random_bytes(16));
         $id = $safeId($request->header('x-request-id'));
         $trace = $safeId($request->header('x-trace-id'));

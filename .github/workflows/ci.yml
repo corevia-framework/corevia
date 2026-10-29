@@ -27,6 +27,15 @@ jobs:
       - run: composer test
       - run: php -n tests/v2/kernel.php
       - run: php -n tests/v2/flows.php
+      - run: php -n tests/v3/composition.php
+      - run: php -n tests/v3/scopes.php
+      - run: php -n tests/v3/units.php
+      - run: php -n tests/v3/artifact-boot.php
+      - run: php -n tests/v3/contracts.php
+      - run: php corevia contract:compile contracts/example.json --output=contracts/generated --check
+      - run: node tests/v3/contracts.mjs
+      - run: python tests/v3/contracts.py
+      - run: npm exec --yes --package=typescript@7.0.2 -- tsc tests/v3/contracts.types.mts --noEmit --strict --module NodeNext --moduleResolution NodeNext --target ES2022
       - run: php tests/features/databases.php
       - run: php -n tests/features/databases.php
       - run: php -n tests/features/web.php
@@ -57,6 +66,8 @@ jobs:
           sdk: stable
       - run: dart analyze
         working-directory: sdk/dart
+      - run: dart analyze contracts/generated/dart
+      - run: dart run tests/v3/contracts.dart
       - run: dart run test/contracts.dart
         working-directory: sdk/dart
       - run: dart run test/io.dart

@@ -6,6 +6,7 @@ namespace Corevia\Realtime;
 
 use Corevia\Core\ActionResult;
 use Corevia\Core\Logger;
+use Corevia\Core\ScopeManager;
 use Corevia\Protocol\Protocol;
 
 final class Server implements Broadcaster
@@ -15,6 +16,7 @@ final class Server implements Broadcaster
     private bool $running = true;
     private readonly Protocol $protocol;
     private string $nodeId;
+    private readonly ScopeManager $scopes;
 
     public function __construct(
         private readonly Logger $logger,
@@ -27,12 +29,14 @@ final class Server implements Broadcaster
         private readonly int $maxBytes = 65536,
         private readonly int $heartbeatSeconds = 20,
         private readonly ?PubSub $pubsub = null,
+        ?ScopeManager $scopes = null,
     ) {
         if (strlen($secret) < 32) {
             throw new \InvalidArgumentException('Realtime secret must have at least 32 characters.');
         }
         $this->protocol = new Protocol($maxBytes);
         $this->nodeId = bin2hex(random_bytes(12));
+        $this->scopes = $scopes ?? new ScopeManager($logger);
     }
 
     public function stop(): void
@@ -260,6 +264,11 @@ final class Server implements Broadcaster
     }
 
     private function message(int $id, array $message): void
+    {
+        $this->scopes->run('websocket', fn () => $this->handleMessage($id, $message), ['connection_id' => $this->clients[$id]['connection_id']]);
+    }
+
+    private function handleMessage(int $id, array $message): void
     {
         if ($this->clients[$id]['version'] !== null && $this->clients[$id]['version'] !== $message['cvp']) { throw new \RuntimeException('Protocol version changed during connection.'); }
         $this->clients[$id]['version'] = $message['cvp'];

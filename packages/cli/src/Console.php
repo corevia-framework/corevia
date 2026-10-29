@@ -6,6 +6,8 @@ namespace Corevia\Cli;
 
 use Corevia\Realtime\{Server, SocketBroadcaster};
 use Corevia\Core\{ConfigRepository, JobQueue, Version};
+use Corevia\Core\{ApplicationArtifact,CanonicalJson};
+use Corevia\Protocol\{ContractGenerator,ContractManifest};
 use Corevia\Persistence\{DatabaseManager,SqlConnection,SqlRunStore};
 
 final readonly class Console
@@ -25,6 +27,34 @@ final readonly class Console
             }
         }
         try {
+            if ($command === 'contract:compile') {
+                $manifest=ContractManifest::load($argv[2] ?? throw new \InvalidArgumentException('Provide a contract manifest.'));
+                $output=$options['output'] ?? $this->basePath.'/contracts/generated';
+                (new ContractGenerator($manifest))->write($output,isset($options['check']));
+                $this->print(['contract'=>$manifest->data()['name'],'fingerprint'=>$manifest->fingerprint(),'output'=>$output,'checked'=>isset($options['check'])]);return 0;
+            }
+            if(in_array($command,['app:graph','app:compile','app:verify','app:inspect'],true)){
+                $environment=getenv('APP_ENV') ?: 'development';$storage=getenv('COREVIA_STORAGE') ?: $this->basePath.'/storage';
+                if(!is_dir($storage) && !mkdir($storage,0700,true) && !is_dir($storage)){throw new \RuntimeException('Cannot create private storage.');}
+                $keyPath=$options['key-file'] ?? $storage.'/build-signing.key';$path=$options['output'] ?? $storage.'/application.build.json';
+                if($command!=='app:graph'){
+                    if($path===$keyPath){throw new \InvalidArgumentException('Store the signing key separately from the artifact.');}
+                    if(!is_file($keyPath) && $command==='app:compile'){
+                        $file=fopen($keyPath,'x+b');if($file===false){throw new \RuntimeException('Cannot create private build key.');}
+                        try{if(!chmod($keyPath,0600) || fwrite($file,bin2hex(random_bytes(32)))!==64){throw new \RuntimeException('Cannot save private build key.');}}finally{fclose($file);}
+                    }
+                    if(!is_file($keyPath)){throw new \InvalidArgumentException('Build key is missing.');}$key=file_get_contents($keyPath);
+                    if($command==='app:compile' && !is_dir(dirname($path)) && !mkdir(dirname($path),0700,true) && !is_dir(dirname($path))){throw new \RuntimeException('Cannot create artifact directory.');}
+                    if(realpath($path)!==false && strcasecmp(realpath($path),realpath($keyPath))===0){throw new \InvalidArgumentException('Store the signing key separately from the artifact.');}
+                }
+                if($command==='app:inspect'){$this->print(ApplicationArtifact::load($path,$key,$environment)->summary());return 0;}
+                $bootstrap=require $this->basePath.'/config/web.php';$runtime=$bootstrap($this->basePath,true);$app=$runtime['app'];
+                if($command==='app:graph'){echo CanonicalJson::encode($app->graph()).PHP_EOL;return 0;}
+                $sources=ApplicationArtifact::defaultSources($this->basePath);
+                if($command==='app:compile'){$artifact=ApplicationArtifact::build($app,$environment,$sources,$key);$artifact->write($path);}
+                else{$artifact=ApplicationArtifact::load($path,$key,$environment);$artifact->verify($app,$sources,$key);}
+                $this->print($artifact->summary());return 0;
+            }
             if(in_array($command,['route:list','db:status','db:check','db:migrate'],true)){
                 if($command==='route:list'){$bootstrap=require $this->basePath.'/config/web.php';$runtime=$bootstrap($this->basePath);$app=$runtime['app'];$this->print($runtime['router']->routes());return 0;}
                 $environment=getenv('APP_ENV') ?: 'development';$storage=getenv('COREVIA_STORAGE') ?: $this->basePath.'/storage';
@@ -55,7 +85,7 @@ final readonly class Console
             }
             if ($command === 'test') {
                 $status=0;
-                foreach (['tests/run.php','tests/v2/kernel.php','tests/v2/flows.php','tests/v2/protocol.php','tests/v2/tooling.php','tests/v2/upgrade.php','tests/v2/diagnostics.php','tests/v2/security.php','tests/features/databases.php','tests/features/web.php'] as $test) {
+                foreach (['tests/run.php','tests/v2/kernel.php','tests/v2/flows.php','tests/v2/protocol.php','tests/v2/tooling.php','tests/v2/upgrade.php','tests/v2/diagnostics.php','tests/v2/security.php','tests/features/databases.php','tests/features/web.php','tests/v3/composition.php','tests/v3/scopes.php','tests/v3/units.php','tests/v3/artifact-boot.php','tests/v3/contracts.php'] as $test) {
                     passthru(escapeshellarg(PHP_BINARY).' '.escapeshellarg($this->basePath.'/'.$test),$code); if ($code!==0) { $status=1; }
                 }
                 return $status;
@@ -65,6 +95,7 @@ final readonly class Console
                 passthru('composer outdated --direct --format=json --working-dir='.escapeshellarg($this->basePath),$code); return $code;
             }
             if ($command === 'help') {
+                echo "V3 foundations (unreleased): app:graph | app:compile | app:verify | app:inspect [--output=path --key-file=path]\ncontract:compile <manifest.json> [--output=directory --check]\n";
                 echo "Web starter: route:list | db:status | db:check <connection> | db:migrate <connection>\n";
                 echo "Corevia V2\n\nserve [--host=127.0.0.1 --port=8081]\nabout | routes | modules | flow:list | doctor\nflow:run <name> --input=file.json [--key=key]\nflow:show <run-id> | flow:inspect <run-id>\nflow:retry <run-id> <zero-based-step-index>\nflow:resume <run-id> [--event=name]\nrealtime:start [--host=127.0.0.1 --port=8080]\nrealtime:stop\nworker:start [--once] | worker:dispatch <flow> --input=file.json [--delay=seconds]\nmake:module <Name> | make:action <Name> | make:flow <Name> | make:event <Name>\nconfig:cache | cache:clear [--env=development]\ntest | upgrade:check | update:check [--offline]\n";
                 return 0;
@@ -84,6 +115,7 @@ final readonly class Console
             $bootstrap = require $this->basePath . '/config/bootstrap.php';
             $runtime = $bootstrap($this->basePath);
             $app = $runtime['app'];
+            $execute = function () use ($command,$runtime,$app,$argv,$options): int {
             switch ($command) {
                 case 'routes':
                     $this->print($runtime['router']->routes());
@@ -132,7 +164,7 @@ final readonly class Console
                 case 'realtime:start':
                     $privateToken = getenv('COREVIA_PRIVATE_TOKEN');
                     $authorize = $privateToken ? static fn (string $channel, mixed $token): bool => is_string($token) && hash_equals($privateToken, $token) : null;
-                    (new Server($app->logger, $runtime['secret'], $options['host'] ?? '127.0.0.1', $this->port($options['port'] ?? '8080'), $runtime['controlPort'], $runtime['origins'], $authorize))->run();
+                    (new Server($app->logger, $runtime['secret'], $options['host'] ?? '127.0.0.1', $this->port($options['port'] ?? '8080'), $runtime['controlPort'], $runtime['origins'], $authorize, scopes: $app->scopes))->run();
                     break;
                 case 'realtime:stop':
                     (new SocketBroadcaster($runtime['secret'], $runtime['controlPort']))->command(['command' => 'stop']);
@@ -166,6 +198,8 @@ final readonly class Console
                     throw new \InvalidArgumentException('Unknown command: ' . $command);
             }
             return 0;
+            };
+            return in_array($command,['worker:start','realtime:start'],true) ? $execute() : $app->scope('cli',$execute);
         } catch (\Throwable $exception) {
             fwrite(STDERR, 'Corevia: ' . $exception->getMessage() . PHP_EOL);
             return 1;
