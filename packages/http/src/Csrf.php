@@ -22,6 +22,6 @@ final readonly class Csrf implements Middleware
         $fresh=!$valid;
         if($fresh){$value=time().'.'.bin2hex(random_bytes(32));$cookie=$value.'.'.hash_hmac('sha256',$value,$this->secret);}
         $response=$next($request->withAttribute('csrf_token',hash_hmac('sha256','form|'.$cookie,$this->secret)));
-        return $fresh?$response->withHeaders(['Set-Cookie'=>'corevia_csrf='.rawurlencode($cookie).'; Path=/; Max-Age=7200; HttpOnly; SameSite=Lax'.($this->secure?'; Secure':'')]):$response;
+        return $fresh?$response->withCookie('corevia_csrf='.rawurlencode($cookie).'; Path=/; Max-Age=7200; HttpOnly; SameSite=Lax'.($this->secure?'; Secure':'')):$response;
     }
 }

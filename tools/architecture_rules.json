@@ -1,6 +1,7 @@
 {
   "php": {
     "core": ["Core"],
+    "auth": ["Core", "Auth", "Http"],
     "protocol": ["Core", "Protocol"],
     "http": ["Core", "Http", "Protocol"],
     "persistence-pdo": ["Core", "Persistence"],

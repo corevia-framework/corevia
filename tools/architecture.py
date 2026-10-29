@@ -79,7 +79,7 @@ def check(root, rules=None):
             if parts[0]=='App' or (parts[0]=='Corevia' and (len(parts)<2 or parts[1] not in allowed)):
                 fail(path,'Forbidden dependency '+reference+' from '+layer+'.')
         namespaces = re.findall(r'\bnamespace\s+([\w\\]+)\s*[;{]',code)
-        own = {'core':'Core','protocol':'Protocol','http':'Http','persistence-pdo':'Persistence','realtime':'Realtime','cli':'Cli'}[layer]
+        own = {'core':'Core','auth':'Auth','protocol':'Protocol','http':'Http','persistence-pdo':'Persistence','realtime':'Realtime','cli':'Cli'}[layer]
         if not namespaces or any(not (n=='Corevia\\'+own or n.startswith('Corevia\\'+own+'\\')) for n in namespaces):
             fail(path,'Source namespace does not match its package.')
 
