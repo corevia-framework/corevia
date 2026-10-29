@@ -1,15 +1,16 @@
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {spawn,spawnSync} from 'node:child_process';
-import {mkdtemp,mkdir,cp,copyFile,readFile,writeFile,rm} from 'node:fs/promises';
+import {mkdtemp,mkdir,cp,copyFile,readFile,writeFile,readdir,rm} from 'node:fs/promises';
 import {createServer} from 'node:net';
 import {join,resolve} from 'node:path';
 const require=createRequire(import.meta.url),{chromium}=require('../../tools/node_modules/playwright-core');
 const root=resolve('.'),php=process.env.PHP_BINARY??'php';
+const sql=process.env.COREVIA_AUTH_SQL==='1',phpFlags=sql?[]:['-n'];
 const directory=await mkdtemp(join(root,'storage','auth-browser-'));
 const browser=await chromium.launch({headless:true,...(process.env.COREVIA_BROWSER?{executablePath:process.env.COREVIA_BROWSER}:{})});
 const children=[];
-function run(args,cwd){const result=spawnSync(php,['-n',...args],{cwd,windowsHide:true,encoding:'utf8',timeout:15000});assert.equal(result.status,0,result.stderr);return JSON.parse(result.stdout);}
+function run(args,cwd){const result=spawnSync(php,[...phpFlags,...args],{cwd,windowsHide:true,encoding:'utf8',timeout:15000});assert.equal(result.status,0,result.stderr);return JSON.parse(result.stdout);}
 async function port(){const server=createServer();await new Promise(r=>server.listen(0,'127.0.0.1',r));const value=server.address().port;await new Promise(r=>server.close(r));return value;}
 try{
   for(const stack of ['bootstrap','tailwind','react']){
@@ -21,8 +22,9 @@ try{
     assert.equal(run(['corevia','starter:auth',`--stack=${stack}`,'--check'],project).checked,true);
     const repeated=spawnSync(php,['-n','corevia','starter:auth',`--stack=${stack}`],{cwd:project,windowsHide:true,encoding:'utf8'});assert.equal(repeated.status,1);assert.match(repeated.stderr,/Refusing to overwrite/);
     const chosen=await port(),base=`http://127.0.0.1:${chosen}`;
-    const env={...process.env,APP_ENV:'development',APP_URL:base,APP_HTTPS:'false',RUN_STORE:'json',COREVIA_STORAGE:join(project,'storage'),COREVIA_PROFILE:'web',COREVIA_BUILD_ARTIFACT:'',COREVIA_BUILD_KEY_FILE:''};
-    const child=spawn(php,['-n','-S',`127.0.0.1:${chosen}`,'-t','public','public/index.php'],{cwd:project,windowsHide:true,env,stdio:['ignore','pipe','pipe']});children.push(child);let output='';child.stdout.on('data',d=>output+=d);child.stderr.on('data',d=>output+=d);
+    const env={...process.env,APP_ENV:'development',APP_URL:base,APP_HTTPS:'false',RUN_STORE:'json',COREVIA_STORAGE:join(project,'storage'),COREVIA_PROFILE:'web',COREVIA_BUILD_ARTIFACT:'',COREVIA_BUILD_KEY_FILE:'',AUTH_STORE:sql?'sql':'json',AUTH_CONNECTION:'sqlite',SQLITE_DATABASE:join(project,'storage/auth.sqlite'),AUTH_DELIVERY:'preview',AUTH_REQUIRE_VERIFIED_EMAIL:'false'};
+    if(sql){for(let i=0;i<2;i++){const migration=spawnSync(php,['corevia','auth:migrate'],{cwd:project,windowsHide:true,env,encoding:'utf8'});assert.equal(migration.status,0,migration.stderr);}}
+    const child=spawn(php,[...phpFlags,'-S',`127.0.0.1:${chosen}`,'-t','public','public/index.php'],{cwd:project,windowsHide:true,env,stdio:['ignore','pipe','pipe']});children.push(child);let output='';child.stdout.on('data',d=>output+=d);child.stderr.on('data',d=>output+=d);
     let ready=false;for(let i=0;i<100;i++){try{if((await fetch(base+'/login')).status===200){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,30));}assert.ok(ready,output);
     const context=await browser.newContext(),page=await context.newPage(),external=[],errors=[];
     await context.route('**/*',route=>{if(new URL(route.request().url()).origin!==base){external.push(route.request().url());return route.abort();}return route.continue();});
@@ -38,7 +40,7 @@ try{
     assert.equal((await context.request.post(base+'/auth/logout',{data:{}})).status(),419);
     assert.equal((await context.request.post(base+'/auth/logout',{headers:{Origin:'https://evil.test','X-CSRF-Token':session.csrf},data:{}})).status(),403);
     const beforeCookies=await context.cookies(),oldCookie=beforeCookies.find(c=>c.name==='corevia_auth');assert.ok(oldCookie?.httpOnly);assert.equal(oldCookie.sameSite,'Lax');
-    const records=await readFile(join(project,'storage/auth/records.json'),'utf8');assert.equal(records.includes(password),false);assert.equal(records.includes(oldCookie.value),false);
+    const records=await readFile(join(project,sql?'storage/auth.sqlite':'storage/auth/records.json'));assert.equal(records.includes(Buffer.from(password)),false);assert.equal(records.includes(Buffer.from(oldCookie.value)),false);
     for(const path of ['/storage/auth/records.json','/config/auth.php','/frontend/auth/package.json'])assert.equal((await context.request.get(base+path)).status(),404);
     await page.getByRole('button',{name:'Sign out',exact:true}).click();await page.waitForURL('**/login');assert.equal((await context.request.get(base+'/auth/me')).status(),401);
     assert.equal((await fetch(base+'/auth/me',{headers:{Cookie:'corevia_auth='+oldCookie.value}})).status,401);
@@ -46,12 +48,36 @@ try{
     await page.getByLabel('Email address').fill(email.toUpperCase());await page.getByLabel('Password',{exact:true}).fill(password);await page.getByRole('button',{name:'Sign in',exact:true}).click();await page.waitForURL('**/dashboard');
     await page.getByRole('heading',{name:'Welcome, '+name,exact:true}).waitFor();
     assert.notEqual((await context.cookies()).find(c=>c.name==='corevia_auth').value,oldCookie.value);
+    const outbox=join(project,'storage/auth/outbox');
+    async function message(purpose){const values=await Promise.all((await readdir(outbox)).map(async name=>({name,...JSON.parse(await readFile(join(outbox,name),'utf8'))})));return values.find(value=>value.purpose===purpose);}
+    const verification=await message('verify');assert.ok(verification?.link.includes('#token='));
+    assert.equal((await context.request.get(base+'/auth/verified')).status(),403);
+    const verifyToken=new URL(verification.link).hash.slice('#token='.length);assert.equal(records.includes(Buffer.from(verifyToken)),false);
+    assert.equal((await context.request.get(base+'/storage/auth/outbox/'+verification.name)).status(),404);
+    const listing=spawnSync(php,[...phpFlags,'corevia','auth:outbox'],{cwd:project,windowsHide:true,env,encoding:'utf8'});assert.equal(listing.status,0,listing.stderr);assert.equal(listing.stdout.includes(verifyToken),false);
+    await page.goto(verification.link);await page.getByRole('button',{name:'Confirm email',exact:true}).click();await page.waitForURL('**/dashboard');await page.getByRole('heading',{name:'Welcome, '+name,exact:true}).waitFor();assert.equal((await context.request.get(base+'/auth/verified')).status(),200);
+    const freshSession=await (await context.request.get(base+'/auth/session')).json();
+    const replay=await context.request.post(base+'/auth/email/verify',{headers:{'X-CSRF-Token':freshSession.csrf},data:{token:verifyToken}});assert.equal(replay.status(),422);
+    const existing=await context.request.post(base+'/auth/password/forgot',{headers:{'X-CSRF-Token':freshSession.csrf},data:{email:'missing@example.test'}});assert.equal(existing.status(),200);const generic=await existing.json();
+    await page.goto(base+'/forgot-password');await page.getByLabel('Email address').fill(email);await page.getByRole('button',{name:'Send recovery link',exact:true}).click();await page.getByRole('status').filter({hasText:'If an account exists'}).waitFor();
+    const reset=await message('reset');assert.ok(reset?.link.includes('#token='));assert.match(generic.message,/If an account exists/);
+    const beforeReset=(await context.cookies()).find(cookie=>cookie.name==='corevia_auth').value;
+    await page.goto(reset.link);await page.getByLabel('New password',{exact:true}).fill('changed-password-456');await page.getByLabel('Confirm password').fill('changed-password-456');await page.getByRole('button',{name:'Update password',exact:true}).click();await page.waitForURL('**/login');
+    assert.equal((await fetch(base+'/auth/me',{headers:{Cookie:'corevia_auth='+beforeReset}})).status,401);
+    await page.getByLabel('Email address').fill(email);await page.getByLabel('Password',{exact:true}).fill(password);await page.getByRole('button',{name:'Sign in',exact:true}).click();await page.getByRole('alert').waitFor();
+    await page.getByLabel('Email address').fill(email);await page.getByLabel('Password',{exact:true}).fill('changed-password-456');await page.getByRole('button',{name:'Sign in',exact:true}).click();await page.waitForURL('**/dashboard');await page.getByRole('heading',{name:'Welcome, '+name,exact:true}).waitFor();
+    assert.equal(output.includes(verifyToken),false);assert.equal(output.includes(new URL(reset.link).hash.slice('#token='.length)),false);
+    if(stack!=='react'){
+      const nojs=await browser.newContext({javaScriptEnabled:false}),fallback=await nojs.newPage();await fallback.goto(reset.link);
+      await fallback.getByLabel('New password',{exact:true}).fill('never-log-this-password');await fallback.getByLabel('Confirm password').fill('never-log-this-password');
+      const posted=fallback.waitForRequest(request=>request.url().endsWith('/auth/password/reset'));await fallback.getByRole('button',{name:'Update password'}).click();const submission=await posted;assert.equal(submission.method(),'POST');assert.equal(submission.url().includes('password='),false);await nojs.close();
+    }
     assert.equal(external.length,0);assert.deepEqual(errors,[]);assert.equal((await context.request.get(base+'/assets/auth.css')).status(),200);
     await context.close();
-    for(const command of ['app:compile','app:verify']){const result=spawnSync(php,['-n','corevia',command],{cwd:project,windowsHide:true,env,encoding:'utf8'});assert.equal(result.status,0,result.stderr);}
-    const drift=spawnSync(php,['-n','corevia','app:verify'],{cwd:project,windowsHide:true,env:{...env,AUTH_REGISTRATION:'false'},encoding:'utf8'});assert.equal(drift.status,1);assert.match(drift.stderr,/configuration changed/);
+    for(const command of ['app:compile','app:verify']){const result=spawnSync(php,[...phpFlags,'corevia',command],{cwd:project,windowsHide:true,env,encoding:'utf8'});assert.equal(result.status,0,result.stderr);}
+    const drift=spawnSync(php,[...phpFlags,'corevia','app:verify'],{cwd:project,windowsHide:true,env:{...env,AUTH_REGISTRATION:'false'},encoding:'utf8'});assert.equal(drift.status,1);assert.match(drift.stderr,/configuration changed/);
     await writeFile(join(project,'config/auth.php'),'hand edited');const changed=spawnSync(php,['-n','corevia','starter:auth',`--stack=${stack}`,'--check'],{cwd:project,windowsHide:true,encoding:'utf8'});assert.equal(changed.status,1);assert.match(changed.stderr,/edited/);
-    console.log('PASS '+stack+' browser registration/login/logout, escaped dashboard, API/CSRF/origin/privacy guards and protected installer');
+    console.log('PASS '+stack+' '+(sql?'SQLite':'JSON')+' browser auth, recovery/verification, token privacy, revoked sessions and protected installer');
   }
 }finally{
   await browser.close();

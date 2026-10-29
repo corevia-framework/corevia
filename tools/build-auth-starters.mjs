@@ -12,6 +12,7 @@ for(const stack of ['bootstrap','tailwind','react']){
   for(const file of ['package.json','package-lock.json']){try{await copyFile(join(source,'stacks',stack,file),join(frontend,file));}catch(error){if(file!=='package-lock.json'||error.code!=='ENOENT')throw error;}}
   await copyFile(join(source,'frontend/build.mjs'),join(frontend,'build.mjs'));
   const view=stack==='react'?'shell.php':'page.php';await copyFile(join(source,'common/resources/views/auth',view+'.stub'),join(project,'resources/views/auth',view));
+  if(stack!=='react'){await copyFile(join(source,'common/resources/views/auth/account.php.stub'),join(project,'resources/views/auth/account.php'));await copyFile(join(source,'frontend/src/account.js'),join(frontend,'src/account.js'));}
   if(stack!=='bootstrap'){let css=await readFile(join(source,'frontend/src/auth.css'),'utf8');if(stack!=='react')css=css.replace('@source "./app.jsx";','');await writeFile(join(frontend,'src/auth.css'),css);}
   if(stack==='react')await copyFile(join(source,'frontend/src/app.jsx'),join(frontend,'src/app.jsx'));
   const npm=process.platform==='win32'?'npm.cmd':'npm';

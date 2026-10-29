@@ -27,6 +27,21 @@ final readonly class Console
             }
         }
         try {
+            if(in_array($command,['auth:migrate','auth:outbox'],true)){
+                $file=$this->basePath.'/config/auth.php';if(!is_file($file)){throw new \LogicException('Install an auth starter first.');}$settings=require $file;
+                if($command==='auth:migrate'){
+                    if(($settings['driver']??'json')==='json'){$this->print(['store'=>'json','migration_required'=>false]);return 0;}
+                    if($settings['driver']!=='sql'){throw new \LogicException('Choose json or sql auth storage.');}
+                    $environment=getenv('APP_ENV')?:'development';$configuration=ConfigRepository::load($this->basePath.'/config/settings',$environment);$manager=new DatabaseManager($configuration->get('database',[]));
+                    try{(new \Corevia\Auth\SqlAuthStore($manager->sql($settings['connection']??null),$settings['prefix']??'cv_auth'))->migrate();}finally{$manager->disconnect();}
+                    $this->print(['store'=>'sql','migrated'=>true]);return 0;
+                }
+                if(getenv('APP_ENV')==='production' || ($settings['delivery']??'disabled')!=='preview'){throw new \LogicException('Private outbox inspection is only available for development preview delivery.');}
+                $directory=$settings['outbox'];if(is_link($directory)){throw new \RuntimeException('Outbox inspection cannot follow a symlink.');}$records=[];
+                foreach(glob($directory.'/*.json')?:[] as $path){if(is_link($path) || filesize($path)>8192){throw new \RuntimeException('Invalid outbox record.');}$data=json_decode(file_get_contents($path),true,32,JSON_THROW_ON_ERROR);$records[basename($path)]=['file'=>basename($path),'recipient'=>$data['recipient'],'purpose'=>$data['purpose'],'expires'=>$data['expires']];}
+                if(isset($options['show'])){$name=$options['show'];if(!preg_match('/^[a-f0-9]{32}\.json$/D',$name) || !isset($records[$name])){throw new \InvalidArgumentException('Choose a file listed by auth:outbox.');}$data=json_decode(file_get_contents($directory.'/'.$name),true,32,JSON_THROW_ON_ERROR);if($data['expires']<=time()){throw new \LogicException('This preview link has expired. Request another link.');}$this->print($data);}
+                else{$this->print(array_values($records));}return 0;
+            }
             if($command==='starter:auth'){$this->print((new StarterInstaller($this->basePath))->install($options['stack']??'bootstrap',$options['path']??$this->basePath,isset($options['dry-run']),isset($options['check'])));return 0;}
             if($command==='profile:list'){$this->print(\Corevia\Core\RuntimeProfile::presets());return 0;}
             if($command==='profile:show'){$bootstrap=require $this->basePath.'/config/runtime.php';$runtime=$bootstrap($this->basePath);$app=$runtime['app'];$this->print($app->runtimeProfile());return 0;}
@@ -88,7 +103,7 @@ final readonly class Console
             }
             if ($command === 'test') {
                 $status=0;
-                foreach (['tests/run.php','tests/v2/kernel.php','tests/v2/flows.php','tests/v2/protocol.php','tests/v2/tooling.php','tests/v2/upgrade.php','tests/v2/diagnostics.php','tests/v2/security.php','tests/features/databases.php','tests/features/web.php','tests/v3/composition.php','tests/v3/scopes.php','tests/v3/units.php','tests/v3/artifact-boot.php','tests/v3/contracts.php','tests/v3/profiles.php','tests/v3/auth.php'] as $test) {
+                foreach (['tests/run.php','tests/v2/kernel.php','tests/v2/flows.php','tests/v2/protocol.php','tests/v2/tooling.php','tests/v2/upgrade.php','tests/v2/diagnostics.php','tests/v2/security.php','tests/features/databases.php','tests/features/web.php','tests/v3/composition.php','tests/v3/scopes.php','tests/v3/units.php','tests/v3/artifact-boot.php','tests/v3/contracts.php','tests/v3/profiles.php','tests/v3/auth.php','tests/v3/auth-storage.php','tests/v3/auth-recovery.php'] as $test) {
                     passthru(escapeshellarg(PHP_BINARY).' '.escapeshellarg($this->basePath.'/'.$test),$code); if ($code!==0) { $status=1; }
                 }
                 return $status;
@@ -98,6 +113,7 @@ final readonly class Console
                 passthru('composer outdated --direct --format=json --working-dir='.escapeshellarg($this->basePath),$code); return $code;
             }
             if ($command === 'help') {
+                echo "auth:migrate | auth:outbox [--show=private-preview-file.json]\n";
                 echo "starter:auth [--stack=bootstrap|tailwind|react --path=existing-project --dry-run --check]\n";
                 echo "profile:list | profile:show (COREVIA_PROFILE=web|api|worker|realtime|ai|full)\n";
                 echo "V3 foundations (unreleased): app:graph | app:compile | app:verify | app:inspect [--output=path --key-file=path]\ncontract:compile <manifest.json> [--output=directory --check]\n";

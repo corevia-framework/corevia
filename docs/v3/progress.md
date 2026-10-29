@@ -22,7 +22,13 @@ Foundation points 9–14 now have local implementations and regression coverage.
 
 The next feature phase adds `starter:auth` for Bootstrap, Tailwind and React, offline-ready assets, explicit auth-store/service contracts, private single-node JSON storage, registration/sign-in/sign-out, session-bound CSRF, rotation/revocation, attempt limits and a protected dashboard. The generator is additive and refuses overwrites. Existing apps stay unchanged until a kit is explicitly installed. See [auth starters](auth-starters.md).
 
-This is the base auth/UI milestone. SQL/document auth storage, recovery/verification/email, MFA/OAuth, account management and distributed sessions remain pending. AI model hosting/RAG/GPU tooling and the other planned V3 feature workstreams are not completed by this milestone. The framework version remains 2.0.0 and V3 stays unpublished.
+The base auth/UI milestone is followed by the storage/recovery work below. Document auth adapters, bundled production mail transports, MFA/OAuth, account management and distributed operational tooling remain pending. AI model hosting/RAG/GPU tooling and the other planned V3 feature workstreams are not completed by these milestones. The framework version remains 2.0.0 and V3 stays unpublished.
+
+## Auth storage and recovery phase
+
+Added SQL auth adapters for SQLite/MySQL/PostgreSQL with explicit migrations, versioned sessions, atomic single-use account tokens and stale-login protection. Added password recovery, matching-account email verification, optional verified-dashboard gating, private development delivery previews, a production delivery interface and UI in every starter. See [storage/recovery](auth-storage-recovery.md). No real email is sent by preview delivery.
+
+JSON/SQLite contracts, concurrent token consumption and browser flows passed locally. MySQL/PostgreSQL service contracts are configured in CI but remain unrun for this local phase. Existing apps and generated files are not overwritten; new configuration/wiring must be merged explicitly. Production delivery requires a configured application adapter.
 
 Local validation passed for extension-free auth/security tests (including concurrent email uniqueness), real browser flows in all three UI stacks with external requests blocked, reproducible bundled assets, signed auth-policy drift, installer overwrite protection, PHP regression/lint, architecture gates and existing live HTTP/WebSocket/Python integration. The browser/rebuild CI job is configured locally; GitHub CI has not been run.
 

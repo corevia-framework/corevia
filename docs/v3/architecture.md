@@ -17,7 +17,7 @@ CI runs the repository scan and negative fixtures. Those fixtures prove forbidde
 | PHP package | Allowed Corevia dependencies |
 | --- | --- |
 | Core | Core |
-| Auth | Core, HTTP, Auth |
+| Auth | Core, HTTP, Persistence, Auth |
 | Protocol | Core, Protocol |
 | HTTP | Core, Protocol, HTTP |
 | Persistence | Core, Persistence |

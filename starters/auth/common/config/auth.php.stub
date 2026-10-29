@@ -5,4 +5,10 @@ return [
     'url'=>getenv('APP_URL')?:'http://127.0.0.1:8081',
     'registration'=>getenv('AUTH_REGISTRATION')!=='false',
     'store'=>(getenv('COREVIA_STORAGE')?:dirname(__DIR__).'/storage').'/auth/records.json',
+    'driver'=>getenv('AUTH_STORE')?:'json',
+    'connection'=>getenv('AUTH_CONNECTION')?:null,
+    'prefix'=>getenv('AUTH_TABLE_PREFIX')?:'cv_auth',
+    'delivery'=>getenv('AUTH_DELIVERY')?:(getenv('APP_ENV')==='production'?'disabled':'preview'),
+    'outbox'=>(getenv('COREVIA_STORAGE')?:dirname(__DIR__).'/storage').'/auth/outbox',
+    'require_verified'=>getenv('AUTH_REQUIRE_VERIFIED_EMAIL')==='true',
 ];

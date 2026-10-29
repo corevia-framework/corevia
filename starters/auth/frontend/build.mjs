@@ -1,4 +1,4 @@
-import {readFile,writeFile,mkdir} from 'node:fs/promises';
+import {readFile,writeFile,copyFile,mkdir} from 'node:fs/promises';
 import {resolve,join} from 'node:path';
 import {spawnSync} from 'node:child_process';
 const stack=JSON.parse(await readFile(new URL('./package.json',import.meta.url),'utf8')).coreviaStack;
@@ -8,6 +8,7 @@ const {fileURLToPath}=await import('node:url');
 const cwd=fileURLToPath(new URL('.',import.meta.url));
 const output=process.argv[2]?resolve(process.argv[2]):resolve(cwd,'../../public/assets');
 await mkdir(output,{recursive:true});
+if(stack!=='react')await copyFile(join(cwd,'src/account.js'),join(output,'auth-account.js'));
 if(stack==='bootstrap')await writeFile(join(output,'auth.css'),await readFile(join(cwd,'node_modules/bootstrap/dist/css/bootstrap.min.css'),'utf8')+'\n.auth-card{max-width:28rem;border-radius:1rem}\n');
 else{
   const cli=join(cwd,'node_modules/@tailwindcss/cli/dist/index.mjs');

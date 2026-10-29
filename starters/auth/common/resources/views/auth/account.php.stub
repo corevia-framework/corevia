@@ -1,0 +1,19 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Account access · Corevia</title><link rel="stylesheet" href="/assets/auth.css"><script type="module" src="/assets/auth-account.js"></script></head>
+<?php
+$bootstrap=$stack==='bootstrap';$field=$bootstrap?'form-control':'w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100';$button=$bootstrap?'btn btn-primary w-100':'w-full rounded-lg bg-cyan-400 px-4 py-3 font-semibold text-slate-950';$space=$bootstrap?'mb-3':'mb-5';
+$title=match($page){'forgot-password'=>'Forgot your password?','reset-password'=>'Choose a new password.',default=>'Verify your email.'};
+?>
+<body class="<?= $bootstrap?'bg-light':'bg-slate-950 text-slate-100' ?>"><main class="<?= $bootstrap?'container py-5':'min-h-screen grid place-items-center px-6 py-16' ?>"><section class="<?= $bootstrap?'auth-card card shadow-sm mx-auto p-4':'w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-8 shadow-xl' ?>">
+<p>COREVIA / ACCOUNT ACCESS</p><h1 class="<?= $bootstrap?'h3 mb-3':'mb-6 text-3xl font-semibold' ?>"><?= $e($title) ?></h1>
+<p role="status" data-account-notice><?= $e($notice??'') ?></p>
+<?php if($page==='forgot-password'): ?>
+<p class="<?= $space ?>">Enter your email to request a recovery link.</p><form method="post" action="/forgot-password"><input type="hidden" name="_token" value="<?= $e($csrf) ?>"><div class="<?= $space ?>"><label for="email">Email address</label><input class="<?= $field ?>" id="email" name="email" type="email" autocomplete="email" maxlength="254" required></div><button class="<?= $button ?>">Send recovery link</button></form>
+<?php elseif($page==='reset-password'): ?>
+<form method="post" action="/auth/password/reset" data-account-action="/auth/password/reset"><input type="hidden" name="_token" value="<?= $e($csrf) ?>"><input type="hidden" name="token" value=""><div class="<?= $space ?>"><label for="password">New password</label><input class="<?= $field ?>" id="password" name="password" type="password" autocomplete="new-password" minlength="12" required></div><div class="<?= $space ?>"><label for="password_confirmation">Confirm password</label><input class="<?= $field ?>" id="password_confirmation" name="password_confirmation" type="password" autocomplete="new-password" required></div><button class="<?= $button ?>">Update password</button></form><noscript>Enable JavaScript to open this link.</noscript>
+<?php elseif(!$user): ?><p>Sign in to the account that requested this link, then open the link again.</p>
+<?php elseif($verified): ?><p>Your email is verified. Your workspace is ready.</p><a href="/dashboard">Open dashboard</a>
+<?php else: ?>
+<p class="<?= $space ?>">Confirm the link from your email, or request a new one.</p>
+<form method="post" action="/auth/email/verify" class="<?= $space ?>" data-account-action="/auth/email/verify"><input type="hidden" name="_token" value="<?= $e($csrf) ?>"><input type="hidden" name="token" value=""><button class="<?= $button ?>">Confirm email</button></form>
+<form method="post" action="/auth/email/resend" data-account-action="/auth/email/resend"><input type="hidden" name="_token" value="<?= $e($csrf) ?>"><button class="<?= $button ?>">Send verification link</button></form>
+<?php endif ?><p class="<?= $bootstrap?'mt-4':'mt-6 text-cyan-300 underline' ?>"><a href="/login">Back to sign in</a></p></section></main></body></html>

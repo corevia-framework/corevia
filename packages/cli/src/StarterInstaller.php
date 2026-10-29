@@ -13,11 +13,12 @@ final readonly class StarterInstaller
         $source=$this->frameworkRoot.'/starters/auth';$files=[];
         $iterator=new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($source.'/common',\FilesystemIterator::SKIP_DOTS));
         foreach($iterator as $file){if($file->isLink() || !$file->isFile()){throw new \RuntimeException('Invalid starter template.');}$name=str_replace('\\','/',substr($file->getPathname(),strlen($source.'/common/') ));$name=substr($name,0,-5);
-            if(($stack==='react' && $name==='resources/views/auth/page.php') || ($stack!=='react' && $name==='resources/views/auth/shell.php')){continue;}
+            if(($stack==='react' && in_array($name,['resources/views/auth/page.php','resources/views/auth/account.php'],true)) || ($stack!=='react' && $name==='resources/views/auth/shell.php')){continue;}
             $files[$name]=str_replace('{{stack}}',$stack,file_get_contents($file->getPathname()));
         }
         foreach(['package.json','package-lock.json'] as $name){$files['frontend/auth/'.$name]=file_get_contents($source.'/stacks/'.$stack.'/'.$name);}
         $files['frontend/auth/build.mjs']=file_get_contents($source.'/frontend/build.mjs');
+        if($stack!=='react'){$files['frontend/auth/src/account.js']=file_get_contents($source.'/frontend/src/account.js');}
         if($stack!=='bootstrap'){$files['frontend/auth/src/auth.css']=file_get_contents($source.'/frontend/src/auth.css');if($stack!=='react'){$files['frontend/auth/src/auth.css']=str_replace('@source "./app.jsx";','',$files['frontend/auth/src/auth.css']);}}
         if($stack==='react'){$files['frontend/auth/src/app.jsx']=file_get_contents($source.'/frontend/src/app.jsx');}
         $assets=json_decode(file_get_contents($source.'/assets/manifest.json'),true,64,JSON_THROW_ON_ERROR)['stacks'][$stack]['files']??throw new \RuntimeException('Missing asset manifest.');

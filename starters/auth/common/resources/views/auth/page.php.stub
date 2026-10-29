@@ -17,6 +17,7 @@ $link=$bootstrap?'link-primary':'text-cyan-300 underline underline-offset-4';
 <?php if($error): ?><p role="alert" class="<?= $bootstrap?'alert alert-danger':'my-4 rounded-lg bg-red-950 p-4 text-red-200' ?>"><?= $e($error) ?></p><?php endif ?>
 <?php if($page==='dashboard'): ?>
 <p class="<?= $spacing ?>">You are signed in as <?= $e($user['email']) ?>.</p>
+<?php if($recoveryEnabled): ?><p class="<?= $spacing ?>"><?= $emailVerified?'Email verified.':'Your email is not verified yet.' ?> <?php if(!$emailVerified): ?><a href="/verify-email">Verify email</a><?php endif ?></p><?php endif ?>
 <form method="post" action="/logout"><input type="hidden" name="_token" value="<?= $e($csrf) ?>"><button class="<?= $e($button) ?>" type="submit">Sign out</button></form>
 <?php else: ?>
 <p class="<?= $bootstrap?'text-secondary mb-4':'mb-8 text-sm leading-6 text-slate-400' ?>"><?= $page==='register'?'Create your account to open your workspace.':'Sign in to continue building.' ?></p>
@@ -26,5 +27,6 @@ $link=$bootstrap?'link-primary':'text-cyan-300 underline underline-offset-4';
 <div class="<?= $e($spacing) ?>"><label class="<?= $e($label) ?>" for="password">Password</label><input class="<?= $e($field) ?>" id="password" name="password" type="password" autocomplete="<?= $page==='register'?'new-password':'current-password' ?>" <?= $page==='register'?'minlength="12"':'' ?> required></div>
 <?php if($page==='register'): ?><div class="<?= $e($spacing) ?>"><label class="<?= $e($label) ?>" for="password_confirmation">Confirm password</label><input class="<?= $e($field) ?>" id="password_confirmation" name="password_confirmation" type="password" autocomplete="new-password" required><small>At least 12 characters, at most 72 bytes.</small></div><?php endif ?>
 <button class="<?= $e($button) ?>" type="submit"><?= $page==='register'?'Create account':'Sign in' ?></button></form>
+<?php if($page==='login' && $recoveryEnabled): ?><p class="<?= $bootstrap?'mt-3':'mt-4 text-cyan-300 underline' ?>"><a href="/forgot-password">Forgot password?</a></p><?php endif ?>
 <p class="<?= $bootstrap?'mt-4 mb-0':'mt-6 text-sm text-slate-400' ?>"><?php if($page==='register'): ?>Already have an account? <a class="<?= $e($link) ?>" href="/login">Sign in</a><?php elseif($registration): ?>New here? <a class="<?= $e($link) ?>" href="/register">Create an account</a><?php endif ?></p>
 <?php endif ?></section></main></body></html>

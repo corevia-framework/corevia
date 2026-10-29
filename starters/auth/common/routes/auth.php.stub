@@ -1,14 +1,22 @@
 <?php
 declare(strict_types=1);
-use Corevia\Auth\{AuthRoutes,AuthService,AuthStore,JsonAuthStore};
+use Corevia\Auth\{AccountDelivery,AccountRecovery,AccountStore,AuthRoutes,AuthService,AuthStore,JsonAuthStore,PreviewDelivery,SqlAuthStore};
 use Corevia\Core\Corevia;
 use Corevia\Http\{Router,View};
+use Corevia\Persistence\DatabaseManager;
 return static function(Router $router,Corevia $app):void{
     $settings=require $app->basePath.'/config/auth.php';
     $app->config->set('auth',$settings);
-    $store=new JsonAuthStore($settings['store']);
+    $store=match($settings['driver']){'json'=>new JsonAuthStore($settings['store']),'sql'=>new SqlAuthStore($app->container->get(DatabaseManager::class)->sql($settings['connection']),$settings['prefix']),default=>throw new InvalidArgumentException('Choose json or sql auth storage.')};
     $auth=new AuthService($store,$settings['url'],$settings['registration']);
     $app->container->set(AuthStore::class,$store);$app->container->set(AuthService::class,$auth);
-    $app->capabilities->define('auth.session',metadata:['store'=>JsonAuthStore::class,'csrf'=>'session-bound']);
-    AuthRoutes::mount($router,$app->container->get(View::class),$auth,$settings['stack']);
+    $app->container->set(AccountStore::class,$store);
+    $app->capabilities->define('auth.session',metadata:['store'=>$store::class,'csrf'=>'session-bound']);
+    $accounts=null;
+    if($settings['delivery']!=='disabled'){
+        $delivery=$settings['delivery']==='preview'?new PreviewDelivery($settings['outbox']):$app->container->get($settings['delivery']);
+        if(!$delivery instanceof AccountDelivery){throw new LogicException('Delivery must implement AccountDelivery.');}
+        $accounts=new AccountRecovery($store,$delivery,$auth,$app->logger);$app->container->set(AccountDelivery::class,$delivery);$app->container->set(AccountRecovery::class,$accounts);$app->capabilities->define('auth.recovery');
+    }
+    AuthRoutes::mount($router,$app->container->get(View::class),$auth,$settings['stack'],$accounts,$settings['require_verified']);
 };

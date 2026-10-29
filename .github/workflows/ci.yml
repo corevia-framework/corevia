@@ -34,6 +34,8 @@ jobs:
       - run: php -n tests/v3/contracts.php
       - run: php -n tests/v3/profiles.php
       - run: php -n tests/v3/auth.php
+      - run: php -n tests/v3/auth-storage.php
+      - run: php -n tests/v3/auth-recovery.php
       - run: node tests/v3/profiles.mjs
       - run: npm ci --ignore-scripts
         working-directory: tools
@@ -71,6 +73,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
+          extensions: pdo_sqlite
           coverage: none
       - uses: actions/setup-node@v4
         with:
@@ -81,6 +84,9 @@ jobs:
       - run: node node_modules/playwright-core/cli.js install --with-deps chromium
         working-directory: tools
       - run: node tests/v3/auth-browser.mjs
+      - run: node tests/v3/auth-browser.mjs
+        env:
+          COREVIA_AUTH_SQL: '1'
   dart:
     runs-on: ubuntu-latest
     steps:
@@ -134,5 +140,8 @@ jobs:
           extensions: pdo_sqlite, pdo_mysql, pdo_pgsql, mongodb
           coverage: none
       - run: php tests/features/databases.php
+        env:
+          COREVIA_DB_TESTS: '1'
+      - run: php tests/v3/auth-storage.php
         env:
           COREVIA_DB_TESTS: '1'

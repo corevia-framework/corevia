@@ -61,7 +61,7 @@ These are JSON business endpoints, separate from CVP envelopes. React uses fetch
 
 The default `JsonAuthStore` is a bounded, single-node reference adapter. It uses a separate lock, private directories/files and atomic replacement, enforces unique email creation under the lock, expires session/limit records, and preserves corrupt input instead of silently resetting accounts. Records live under private `storage/auth/` and are ignored by Git. Serve only `public/`, preserve storage across restarts, and apply private filesystem permissions/Windows ACLs and appropriate backups. It is not a shared multi-node store.
 
-`AuthStore` is an explicit persistence contract. Existing PDO/database support for flows does **not** automatically migrate auth users/sessions: SQL/document auth adapters are a subsequent phase. Password reset, email verification/delivery, MFA, OAuth, remember-me, account settings and distributed session handling are also still pending. This phase provides registration/sign-in/sign-out and starter UI; it does not mark all V3 auth work complete.
+`AuthStore` is an explicit persistence contract. The [storage/recovery phase](auth-storage-recovery.md) now adds SQLite/MySQL/PostgreSQL auth, password reset, email verification, private preview delivery and a production delivery port. These need the new kit wiring; upgrading older generated files is a deliberate merge. Existing flow tables are not auth tables, and selecting SQL does not import JSON users. Document auth adapters, bundled production mail transports, MFA, OAuth, remember-me and account settings remain pending.
 
 APP_URL must match the browser origin. For another local port, set it explicitly:
 

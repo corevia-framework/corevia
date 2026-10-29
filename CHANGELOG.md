@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add local V3 SQL auth storage/migrations, credential-version session checks, atomic recovery/verification tokens, private preview delivery and a production delivery port. Add recovery/verification pages across all starters and verified-email middleware. MySQL/PostgreSQL service checks are configured in CI; local coverage includes JSON and SQLite.
 - Add the local V3 base auth milestone: safe one-command Bootstrap/Tailwind/React starters with offline assets, session/password services, private JSON storage, CSRF/origin checks, rotation/logout, attempt limits and browser coverage. SQL auth storage, recovery/verification and MFA remain separate phases.
 - Add V3 runtime profiles with a lazy module catalog, profile-aware database-free API/worker/realtime boot, feature guards and artifact profile verification. Add static PHP/Python/frontend architecture rules, negative fixtures and local CI configuration.
 - Begin V3 foundations: explicit canonical module composition and graph inspection; private signed config/source artifacts with drift verification; scoped HTTP, flow, CLI, job, websocket and Python work; shared application-contract generation for PHP, JavaScript/TypeScript, Python and Dart. See `docs/v3/foundations.md` for opt-in APIs and limits. This is not a V3 release.
