@@ -1,0 +1,14 @@
+<?php
+declare(strict_types=1);
+use Corevia\Auth\{AuthRoutes,AuthService,AuthStore,JsonAuthStore};
+use Corevia\Core\Corevia;
+use Corevia\Http\{Router,View};
+return static function(Router $router,Corevia $app):void{
+    $settings=require $app->basePath.'/config/auth.php';
+    $app->config->set('auth',$settings);
+    $store=new JsonAuthStore($settings['store']);
+    $auth=new AuthService($store,$settings['url'],$settings['registration']);
+    $app->container->set(AuthStore::class,$store);$app->container->set(AuthService::class,$auth);
+    $app->capabilities->define('auth.session',metadata:['store'=>JsonAuthStore::class,'csrf'=>'session-bound']);
+    AuthRoutes::mount($router,$app->container->get(View::class),$auth,$settings['stack']);
+};

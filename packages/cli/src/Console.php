@@ -27,6 +27,7 @@ final readonly class Console
             }
         }
         try {
+            if($command==='starter:auth'){$this->print((new StarterInstaller($this->basePath))->install($options['stack']??'bootstrap',$options['path']??$this->basePath,isset($options['dry-run']),isset($options['check'])));return 0;}
             if($command==='profile:list'){$this->print(\Corevia\Core\RuntimeProfile::presets());return 0;}
             if($command==='profile:show'){$bootstrap=require $this->basePath.'/config/runtime.php';$runtime=$bootstrap($this->basePath);$app=$runtime['app'];$this->print($app->runtimeProfile());return 0;}
             if ($command === 'contract:compile') {
@@ -87,7 +88,7 @@ final readonly class Console
             }
             if ($command === 'test') {
                 $status=0;
-                foreach (['tests/run.php','tests/v2/kernel.php','tests/v2/flows.php','tests/v2/protocol.php','tests/v2/tooling.php','tests/v2/upgrade.php','tests/v2/diagnostics.php','tests/v2/security.php','tests/features/databases.php','tests/features/web.php','tests/v3/composition.php','tests/v3/scopes.php','tests/v3/units.php','tests/v3/artifact-boot.php','tests/v3/contracts.php','tests/v3/profiles.php'] as $test) {
+                foreach (['tests/run.php','tests/v2/kernel.php','tests/v2/flows.php','tests/v2/protocol.php','tests/v2/tooling.php','tests/v2/upgrade.php','tests/v2/diagnostics.php','tests/v2/security.php','tests/features/databases.php','tests/features/web.php','tests/v3/composition.php','tests/v3/scopes.php','tests/v3/units.php','tests/v3/artifact-boot.php','tests/v3/contracts.php','tests/v3/profiles.php','tests/v3/auth.php'] as $test) {
                     passthru(escapeshellarg(PHP_BINARY).' '.escapeshellarg($this->basePath.'/'.$test),$code); if ($code!==0) { $status=1; }
                 }
                 return $status;
@@ -97,6 +98,7 @@ final readonly class Console
                 passthru('composer outdated --direct --format=json --working-dir='.escapeshellarg($this->basePath),$code); return $code;
             }
             if ($command === 'help') {
+                echo "starter:auth [--stack=bootstrap|tailwind|react --path=existing-project --dry-run --check]\n";
                 echo "profile:list | profile:show (COREVIA_PROFILE=web|api|worker|realtime|ai|full)\n";
                 echo "V3 foundations (unreleased): app:graph | app:compile | app:verify | app:inspect [--output=path --key-file=path]\ncontract:compile <manifest.json> [--output=directory --check]\n";
                 echo "Web starter: route:list | db:status | db:check <connection> | db:migrate <connection>\n";

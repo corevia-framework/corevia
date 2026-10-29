@@ -1,0 +1,12 @@
+# Corevia {{stack}} auth starter
+
+Run `php corevia serve`, then visit http://127.0.0.1:8081/register.
+The server process must use `APP_URL` matching its browser origin. Production requires an HTTPS APP_URL and APP_ENV=production; .env files are not loaded implicitly.
+
+Routes: /login, /register, /dashboard, POST /logout. JSON: GET /auth/session, GET /auth/me, POST /auth/login, /auth/register, /auth/logout. JSON mutations require the session cookie and X-CSRF-Token from /auth/session. The dashboard requires sign-in. AUTH_REGISTRATION=false disables new accounts.
+
+The default store is private single-node JSON in storage/auth. No database or Node is needed to run the bundled pages. Preserve private storage across restarts. Never serve the project root; serve public/ through the provided router. The AuthStore interface allows a different persistence adapter; SQL auth storage is a separate V3 phase.
+
+To change styling or the React interface, edit frontend/auth and resources/views/auth. Run npm ci, then npm run build from frontend/auth. Compiled assets and dependency license notices are already included for offline startup. Keep these assets in your application source distribution.
+
+This starter includes registration, password sign-in, session-bound CSRF, rotation, logout, attempt limits and a protected dashboard. Email delivery/verification, recovery, MFA, OAuth, persistent remember-me and account management are not included in this phase. See docs/v3/auth-starters.md in the framework for the supported scope and deployment checks.

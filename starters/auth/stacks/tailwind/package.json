@@ -1,0 +1,1 @@
+{"name":"corevia-auth-tailwind","private":true,"type":"module","coreviaStack":"tailwind","scripts":{"build":"node build.mjs"},"devDependencies":{"tailwindcss":"4.3.3","@tailwindcss/cli":"4.3.3"}}

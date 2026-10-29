@@ -33,6 +33,7 @@ jobs:
       - run: php -n tests/v3/artifact-boot.php
       - run: php -n tests/v3/contracts.php
       - run: php -n tests/v3/profiles.php
+      - run: php -n tests/v3/auth.php
       - run: node tests/v3/profiles.mjs
       - run: npm ci --ignore-scripts
         working-directory: tools
@@ -63,6 +64,23 @@ jobs:
           PYTHON: python
       - run: python tests/v2/install.py
       - run: python tests/v2/history.py
+  auth-starters:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts
+        working-directory: tools
+      - run: node tools/build-auth-starters.mjs --check
+      - run: node node_modules/playwright-core/cli.js install --with-deps chromium
+        working-directory: tools
+      - run: node tests/v3/auth-browser.mjs
   dart:
     runs-on: ubuntu-latest
     steps:

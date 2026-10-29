@@ -16,7 +16,15 @@ This phase finishes the foundations previously marked partial. V3 is not release
 | 10. Runtime profiles | Six presets, explicit lazy catalog, deterministic dependency closure, include/exclude overrides, feature guards, profile-aware API/worker/realtime bootstraps and signed artifact restoration | Adapter policy and module selection; no automatic external service/model installation. See [profiles](profiles.md). |
 | 12. Architecture boundaries | PHP package dependency policy, Python SDK import rules, frontend import constraints, source parser helpers, CI gates and negative fixtures | Static owned-source dependencies, with explicit audited loader exceptions. See [architecture](architecture.md). |
 
-Foundation points 9–14 now have local implementations and regression coverage. The other planned V3 workstreams, including one-command auth starters and AI tooling, require their own implementation and acceptance checks. Existing Python support does not itself provide model hosting, GPU scheduling, RAG or AI security policies.
+Foundation points 9–14 now have local implementations and regression coverage. The other planned V3 workstreams require their own implementation and acceptance checks. Existing Python support does not itself provide model hosting, GPU scheduling, RAG or AI security policies.
+
+## Auth starter phase
+
+The next feature phase adds `starter:auth` for Bootstrap, Tailwind and React, offline-ready assets, explicit auth-store/service contracts, private single-node JSON storage, registration/sign-in/sign-out, session-bound CSRF, rotation/revocation, attempt limits and a protected dashboard. The generator is additive and refuses overwrites. Existing apps stay unchanged until a kit is explicitly installed. See [auth starters](auth-starters.md).
+
+This is the base auth/UI milestone. SQL/document auth storage, recovery/verification/email, MFA/OAuth, account management and distributed sessions remain pending. AI model hosting/RAG/GPU tooling and the other planned V3 feature workstreams are not completed by this milestone. The framework version remains 2.0.0 and V3 stays unpublished.
+
+Local validation passed for extension-free auth/security tests (including concurrent email uniqueness), real browser flows in all three UI stacks with external requests blocked, reproducible bundled assets, signed auth-policy drift, installer overwrite protection, PHP regression/lint, architecture gates and existing live HTTP/WebSocket/Python integration. The browser/rebuild CI job is configured locally; GitHub CI has not been run.
 
 The profile phase adds six database-free boot checks, catalog/override/guard/drift tests and live API/worker/realtime tests. Architecture checks include six test groups with deliberately forbidden PHP, Python, JS and Dart dependencies, plus harmless-comment/string cases. Existing PHP regressions, starter-page/form tests and live HTTP/WebSocket/Python integration passed locally. Updated CI is stored locally and has not been run on GitHub.
 

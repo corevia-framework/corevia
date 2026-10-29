@@ -1,0 +1,1 @@
+{"name":"corevia-auth-react","private":true,"type":"module","coreviaStack":"react","scripts":{"build":"node build.mjs"},"devDependencies":{"react":"19.3.1","react-dom":"19.3.1","tailwindcss":"4.3.3","@tailwindcss/cli":"4.3.3","esbuild":"0.28.2"}}

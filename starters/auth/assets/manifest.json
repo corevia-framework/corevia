@@ -1,0 +1,39 @@
+{
+  "format": 1,
+  "stacks": {
+    "bootstrap": {
+      "dependencies": {
+        "bootstrap": "5.3.8"
+      },
+      "files": {
+        "auth-LICENSES.txt": "408552a46566195d933e41994e7596dffab200d4304afb918859aa163877260e",
+        "auth.css": "26435ac99793cfc83b8a9ee54a389d05adfc224696006bf3b9e638f023cac7c0"
+      }
+    },
+    "tailwind": {
+      "dependencies": {
+        "tailwindcss": "4.3.3",
+        "@tailwindcss/cli": "4.3.3"
+      },
+      "files": {
+        "auth-LICENSES.txt": "9c8eda97de33420aa7b221858ada6c5fcd83fbbf513e4eba8d0cdf505bdcf551",
+        "auth.css": "ec3d2dd813e6a4e2796a498646c89bac4852971461e870b452594deeb110f2b7"
+      }
+    },
+    "react": {
+      "dependencies": {
+        "react": "19.3.1",
+        "react-dom": "19.3.1",
+        "tailwindcss": "4.3.3",
+        "@tailwindcss/cli": "4.3.3",
+        "esbuild": "0.28.2"
+      },
+      "files": {
+        "auth-LICENSES.txt": "61f5ce9a64e584379461abe83505d0897f1861f5b043ec0f469c708829c3e31a",
+        "auth.css": "fe22932ed356c78ef31f3e6fc2f4156fa50afd41522818f97463edb810933746",
+        "auth.js": "add5d525845ade0b797ff4cc6e0750559b62aa1d911a733c3c895d0d7f6786fa",
+        "auth.js.LEGAL.txt": "573cc95a6417c69a6ca44804f440f00965283c8cdcc50025305a7a50f53940ac"
+      }
+    }
+  }
+}
