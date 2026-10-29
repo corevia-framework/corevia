@@ -30,7 +30,7 @@ final readonly class AuthService
     private function create(?array $user):AuthContext
     {
         $token=bin2hex(random_bytes(32));$digest=hash('sha256',$token);$csrf=bin2hex(random_bytes(32));
-        $this->store->saveSession($digest,['user_id'=>$user['id']??null,'csrf'=>$csrf,'expires'=>($this->clock)()+$this->ttl],($this->clock)());
+        $this->store->saveSession($digest,['user_id'=>$user['id']??null,'user_version'=>$user['auth_version']??0,'csrf'=>$csrf,'expires'=>($this->clock)()+$this->ttl],($this->clock)());
         return new AuthContext($digest,$csrf,$user===null?null:self::user($user),$this->cookie($token,$this->ttl));
     }
     public function open(Request $request):?AuthContext
@@ -40,7 +40,7 @@ final readonly class AuthService
         if($record!==null){
             if(!is_string($record['csrf']??null) || !preg_match('/^[a-f0-9]{64}$/D',$record['csrf']) || !array_key_exists('user_id',$record)){throw new \RuntimeException('Invalid session record.');}
             $user=$record['user_id']===null?null:$this->store->userById($record['user_id']);
-            if($record['user_id']===null || $user!==null){return new AuthContext($digest,$record['csrf'],$user===null?null:self::user($user),null);}
+            if($record['user_id']===null || ($user!==null && ($record['user_version']??0)===($user['auth_version']??0))){return new AuthContext($digest,$record['csrf'],$user===null?null:self::user($user),null);}
         }
         if(!in_array($request->method,['GET','HEAD'],true)){return null;}
         if(!$this->store->consume([[hash('sha256','session|'.$this->ip($request)),120,900]],($this->clock)())){throw new AuthFailure('RATE_LIMITED','Too many requests. Try again later.',429);}
@@ -73,10 +73,15 @@ final readonly class AuthService
         if(!$this->registration){throw new AuthFailure('REGISTRATION_DISABLED','Registration is disabled.',403);}
         $input=$request->input();$email=is_string($input['email']??null)?strtolower(trim($input['email'])):'';$name=$input['name']??null;$password=$input['password']??null;
         $this->limits($request,'register',substr($email,0,254));
-        if(!is_string($name) || trim($name)==='' || preg_match('//u',$name)!==1 || preg_match('/[\x00-\x1f\x7f]/',$name) || preg_match_all('/./us',$name)>80 || strlen($email)>254 || filter_var($email,FILTER_VALIDATE_EMAIL)===false || !is_string($password) || preg_match('//u',$password)!==1 || preg_match_all('/./us',$password)<12 || strlen($password)>72 || str_contains($password,"\0") || ($input['password_confirmation']??null)!==$password){throw new AuthFailure('VALIDATION','Use a valid name/email and matching passwords of at least 12 characters (at most 72 bytes).');}
-        $hash=password_hash($password,PASSWORD_BCRYPT,['cost'=>12]);$user=$this->store->createUser($email,trim($name),$hash);
+        if(!is_string($name) || trim($name)==='' || preg_match('//u',$name)!==1 || preg_match('/[\x00-\x1f\x7f]/',$name) || preg_match_all('/./us',$name)>80 || strlen($email)>254 || filter_var($email,FILTER_VALIDATE_EMAIL)===false){throw new AuthFailure('VALIDATION','Use a valid name and email address.');}
+        $hash=self::passwordHash($password,$input['password_confirmation']??null);$user=$this->store->createUser($email,trim($name),$hash);
         if($user===null){throw new AuthFailure('REGISTRATION','Unable to create this account. Try signing in.');}return $this->rotate($context,$user);
     }
     private function rotate(AuthContext $context,array $user):AuthContext{$fresh=$this->create($user);$this->store->deleteSession($context->digest);return $fresh;}
+    public static function passwordHash(mixed $password,mixed $confirmation):string
+    {
+        if(!is_string($password) || preg_match('//u',$password)!==1 || preg_match_all('/./us',$password)<12 || strlen($password)>72 || str_contains($password,"\0") || $confirmation!==$password){throw new AuthFailure('VALIDATION','Use matching passwords of at least 12 characters (at most 72 bytes).');}
+        return password_hash($password,PASSWORD_BCRYPT,['cost'=>12]);
+    }
     public function logout(AuthContext $context):string{$this->store->deleteSession($context->digest);return $this->cookie('',0);}
 }

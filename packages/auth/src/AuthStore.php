@@ -7,6 +7,7 @@ interface AuthStore
     public function userById(string $id):?array;
     /** Null means the normalized email already exists; uniqueness must be atomic. */
     public function createUser(string $email,string $name,string $passwordHash):?array;
+    /** Check user_version against the current account atomically before saving authenticated sessions. */
     public function saveSession(string $digest,array $session,int $now):void;
     public function session(string $digest,int $now):?array;
     public function deleteSession(string $digest):void;

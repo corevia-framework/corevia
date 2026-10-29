@@ -1,12 +1,12 @@
 {
   "php": {
     "core": ["Core"],
-    "auth": ["Core", "Auth", "Http"],
+    "auth": ["Core", "Auth", "Http", "Persistence"],
     "protocol": ["Core", "Protocol"],
     "http": ["Core", "Http", "Protocol"],
     "persistence-pdo": ["Core", "Persistence"],
     "realtime": ["Core", "Realtime", "Protocol"],
-    "cli": ["Core", "Protocol", "Http", "Persistence", "Realtime", "Cli"]
+    "cli": ["Core", "Auth", "Protocol", "Http", "Persistence", "Realtime", "Cli"]
   },
   "php_include_owners": ["packages/core/src/ConfigRepository.php", "packages/http/src/View.php", "packages/cli/src/Console.php"],
   "javascript_externals": ["react"],
