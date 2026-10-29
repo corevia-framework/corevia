@@ -9,7 +9,16 @@ This phase finishes the foundations previously marked partial. V3 is not release
 | 13. Reproducible config/build artifacts | Canonical effective config and graph, source/lock hashes, private HMAC artifact, inspect/verify commands, starter boot verification | Declared source inputs and declared registrations. This is not an executable cache or proof of arbitrary factory behavior. |
 | 14. Cross-runtime contract manifest | One application manifest, portable schema validation, auth/error/event metadata, deterministic generated PHP/JS/TS/Python/Dart bindings, shared conformance fixtures | Explicit supported schema subset; auth enforcement remains the application's responsibility. |
 
-Next foundation phases are capability presets/runtime profiles (#10), then machine-enforced architecture boundaries (#12). The other planned V3 workstreams, including one-command auth starters and AI tooling, require their own implementation and acceptance checks. Existing Python support does not itself provide model hosting, GPU scheduling, RAG or AI security policies.
+## Subsequent local phases
+
+| Plan point | Delivered | Scope |
+| --- | --- | --- |
+| 10. Runtime profiles | Six presets, explicit lazy catalog, deterministic dependency closure, include/exclude overrides, feature guards, profile-aware API/worker/realtime bootstraps and signed artifact restoration | Adapter policy and module selection; no automatic external service/model installation. See [profiles](profiles.md). |
+| 12. Architecture boundaries | PHP package dependency policy, Python SDK import rules, frontend import constraints, source parser helpers, CI gates and negative fixtures | Static owned-source dependencies, with explicit audited loader exceptions. See [architecture](architecture.md). |
+
+Foundation points 9–14 now have local implementations and regression coverage. The other planned V3 workstreams, including one-command auth starters and AI tooling, require their own implementation and acceptance checks. Existing Python support does not itself provide model hosting, GPU scheduling, RAG or AI security policies.
+
+The profile phase adds six database-free boot checks, catalog/override/guard/drift tests and live API/worker/realtime tests. Architecture checks include six test groups with deliberately forbidden PHP, Python, JS and Dart dependencies, plus harmless-comment/string cases. Existing PHP regressions, starter-page/form tests and live HTTP/WebSocket/Python integration passed locally. Updated CI is stored locally and has not been run on GitHub.
 
 ## Validation
 

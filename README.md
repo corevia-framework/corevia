@@ -238,4 +238,4 @@ Generators refuse existing files and require PascalCase names. Generated actions
 
 MIT licensed. Contributions should preserve package boundaries, restrictive defaults and cross-language tests.
 
-V3 work is under development locally. The [foundation guide](docs/v3/foundations.md) explains composition, scoped execution, signed application artifacts and generated application contracts; the [progress record](docs/v3/progress.md) defines this phase's scope. The framework version remains 2.0.0 until a new release is completed.
+V3 work is under development locally. Read the [foundation guide](docs/v3/foundations.md), [runtime profiles](docs/v3/profiles.md), [architecture checks](docs/v3/architecture.md) and [progress record](docs/v3/progress.md). The framework version remains 2.0.0 until a new release is completed.

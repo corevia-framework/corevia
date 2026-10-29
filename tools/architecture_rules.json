@@ -1,0 +1,13 @@
+{
+  "php": {
+    "core": ["Core"],
+    "protocol": ["Core", "Protocol"],
+    "http": ["Core", "Http", "Protocol"],
+    "persistence-pdo": ["Core", "Persistence"],
+    "realtime": ["Core", "Realtime", "Protocol"],
+    "cli": ["Core", "Protocol", "Http", "Persistence", "Realtime", "Cli"]
+  },
+  "php_include_owners": ["packages/core/src/ConfigRepository.php", "packages/http/src/View.php", "packages/cli/src/Console.php"],
+  "javascript_externals": ["react"],
+  "dart_externals": []
+}

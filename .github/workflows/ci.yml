@@ -32,6 +32,12 @@ jobs:
       - run: php -n tests/v3/units.php
       - run: php -n tests/v3/artifact-boot.php
       - run: php -n tests/v3/contracts.php
+      - run: php -n tests/v3/profiles.php
+      - run: node tests/v3/profiles.mjs
+      - run: npm ci --ignore-scripts
+        working-directory: tools
+      - run: python tools/architecture.py
+      - run: python tests/v3/architecture.py
       - run: php corevia contract:compile contracts/example.json --output=contracts/generated --check
       - run: node tests/v3/contracts.mjs
       - run: python tests/v3/contracts.py
