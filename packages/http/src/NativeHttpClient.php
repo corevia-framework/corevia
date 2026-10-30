@@ -15,7 +15,21 @@ final readonly class NativeHttpClient implements HttpClient
         $context=stream_context_create(['http'=>['method'=>$method,'header'=>implode("\r\n",$lines),'content'=>$body,'ignore_errors'=>true,'follow_location'=>0,'max_redirects'=>0,'timeout'=>$this->timeout,'protocol_version'=>1.1],'ssl'=>$ssl]);$deadline=microtime(true)+$this->timeout;
         $file=@fopen($url,'rb',false,$context);if($file===false){throw new \RuntimeException('HTTP connection failed.');}
         try{$metadata=stream_get_meta_data($file);$status=0;$expected=null;foreach($metadata['wrapper_data']??[] as $line){if(preg_match('/^HTTP\/\S+\s+([0-9]{3})(?:\s|$)/',$line,$match)){$status=(int)$match[1];$expected=null;}elseif(preg_match('/^Content-Length:\s*([0-9]+)\s*$/iD',$line,$match)){if(strlen($match[1])>8||($expected!==null&&$expected!==(int)$match[1])){throw new \RuntimeException('Invalid HTTP content length.');}$expected=(int)$match[1];}}if($status<200||$status>299){throw new \RuntimeException('HTTP endpoint rejected the request (status '.$status.').');}if($expected!==null&&$expected>8388608){throw new \LengthException('HTTP response exceeds 8 MiB.');}
-            $size=0;while(!feof($file)&&($expected===null||$size<$expected)){$left=$deadline-microtime(true);if($left<=0){throw new \RuntimeException('HTTP deadline exceeded.');}stream_set_timeout($file,(int)$left,(int)(($left-floor($left))*1000000));$chunk=@fread($file,16384);$metadata=stream_get_meta_data($file);if($chunk===false||($metadata['timed_out']??false)){throw new \RuntimeException('HTTP response read failed.');}if($chunk===''){if(feof($file)||($metadata['eof']??false)){break;}usleep(1000);continue;}$size+=strlen($chunk);if($size>8388608){throw new \LengthException('HTTP response exceeds 8 MiB.');}yield $chunk;}if($expected!==null&&$size!==$expected){throw new \RuntimeException('Truncated HTTP response.');}
+            // Blocking HTTP reads can report timed_out alongside valid buffered
+            // data. Read available bytes without waiting to fill the buffer and
+            // enforce the total deadline ourselves, including idle intervals.
+            if(!stream_set_blocking($file,false)){throw new \RuntimeException('HTTP streaming mode unavailable.');}
+            $size=0;
+            while(!feof($file)&&($expected===null||$size<$expected)){
+                if(microtime(true)>=$deadline){throw new \RuntimeException('HTTP deadline exceeded.');}
+                $chunk=@fread($file,16384);
+                if($chunk===false){throw new \RuntimeException('HTTP response read failed.');}
+                if(microtime(true)>=$deadline){throw new \RuntimeException('HTTP deadline exceeded.');}
+                if($chunk===''){if(feof($file)){break;}usleep(1000);continue;}
+                $size+=strlen($chunk);if($size>8388608){throw new \LengthException('HTTP response exceeds 8 MiB.');}
+                yield $chunk;
+            }
+            if($expected!==null&&$size!==$expected){throw new \RuntimeException('Truncated HTTP response.');}
         }finally{fclose($file);}
     }
 }

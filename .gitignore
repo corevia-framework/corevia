@@ -71,3 +71,6 @@ Desktop.ini
 /docs/validation.md
 /docs/v2/phases.md
 /docs/v2/release.md
+
+# Private V3 acceptance runners, reports and service-test artifacts
+/local-v3-acceptance/

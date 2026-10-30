@@ -19,6 +19,7 @@ CODEX.md
 .codex
 .agents
 .aws
+local-v3-acceptance
 *.pem
 *.key
 *.secret
