@@ -1,0 +1,16 @@
+# Local V3 upgrade notes
+
+Keep existing V2 sites on their released code while evaluating V3 in a separate checkout/environment. The local framework version intentionally remains 2.0.0; V3 is not a published upgrade yet.
+
+- JSON authentication file format remains 1. Extracting `AtomicAuthStore` preserves the JSON API and compatibility defaults. Existing hashes, session versions and recovery-token rules remain enforced. No automatic data conversion occurs when selecting another driver.
+- SQL auth uses explicit `auth:migrate`. Existing phase user/session/token tables stay compatible; the identity-state table is added by the latest kit. Experimental intermediate V3 schemas must be reviewed in a disposable test database before migration; this is not a versioned migration engine for arbitrary prior prototypes.
+- New auth templates use `AuthStores` and `BuiltInProviders`, add MongoDB/provider/shared-mail settings, and support `AUTH_KEY_FILE`. Existing generated config/routes/views are application-owned and are not overwritten. Compare the new templates, deliberately merge settings and wiring, back up data/keys, then test account/security flows.
+- Do not replace encryption keys when switching hosts/storage. Existing read-only provisioned keys are supported. Provision the same actual key on hosts sharing MFA/mail ciphertext; a declaration flag cannot verify remote hosts' provisioning.
+- SQL shared jobs/mail use new tables and explicit migrations. Existing single-host V2 `JobQueue` behavior is preserved; old jobs are not silently imported/replayed into the new retrying queue. Shared queue payload/result formats and namespaces are separate. Non-idempotent work must not be opted into automatic retries accidentally.
+- `Response` additionally supports a delayed event-stream closure. Existing array/string responses behave as before. Stream producers acquire resources at send time in an explicit stream scope; capturing a disposed request-scoped service is unsupported.
+- AI is opt-in through `starter:ai`. Existing applications have no AI routes or external calls merely by upgrading source. The UI kit loads under Web/Full alongside auth. API/AI-profile apps can bind AI services and authorization explicitly; existing minimal API routes remain minimal.
+- `HttpClient` is a new outbound port with strict native defaults. Private CA configuration may be needed on a host lacking a trusted CA bundle. Never disable peer verification to make provider login/model calls work.
+- Runtime profiles, composition and build fingerprints stay opt-in as before. Recompile signed artifacts against final source/config/lock/environment after any upgrade; use `app:verify` before accepting traffic. Do not reuse a build artifact whose source or configured policy differs.
+- Root PHP requires only PHP 8.2+/JSON for the base app. PDO drivers, OpenSSL and ext-mongodb are optional according to selected features; Python is needed only for local model hosting/Python actions. Node is used for development/builds; compiled starter assets remain bundled.
+
+Required before a V3 release: the full original 14-point acceptance review, independent/application-appropriate security review, tested upgrade/rollback/backups, live target service validation and CI. Local fixture results do not establish production acceptance for an existing site.

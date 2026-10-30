@@ -9,6 +9,8 @@ final readonly class SecretBox
     {
         if(!is_dir(dirname($path)) && !mkdir(dirname($path),0700,true) && !is_dir(dirname($path))){throw new \RuntimeException('Cannot create private key directory.');}
         if(is_link($path)||is_link($path.'.lock')||is_link(dirname($path))){throw new \LogicException('Auth keys cannot use symlinks.');}
+        // Existing provisioned keys may be mounted read-only; initialization still uses the lock.
+        clearstatcache(true,$path);if(is_file($path)&&filesize($path)===32){$existing=file_get_contents($path);if(is_string($existing)&&strlen($existing)===32){return new self($existing);}}
         $lock=fopen($path.'.lock','c+b');if($lock===false || !chmod($path.'.lock',0600)||!flock($lock,LOCK_EX)){throw new \RuntimeException('Cannot lock auth key.');}
         try{if(!is_file($path)){$file=@fopen($path,'x+b');if($file===false){throw new \RuntimeException('Cannot create auth key.');}try{if(!chmod($path,0600)||fwrite($file,random_bytes(32))!==32){throw new \RuntimeException('Cannot persist auth encryption key.');}}finally{fclose($file);}}
         $key=file_get_contents($path);if($key===false){throw new \RuntimeException('Cannot read auth encryption key.');}return new self($key);}finally{flock($lock,LOCK_UN);fclose($lock);}

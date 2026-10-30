@@ -1,0 +1,3 @@
+<?php
+declare(strict_types=1);
+return ['enabled'=>getenv('AI_ENABLED')==='true','base'=>getenv('AI_BASE_URL')?:'http://127.0.0.1:8111/v1','model'=>getenv('AI_MODEL')?:'local','key'=>getenv('AI_API_KEY')?:'','loopback'=>getenv('AI_LOCAL')==='true','tokens'=>256,'token_field'=>getenv('AI_TOKEN_FIELD')?:'max_tokens'];

@@ -65,6 +65,8 @@ final readonly class ApplicationArtifact
     }
     public function configuration(): ConfigRepository { return new ConfigRepository($this->document['payload']['configuration']['application']); }
     public function fingerprint(): string { return $this->document['fingerprint']; }
+    /** Offline source check; runtime config/graph still require verify(). */
+    public function verifySources(string $basePath,array $paths):void{if(self::sources($basePath,$paths)!==$this->document['payload']['sources']){throw new \LogicException('Declared application sources changed.');}}
     /** Safe to print: no resolved configuration or secret-derived unkeyed hashes. */
     public function summary(): array
     {

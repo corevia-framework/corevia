@@ -38,6 +38,7 @@ return static function(string $basePath,bool $canonical=false,?string $requested
     $csrf=new Csrf($secret,secure:(getenv('APP_HTTPS')==='true'));
     $routes=require $basePath.'/routes/web.php';$routes($router,$csrf);
     if(is_file($basePath.'/routes/auth.php')){$authRoutes=require $basePath.'/routes/auth.php';$authRoutes($router,$app);}
+    if(is_file($basePath.'/routes/ai.php')){$aiRoutes=require $basePath.'/routes/ai.php';$aiRoutes($router,$app);}
     }else{$routes=require $basePath.'/routes/api.php';$routes($router);}
     $app->boot();
     if($artifact!==null){$artifact->verify($app,ApplicationArtifact::defaultSources($basePath),$artifactKey);}

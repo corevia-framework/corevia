@@ -1,0 +1,18 @@
+{
+  "format": 1,
+  "name": "AiWorkspace",
+  "version": "1.0.0",
+  "$defs": {
+    "ChatInput": {"description":"The HTTP route additionally limits the UTF-8 message to 4096 bytes.","type":"object","properties":{"message":{"type":"string","minLength":1,"maxLength":4096}},"required":["message"],"additionalProperties":false},
+    "Delta": {"type":"object","properties":{"text":{"type":"string","maxLength":16384}},"required":["text"],"additionalProperties":false},
+    "StreamError": {"type":"object","properties":{"code":{"type":"string","enum":["STREAM_FAILED"]}},"required":["code"],"additionalProperties":false}
+  },
+  "auth": {"session":{"type":"session","scopes":[]}},
+  "errors": {},
+  "actions": {},
+  "events": {
+    "delta":{"payload":{"$ref":"#/$defs/Delta"},"auth":[{"scheme":"session","scopes":[]}]},
+    "done":{"payload":{"type":"array","items":{"type":"string"},"maxItems":0},"auth":[{"scheme":"session","scopes":[]}]},
+    "error":{"payload":{"$ref":"#/$defs/StreamError"},"auth":[{"scheme":"session","scopes":[]}]}
+  }
+}

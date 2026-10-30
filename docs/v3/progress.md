@@ -16,13 +16,13 @@ This phase finishes the foundations previously marked partial. V3 is not release
 | 10. Runtime profiles | Six presets, explicit lazy catalog, deterministic dependency closure, include/exclude overrides, feature guards, profile-aware API/worker/realtime bootstraps and signed artifact restoration | Adapter policy and module selection; no automatic external service/model installation. See [profiles](profiles.md). |
 | 12. Architecture boundaries | PHP package dependency policy, Python SDK import rules, frontend import constraints, source parser helpers, CI gates and negative fixtures | Static owned-source dependencies, with explicit audited loader exceptions. See [architecture](architecture.md). |
 
-Foundation points 9–14 now have local implementations and regression coverage. The other planned V3 workstreams require their own implementation and acceptance checks. Existing Python support does not itself provide model hosting, GPU scheduling, RAG or AI security policies.
+Foundation points 9–14 now have local implementations and regression coverage. Feature work and acceptance are tracked below. The foundations alone do not provide model hosting, GPU scheduling, RAG or AI security policies.
 
 ## Auth starter phase
 
 The next feature phase adds `starter:auth` for Bootstrap, Tailwind and React, offline-ready assets, explicit auth-store/service contracts, private single-node JSON storage, registration/sign-in/sign-out, session-bound CSRF, rotation/revocation, attempt limits and a protected dashboard. The generator is additive and refuses overwrites. Existing apps stay unchanged until a kit is explicitly installed. See [auth starters](auth-starters.md).
 
-The base auth/UI milestone is followed by the storage/recovery and identity/delivery/authorization work below. Document auth adapters and distributed operational tooling remain pending. AI model hosting/RAG/GPU tooling and the other planned V3 feature workstreams are not completed by these milestones. The framework version remains 2.0.0 and V3 stays unpublished.
+The base auth/UI milestone is followed by storage/recovery, identity/delivery/authorization and the six follow-on workstreams below. Their implementation and acceptance are separate from this base milestone. The framework version remains 2.0.0 and V3 stays unpublished.
 
 ## Auth storage and recovery phase
 
@@ -38,14 +38,20 @@ The profile phase adds six database-free boot checks, catalog/override/guard/dri
 
 | Workstream | Implemented | Scope |
 | --- | --- | --- |
-| Stronger authentication | TOTP MFA, single-use recovery codes, bounded remember-me, provider-neutral authorization-code/PKCE integration and MFA challenge | No bundled provider-specific client or OIDC verifier; applications implement the provider port. |
+| Stronger authentication | TOTP MFA, single-use recovery codes, bounded remember-me, provider-neutral authorization-code/PKCE integration and MFA challenge | Core provider port, extended by the GitHub/OIDC clients in the follow-on workstreams. |
 | Account management | Profile/email/password updates, account deletion, session listing and owner-checked revocation | Current password/MFA checks, transactional version changes and session/token invalidation. Application resource deletion needs a domain policy. |
 | Production email | Private encrypted durable spool, leased workers with retries/expiry, TLS-only SMTP, CLI status/work commands and execution scopes | Single-host file spool, at-least-once delivery; real external mail-provider delivery remains untested locally. |
 | Authorization | Exact role/ability maps, scoped tenant memberships, server-loaded resource ownership, deny-default middleware and operator role CLI | Atomic session/version/assignment snapshots. Global roles do not bypass tenant membership. |
 
-See [identity, mail and authorization](identity-mail-authorization.md) for setup, contracts, operational limits and remaining work. The basic JSON kit still works without OpenSSL; encrypted features require it and existing MFA accounts fail closed without a verifier. SQL identity state uses an additional migration table. NoSQL auth, distributed infrastructure, passkeys, provider-specific integrations and the other V3/AI workstreams remain separate work. These phases do not declare all 14 V3 points complete.
+See [identity, mail and authorization](identity-mail-authorization.md) for setup, contracts and operational limits. The basic JSON kit still works without OpenSSL; encrypted features require it and existing MFA accounts fail closed without a verifier. SQL identity state uses an additional migration table. The follow-on workstreams add NoSQL/provider/shared/AI/deployment implementations; passkeys and organization/billing features remain optional future work. These milestones do not declare all 14 V3 points complete.
 
 Local acceptance passed all nine Chrome combinations (three UI kits with extension-free JSON, encrypted JSON and SQLite), account/role CLI flows, concurrent JSON/SQLite recovery-code consumption and unique provider binding, RFC TOTP vectors, encryption tamper checks, leased mail retries/expiry/cleanup, and loopback SMTPS/STARTTLS certificate/hostname/downgrade checks. PHP regressions/lint, asset reproduction, architecture gates and existing live HTTP/profile/WebSocket/Python integration passed. External email, real OAuth providers and live MySQL/PostgreSQL identity services remain untested locally; CI configuration is local and has not run on GitHub.
+
+## Six follow-on local workstreams
+
+Added GitHub and nonce-bound signed OIDC clients, MongoDB/CAS authentication, shared SQL job leases/fencing and encrypted mail, streaming chat/embeddings/tenant retrieval, a bounded Python model host, authenticated AI starter, JS/Dart streaming helpers, deployment templates/checks, upgrade notes and source-bound local acceptance/release checks. See [remaining workstreams](remaining-phases.md) for runnable setup and explicit scope.
+
+The user selected local fixtures. Real OAuth/SMTP and live MySQL/PostgreSQL/MongoDB acceptance remain unverified, as do GitHub CI and target deployment/container execution. Docker/services are unavailable in this environment. `release:check` is deliberately false until matching local evidence, plan/security/upgrade review and external acceptance exist. No push, merge, tag, release or version bump is performed by these phases.
 
 ## Validation
 

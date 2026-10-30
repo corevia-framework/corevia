@@ -1,0 +1,4 @@
+import {streamAi} from './corevia-ai.js';
+const form=document.querySelector('form'),status=document.querySelector('[data-status]'),output=document.querySelector('[data-output]');let controller=null;
+document.querySelector('[data-cancel]').addEventListener('click',()=>controller?.abort());
+form.addEventListener('submit',async event=>{event.preventDefault();if(controller)return;controller=new AbortController();output.textContent='';status.textContent='Generating…';const data=Object.fromEntries(new FormData(form));try{for await(const chunk of streamAi(new URL('/ai/chat',location.href),{message:data.message,csrf:data._token,signal:controller.signal}))output.textContent+=chunk;status.textContent='Complete.';}catch{status.textContent=controller.signal.aborted?'Cancelled.':'Generation unavailable. Please try again.';}finally{controller=null;}});

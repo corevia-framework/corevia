@@ -6,6 +6,7 @@ spl_autoload_register(static function (string $class): void {
     $prefixes = [
         'Corevia\\Core\\' => 'packages/core/src/',
         'Corevia\\Auth\\' => 'packages/auth/src/',
+        'Corevia\\Ai\\' => 'packages/ai/src/',
         'Corevia\\Http\\' => 'packages/http/src/',
         'Corevia\\Protocol\\' => 'packages/protocol/src/',
         'Corevia\\Persistence\\' => 'packages/persistence-pdo/src/',

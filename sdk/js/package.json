@@ -4,7 +4,7 @@
   "type": "module",
   "description": "CVP/1 and CVP/2 client for browsers, Node.js and React Native",
   "license": "MIT",
-  "exports": {".": {"types": "./index.d.ts", "default": "./index.js"}, "./react": "./react.js"},
+  "exports": {".": {"types": "./index.d.ts", "default": "./index.js"}, "./react": "./react.js", "./ai": {"types":"./ai.d.ts","default":"./ai.js"}},
   "scripts": {"test": "node --test test/*.test.js"},
   "peerDependencies": {"react": ">=18"},
   "peerDependenciesMeta": {"react": {"optional": true}}

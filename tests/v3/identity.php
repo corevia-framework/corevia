@@ -81,6 +81,7 @@ function contract(IdentityStore $store,bool $crypto):void
     }
     $delete=$store->createUser('delete@example.test','Delete',$hash);$subjectHash=hash('sha256','deleted-provider-fixture');$store->changeProvider($delete['id'],0,'fixture',$subjectHash);$deleteContext=signin($auth,$delete['email']);$deleted=$manager->update(request(['confirmation'=>'DELETE','current_password'=>'example-password-123']),$deleteContext,'delete');check($deleted['user']===null&&$store->userById($delete['id'])===null&&$store->state('oid:'.$subjectHash)===[]&&$store->session($deleteContext->digest,time())===null&&$store->session($bobContext->digest,time())!==null);
 }
+if(defined('COREVIA_IDENTITY_CONTRACT_ONLY')){return;}
 $directory=sys_get_temp_dir().'/corevia-identity-'.bin2hex(random_bytes(6));mkdir($directory);$crypto=function_exists('openssl_encrypt');
 try{
     foreach([59=>'94287082',1111111109=>'07081804',1111111111=>'14050471',1234567890=>'89005924',2000000000=>'69279037',20000000000=>'65353130'] as $time=>$expected){check(Totp::code(Totp::encode('12345678901234567890'),$time,8)===$expected,'RFC 6238 vector failed');}

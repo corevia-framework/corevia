@@ -1,0 +1,15 @@
+<?php
+declare(strict_types=1);
+use Corevia\Ai\{AiClient,CompatibleProvider};
+use Corevia\Auth\{AuthFailure,AuthService,AuthStore,SessionMiddleware};
+use Corevia\Core\Corevia;
+use Corevia\Http\{NativeHttpClient,Request,Response,Router,View};
+return static function(Router $router,Corevia $app):void{
+    $settings=require $app->basePath.'/config/ai.php';$app->config->set('ai',$settings);$auth=$app->container->get(AuthService::class);$session=new SessionMiddleware($auth);$store=$app->container->get(AuthStore::class);
+    $router->get('/ai',static function(Request $request)use($app):Response{$context=$request->attributes['auth'];if($context->user===null){return Response::redirect('/login');}return Response::html($app->container->get(View::class)->render('ai.chat',['csrf'=>$context->csrf]));})->middleware($session);
+    $router->post('/ai/chat',static function(Request $request)use($app,$settings,$store):Response{
+        $context=$request->attributes['auth'];if($context->user===null){throw new AuthFailure('UNAUTHENTICATED','Sign in first.',401);}if(!$settings['enabled']){return new Response(['error'=>['code'=>'AI_NOT_CONFIGURED']],503);}$message=$request->input()['message']??null;if(!is_string($message)||trim($message)===''||strlen($message)>4096||preg_match('//u',$message)!==1){return new Response(['error'=>['code'=>'VALIDATION']],422);}
+        if(!$store->consume([[hash('sha256','ai-user|'.$context->user['id']),20,60]],time())){return new Response(['error'=>['code'=>'RATE_LIMITED']],429);}
+        return Response::events(static function(callable $emit)use($app,$settings,$message):void{$app->scope('http.stream',static function()use($app,$settings,$message,$emit):void{$provider=new CompatibleProvider(new NativeHttpClient($settings['loopback']),$settings['base'],$settings['model'],$settings['key'],tokenField:$settings['token_field']);$client=new AiClient($provider,$app->scopes);$client->stream([['role'=>'user','content'=>$message]],static fn(string $text):bool=>$emit('delta',['text'=>$text]),$settings['tokens'],static fn():bool=>connection_aborted()!==0);});});
+    })->middleware($session);
+};

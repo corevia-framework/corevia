@@ -17,8 +17,9 @@ final readonly class OAuthService
         if(!$this->store->consume([[hash('sha256','oauth-start|'.$context->digest),10,900]],time())){throw new AuthFailure('RATE_LIMITED','Too many provider login attempts.',429);}
         $endpoint=$provider->authorizationEndpoint();$parts=parse_url($endpoint);if(($parts['scheme']??null)!=='https'||empty($parts['host'])||isset($parts['user'])||isset($parts['fragment'])||isset($parts['query'])){throw new \LogicException('Provider authorization endpoint must be an HTTPS URL without query, fragment or credentials.');}
         $state=bin2hex(random_bytes(32));$verifier=rtrim(strtr(base64_encode(random_bytes(32)),'+/','-_'),'=');$key='oauth:'.hash('sha256',$state);
-        $this->store->changeState($key,function(array &$record)use($name,$context,$user,$verifier):void{$record=['expires'=>time()+600,'provider'=>$name,'session'=>$context->digest,'user_id'=>$user['id']??null,'version'=>$user['auth_version']??0,'verifier'=>$this->box->seal($verifier,'oauth:'.$context->digest)];});
-        return $endpoint.'?'.http_build_query(['response_type'=>'code','client_id'=>$provider->clientId(),'redirect_uri'=>$this->redirect($name),'scope'=>implode(' ',$provider->scopes()),'state'=>$state,'code_challenge'=>rtrim(strtr(base64_encode(hash('sha256',$verifier,true)),'+/','-_'),'='),'code_challenge_method'=>'S256'],'','&',PHP_QUERY_RFC3986);
+        $nonce=$provider instanceof OidcProvider?bin2hex(random_bytes(32)):null;
+        $this->store->changeState($key,function(array &$record)use($name,$context,$user,$verifier,$nonce):void{$record=['expires'=>time()+600,'provider'=>$name,'session'=>$context->digest,'user_id'=>$user['id']??null,'version'=>$user['auth_version']??0,'verifier'=>$this->box->seal($verifier,'oauth:'.$context->digest),'nonce'=>$nonce];});
+        $parameters=['response_type'=>'code','client_id'=>$provider->clientId(),'redirect_uri'=>$this->redirect($name),'scope'=>implode(' ',$provider->scopes()),'state'=>$state,'code_challenge'=>rtrim(strtr(base64_encode(hash('sha256',$verifier,true)),'+/','-_'),'='),'code_challenge_method'=>'S256'];if($nonce!==null){$parameters['nonce']=$nonce;}return $endpoint.'?'.http_build_query($parameters,'','&',PHP_QUERY_RFC3986);
     }
     public function callback(Request $request,AuthContext $context,string $name):?AuthContext
     {
@@ -27,7 +28,7 @@ final readonly class OAuthService
         $flow=$this->store->changeState('oauth:'.hash('sha256',$state),static function(array &$record)use($context,$name):array{
             if(($record['expires']??0)<=time()||($record['session']??null)!==$context->digest||($record['provider']??null)!==$name){throw new AuthFailure('OAUTH_STATE','Provider login expired. Start again.');}$flow=$record;$record=[];return $flow;
         });
-        try{$subject=$provider->identity($code,$this->box->open($flow['verifier'],'oauth:'.$context->digest),$this->redirect($name));}catch(\Throwable){throw new AuthFailure('OAUTH_EXCHANGE','Provider login could not be completed. Start again.',502);}
+        try{$verifier=$this->box->open($flow['verifier'],'oauth:'.$context->digest);$subject=$provider instanceof OidcProvider?$provider->identityWithNonce($code,$verifier,$this->redirect($name),$flow['nonce']??''):$provider->identity($code,$verifier,$this->redirect($name));}catch(\Throwable){throw new AuthFailure('OAUTH_EXCHANGE','Provider login could not be completed. Start again.',502);}
         if($subject===''||strlen($subject)>512||preg_match('/[\x00-\x1f]/',$subject)){throw new AuthFailure('OAUTH_IDENTITY','Provider did not supply a stable identity.');}
         $subjectHash=hash('sha256',$name.'|'.$subject);$mapping='oid:'.$subjectHash;
         if($flow['user_id']!==null){
