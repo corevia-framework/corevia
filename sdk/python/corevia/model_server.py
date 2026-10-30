@@ -87,11 +87,21 @@ class ModelHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         if not self.authorized():
             return
+        if self.path not in {"/v1/chat/completions", "/v1/embeddings"}:
+            self.reply(404, {"error": {"code": "NOT_FOUND"}})
+            return
         service = self.server.service
         if not service.slots.acquire(blocking=False):
             self.reply(503, {"error": {"code": "MODEL_BUSY"}})
             return
-        streaming = False
+        held, streaming = True, False
+
+        def release():
+            nonlocal held
+            if held:
+                service.slots.release()
+                held = False
+
         try:
             if self.headers.get("Transfer-Encoding") or self.headers.get("Content-Type", "").split(";")[0] != "application/json":
                 raise ValueError("Unsupported body framing.")
@@ -106,6 +116,7 @@ class ModelHandler(BaseHTTPRequestHandler):
             data = json.loads(raw, parse_constant=lambda _: (_ for _ in ()).throw(ValueError("Non-finite JSON")))
             if not isinstance(data, dict) or data.get("model") != service.name:
                 raise ValueError("Invalid model.")
+            payload = None
             with execution_scope("ai.inference", {"model": service.name}):
                 if self.path == "/v1/embeddings":
                     texts = data.get("input")
@@ -114,44 +125,48 @@ class ModelHandler(BaseHTTPRequestHandler):
                     vectors = list(service.model.embed(texts))
                     if len(vectors) != len(texts) or any(not isinstance(v, (list, tuple)) or not 1 <= len(v) <= 4096 or any(isinstance(n, bool) or not isinstance(n, (int, float)) or not math.isfinite(n) for n in v) for v in vectors):
                         raise RuntimeError("Invalid model embedding output.")
-                    self.reply(200, {"data": [{"index": i, "embedding": v} for i, v in enumerate(vectors)]})
-                    return
-                if self.path != "/v1/chat/completions":
-                    self.reply(404, {"error": {"code": "NOT_FOUND"}})
-                    return
-                messages = data.get("messages")
-                maximum = data.get("max_completion_tokens", data.get("max_tokens", 256))
-                if not isinstance(maximum, int) or isinstance(maximum, bool) or not 1 <= maximum <= 8192 or data.get("stream") is not True:
-                    raise ValueError("Invalid inference options.")
-                if not isinstance(messages, list) or not 1 <= len(messages) <= 64 or any(not isinstance(m, dict) or set(m) != {"role", "content"} or m["role"] not in {"system", "user", "assistant"} or not isinstance(m["content"], str) for m in messages):
-                    raise ValueError("Invalid messages.")
-                if sum(len(m["content"].encode()) for m in messages) > 65536:
-                    raise ValueError("Context too large.")
-                self.send_response(200)
-                self.send_header("Content-Type", "text/event-stream")
-                self.send_header("Cache-Control", "no-store")
-                self.send_header("Connection", "close")
-                self.end_headers()
-                streaming = True
-                iterator = iter(service.model.stream(messages, maximum))
-                total, deadline = 0, time.monotonic() + 60
-                try:
-                    for text in iterator:
-                        if not isinstance(text, str):
-                            raise RuntimeError("Invalid model delta.")
-                        total += len(text.encode())
-                        if total > 1048576 or time.monotonic() > deadline:
-                            raise RuntimeError("Inference budget exceeded.")
-                        self.wfile.write(("data: " + json.dumps({"choices": [{"delta": {"content": text}}]}, ensure_ascii=False) + "\n\n").encode())
-                        self.wfile.flush()
-                    self.wfile.write(b"data: [DONE]\n\n")
-                    self.wfile.flush()
-                finally:
-                    if hasattr(iterator, "close"):
-                        iterator.close()
+                    payload = {"data": [{"index": i, "embedding": v} for i, v in enumerate(vectors)]}
+                else:
+                    messages = data.get("messages")
+                    maximum = data.get("max_completion_tokens", data.get("max_tokens", 256))
+                    if not isinstance(maximum, int) or isinstance(maximum, bool) or not 1 <= maximum <= 8192 or data.get("stream") is not True:
+                        raise ValueError("Invalid inference options.")
+                    if not isinstance(messages, list) or not 1 <= len(messages) <= 64 or any(not isinstance(m, dict) or set(m) != {"role", "content"} or m["role"] not in {"system", "user", "assistant"} or not isinstance(m["content"], str) for m in messages):
+                        raise ValueError("Invalid messages.")
+                    if sum(len(m["content"].encode()) for m in messages) > 65536:
+                        raise ValueError("Context too large.")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/event-stream")
+                    self.send_header("Cache-Control", "no-store")
+                    self.send_header("Connection", "close")
+                    self.end_headers()
+                    streaming = True
+                    iterator = iter(service.model.stream(messages, maximum))
+                    total, deadline = 0, time.monotonic() + 60
+                    try:
+                        for text in iterator:
+                            if not isinstance(text, str):
+                                raise RuntimeError("Invalid model delta.")
+                            total += len(text.encode())
+                            if total > 1048576 or time.monotonic() > deadline:
+                                raise RuntimeError("Inference budget exceeded.")
+                            self.wfile.write(("data: " + json.dumps({"choices": [{"delta": {"content": text}}]}, ensure_ascii=False) + "\n\n").encode())
+                            self.wfile.flush()
+                    finally:
+                        if hasattr(iterator, "close"):
+                            iterator.close()
+            # Model work AND scope cleanup finish before success is visible to clients.
+            # A slow terminal network write must not retain an inference slot.
+            release()
+            if streaming:
+                self.wfile.write(b"data: [DONE]\n\n")
+                self.wfile.flush()
+            else:
+                self.reply(200, payload)
         except (BrokenPipeError, ConnectionResetError, TimeoutError):
             pass
         except Exception as error:
+            release()
             if streaming:
                 try:
                     self.wfile.write(b'data: {"error":{"code":"INFERENCE_FAILED"}}\n\n')
@@ -162,8 +177,7 @@ class ModelHandler(BaseHTTPRequestHandler):
                 self.reply(422 if isinstance(error, (ValueError, UnicodeError)) else 500, {"error": {"code": "INVALID_INPUT" if isinstance(error, (ValueError, UnicodeError)) else "INFERENCE_FAILED"}})
         finally:
             self.close_connection = True
-            service.slots.release()
-
+            release()
 
 class DemoModel:
     """Explicit echo fixture for transport learning; not an LLM."""
