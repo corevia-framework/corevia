@@ -18,12 +18,12 @@ V1/V2 fixtures, the learning app, browser/security/transport/SDK/architecture te
 
 | Gate | Required acceptance |
 | --- | --- |
-| Original 14-point scope | Reconcile the complete agreed list; points 9–14 are documented, but completion of unspecified requirements must not be invented. |
-| Security/upgrade sign-off | Review final code and application-specific deployment, data backup and rollback risks. Source inspection and fixtures are not independent certification. |
-| External SMTP | No provider account is currently available. TLS fixtures/shared mail contracts pass; external delivery is unverified. Production delivery defaults to disabled, omitting recovery/verification routes and UI. Test a real adapter before enabling them. |
-| External OAuth/OIDC | Actual client credentials, callback registration and user login/link/replay acceptance. Signed-token/PKCE fixtures do not establish live provider acceptance. |
-| Containers/GitHub CI | Definitions exist; bare-metal staging does not test the image or run GitHub CI. V3 has not been pushed. |
-| Existing sites | Validate each site's staged code/data/key backup, application behavior and rollback. Existing sites are not upgraded automatically. |
+| 14-point scope/security/upgrade review | Completed for the maintainer-confirmed scope in [final review](final-review.md), including an actual V2-tag persisted-data/backup rollback fixture. This is a framework implementation review, not independent certification. |
+| External SMTP | Verified STARTTLS/authentication/relay acceptance and explicit Inbox confirmation for one approved synthetic email. Production delivery still defaults to disabled until an application configures it. |
+| External OAuth/OIDC | Explicitly deferred by the maintainer. Fixture verification remains; users must validate their configured provider before enabling it. [Self-test guide](optional-validation.md). |
+| Docker image | Explicitly deferred; the recipe is optional/unverified and the container CI job is opt-in. [Self-test guide](optional-validation.md). |
+| GitHub CI | Still required. Local/Linux staging success does not synthesize GitHub CI success. V3 has not been pushed. |
+| Existing sites | Explicitly outside this task. No inspection, copying, changes or upgrade tests are authorized for the excluded live sites. Application owners remain responsible for their own rollout/backup policy. |
 | Scale/failover/AI operations | Physical-host/database failover, production load, real embeddings and native/GPU preemption require the selected deployment/model and operational policy. |
 
-Private source-bound staging receipts live in `storage/v3-staging-verification.json`; local verification remains in `storage/v3-verification.json`. `release:check` combines matching receipts without overwriting service acceptance when local fixtures are rerun. These operator-supplied records are not independent certification. Credentials, SSH keys and logs remain ignored and excluded from Docker contexts. No acceptance command publishes or changes the framework version.
+Private source-bound staging receipts live in `storage/v3-staging-verification.json`; local verification remains in `storage/v3-verification.json`. `release:check` combines matching receipts without overwriting service acceptance when local fixtures are rerun and lists explicit optional deferrals separately from passed checks. These operator-supplied records are not independent certification. Credentials, SSH keys and logs remain ignored and excluded from Docker contexts. No acceptance command publishes or changes the framework version.

@@ -56,7 +56,7 @@ $app->scope('job', function (Corevia\Core\ExecutionScope $scope) use ($app) {
 }, ['job_id' => 'example-42']);
 ```
 
-Cleanup runs in reverse acquisition order even when work fails. Cleanup errors do not replace the original work exception; a cleanup-only failure fails the unit. Nested scopes restore their parent, PHP Fibers have isolated scope stacks, and application shutdown refuses active units. Avoid putting secrets in scope metadata or retaining scoped objects in process globals. Buffered HTTP response handling is covered; a future streaming/async adapter must keep its scope open until its own work completes.
+Cleanup runs in reverse acquisition order even when work fails. Cleanup errors do not replace the original work exception; a cleanup-only failure fails the unit. Nested scopes restore their parent, PHP Fibers have isolated scope stacks, and application shutdown refuses active units. Avoid putting secrets in scope metadata or retaining scoped objects in process globals. Buffered HTTP and `Response::events()` streaming are covered. Stream producers acquire their scope/resources at send time; custom async adapters must keep a scope open until their own work completes.
 
 Python workers expose the same per-dispatch pattern:
 

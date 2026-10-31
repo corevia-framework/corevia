@@ -1,5 +1,7 @@
 # V3 foundations: local phase
 
+Current release review: the maintainer-confirmed 14-point scope, implementation-security and framework upgrade reviews are complete in [final review](final-review.md). Real databases, TLS nginx/FPM and SMTP have staging evidence. Live OAuth and Docker validation are explicitly deferred with [self-test instructions](optional-validation.md); mandatory GitHub CI remains pending. The milestones below retain their original historical context.
+
 Later production hardening and real database/nginx/FPM acceptance are recorded in [production readiness](production-readiness.md). Earlier fixture-only statements below describe their original milestones, rather than the current acceptance state.
 
 This phase finishes the foundations previously marked partial. V3 is not released. Work stays on the local `develop/v3` branch until the complete V3 plan is ready; no push, PR, merge, tag or release is part of this phase.

@@ -1,5 +1,14 @@
 name: Corevia tests
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      validate_docker:
+        description: Build the optional Docker image recipe
+        required: false
+        type: boolean
+        default: false
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -76,6 +85,7 @@ jobs:
           PYTHON: python
       - run: python tests/v2/install.py
       - run: python tests/v2/history.py
+      - run: python tools/v3-upgrade-verify.py
   auth-starters:
     runs-on: ubuntu-latest
     steps:
@@ -175,6 +185,7 @@ jobs:
         env:
           COREVIA_DB_TESTS: '1'
   container:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.validate_docker }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
