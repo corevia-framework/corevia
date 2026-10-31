@@ -4,7 +4,7 @@ Final scope/security/upgrade review is now documented in [final review](final-re
 
 Follow-up production acceptance has now exercised real MySQL/PostgreSQL/MongoDB and private TLS nginx/PHP-FPM on a separate Linux host. See [production acceptance](production-readiness.md) for current scope, policy hardening and remaining gates; the initial local-fixture milestones below are historical.
 
-V3 remains on the local development branch and is not published. These changes implement the six workstreams discussed after the authentication phases. Local fixtures are explicitly selected; real provider/database/SMTP acceptance and GitHub CI remain unverified. The version stays 2.0.0 until release requirements are satisfied.
+These six workstreams are included in the V3 release-preparation branch, with framework/SDK metadata 3.0.0. Local fixtures are explicitly selected. Actual database, private TLS/FPM and SMTP acceptance is documented in [production acceptance](production-readiness.md); GitHub CI remains required before a stable tag/release. Live OAuth and the optional Docker recipe have [deferred user self-tests](optional-validation.md).
 
 | Workstream | Local implementation | Acceptance still needed |
 | --- | --- | --- |

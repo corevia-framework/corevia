@@ -1,6 +1,6 @@
 # Identity, account management, delivery and authorization: local V3 phases
 
-These four workstreams extend the existing auth starters. V3 remains local and unreleased. They do not install a starter into an existing application or overwrite previously generated application files.
+These four workstreams extend the auth starters in the V3 release-preparation branch. They do not install a starter into an existing application or overwrite previously generated application files.
 
 ## Try it without a database
 

@@ -1,6 +1,6 @@
 # V3 foundation guide
 
-These APIs are under development. Existing V2 apps can keep their bootstrap and `modules()` calls. No V3 version or release has been published.
+These APIs are included in the V3 release-preparation branch. Existing V2 apps can keep their bootstrap and `modules()` calls. See [production acceptance](production-readiness.md) for release status and validation limits.
 
 ## Explicit composition
 

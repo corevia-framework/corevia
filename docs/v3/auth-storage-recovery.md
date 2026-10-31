@@ -1,6 +1,6 @@
 # Auth storage, password recovery and email verification
 
-These are local V3 additions. V3 remains unreleased and unpushed. Fresh `starter:auth` kits include the new configuration and pages in Bootstrap, Tailwind and React. Existing generated apps are not overwritten: merge the new `config/auth.php`, `routes/auth.php`, account view/frontend sources and rebuilt assets deliberately. Upgrading framework classes alone preserves base auth behavior but does not enable new routes/delivery in an older kit.
+These additions are included in the V3 release-preparation branch. Fresh `starter:auth` kits include the new configuration and pages in Bootstrap, Tailwind and React. Existing generated apps are not overwritten: merge the new `config/auth.php`, `routes/auth.php`, account view/frontend sources and rebuilt assets deliberately. Upgrading framework classes alone preserves base auth behavior but does not enable new routes/delivery in an older kit.
 
 ## SQL auth without changing the rest of your app
 
