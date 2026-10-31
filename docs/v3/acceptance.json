@@ -2,5 +2,5 @@
   "format": 1,
   "target": "3.0.0",
   "reviews": {"original_14_point_review": false, "security_review": false, "upgrade_review": false},
-  "external_checks": ["mysql_postgres_mongodb", "real_oauth", "real_smtp", "github_ci"]
+  "external_checks": ["mysql_postgres_mongodb", "production_runtime", "real_oauth", "real_smtp", "github_ci"]
 }

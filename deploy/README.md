@@ -1,6 +1,6 @@
 # Deployment templates
 
-These files are reviewable templates, not an executed deployment. Docker is unavailable in the current local environment; CI is configured to build the image later. Nothing deploys or publishes automatically. Serve only `public/` through nginx and keep FPM port 9000 private. The nginx template expects an HTTPS edge proxy and disables query-bearing access logs so OAuth codes/state are not stored there.
+The nginx routing rules have been exercised in isolated Linux staging with TLS, PHP-FPM, signed application boot and two independent app pools sharing PostgreSQL sessions and jobs. The test substitutes private loopback listeners, document roots, the system FastCGI include path and backend addresses. This is not a public deployment or a Docker image test. Docker remains unavailable; CI is configured to build the image later. Serve only `public/` through nginx and keep FPM private. The template expects an HTTPS edge proxy and disables query-bearing access logs so OAuth codes/state are not stored there.
 
 Build with `docker build -f deploy/Dockerfile -t corevia-v3-local .`. Before a release, pin `PHP_IMAGE` and `COMPOSER_IMAGE` build arguments to reviewed image digests and record them with the signed application fingerprint. The image includes MySQL/PostgreSQL PDO support. MongoDB remains an optional extension to add in a reviewed image build. Compiled starter assets are shipped; node/npm are not runtime dependencies.
 
@@ -13,3 +13,11 @@ At deployment with the final environment, run `php corevia app:compile`, then `p
 Run bounded workers under your supervisor: `php corevia queue:work --max=100` and `php corevia mail:work --max=100`. Restart workers when source/config/key material changes. Watch pending/dead jobs and delivery/provider quotas. SMTP/LLM calls may repeat after uncertain acknowledgement; configure idempotence/manual review appropriate to their side effects. Lease expiry cannot undo an external side effect; downstream fencing/idempotency must be enforced by that system.
 
 Rollback code and its matching artifact/config together. Database rollback and encrypted data/key restoration need application-specific backups and migration plans. `release:check` remains false until local evidence, original-plan/security/upgrade reviews and explicitly recorded live-service/CI acceptance are satisfied. The stable version stays 2.0.0 while V3 is unpublished.
+
+`deploy:check` rejects SQLite for multi-host sessions, flows, mail and configured queues. It also rejects invalid/credential-bearing origins and AI URLs, missing `APP_HTTPS=true`, public signing/auth material and world-accessible storage/key files on Unix. Windows ACLs require a target-host check. Custom delivery bindings remain supported; `app:verify` must resolve their runtime wiring. Offline checks never replace runtime graph or live-service acceptance.
+
+Use application-scoped database accounts, separate migration privileges from runtime DML where supported, synchronize host clocks, supervise bounded workers, monitor dead jobs and test code/data/key restoration. Never use production application credentials for acceptance tests.
+
+For disposable service tests set `COREVIA_DB_TESTS=1`. `COREVIA_TEST_DATABASE` accepts only `corevia_ci` or `corevia_test`. Configure `COREVIA_TEST_MYSQL_HOST/PORT/USER/PASSWORD`, `COREVIA_TEST_PGSQL_HOST/PORT/USER/PASSWORD` and `COREVIA_TEST_MONGODB_URI`. Application `DB_USERNAME`/`DB_PASSWORD` are never inherited by these suites. `COREVIA_TEST_SQL_DRIVERS` can select `mysql`, `pgsql`, or `mysql,pgsql` (default). Run `tests/features/databases.php`, `tests/v3/auth-storage.php`, `tests/v3/identity.php`, `tests/v3/adapters.php` and `tests/v3/distributed.php`. A single-driver run does not establish acceptance for the other driver.
+
+See [production acceptance](../docs/v3/production-readiness.md) for scope and remaining release gates.

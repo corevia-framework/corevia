@@ -41,6 +41,8 @@ jobs:
       - run: php -n tests/v3/adapters.php
       - run: php -n tests/v3/ai.php
       - run: php -n tests/v3/operations.php
+      - run: php -n tests/v3/services.php
+      - run: php -n tests/v3/release.php
       - run: node tests/v3/smtp.mjs
       - run: node tests/v3/http-client.mjs
       - run: node tests/v3/ai-sdk.mjs

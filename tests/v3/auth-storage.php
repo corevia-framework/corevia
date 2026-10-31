@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace CoreviaAuthStorageTests;
 require dirname(__DIR__,2).'/autoload.php';
+require_once dirname(__DIR__).'/support/Services.php';
 use Corevia\Auth\{AccountStore,AuthFailure,JsonAuthStore,SqlAuthStore};
 use Corevia\Persistence\SqlConnection;
 function check(bool $value):void{if(!$value){throw new \RuntimeException('Auth storage contract failed.');}}
@@ -35,8 +36,8 @@ try{
         $db=SqlConnection::connect(['driver'=>'sqlite','database'=>$directory.'/auth.sqlite']);$store=new SqlAuthStore($db);$store->migrate();$store->migrate();contract($store);concurrentToken($store,$directory.'/auth.sqlite',true);rejects(fn()=>$db->transaction(fn()=>$store->findUser('ada@example.test')));echo "PASS SQLite auth/account storage, concurrent single use, idempotent schema and transaction ownership\n";
     }else{echo "SKIP SQL auth: no SQLite PDO driver\n";}
     if(getenv('COREVIA_DB_TESTS')==='1'){
-        foreach(['mysql','pgsql'] as $driver){
-            $db=SqlConnection::connect(['driver'=>$driver,'host'=>'127.0.0.1','port'=>$driver==='mysql'?3306:5432,'database'=>'corevia_ci','username'=>'corevia','password'=>'ci-only-password']);$prefix='cv_auth_test_'.bin2hex(random_bytes(5));
+        foreach(\CoreviaTests\Services::drivers() as $driver){
+            $db=SqlConnection::connect(\CoreviaTests\Services::sql($driver));$prefix='cv_auth_test_'.bin2hex(random_bytes(5));
             try{$store=new SqlAuthStore($db,$prefix);$store->migrate();$store->migrate();contract($store);echo "PASS $driver auth/account storage contract\n";}
             finally{foreach(['state','tokens','sessions','limits','users','mutex'] as $name){$db->execute('DROP TABLE IF EXISTS '.$db->quoteIdentifier($prefix.'_'.$name));}}
         }

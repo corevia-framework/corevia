@@ -1,5 +1,7 @@
 # Six remaining V3 workstreams: local implementation
 
+Follow-up production acceptance has now exercised real MySQL/PostgreSQL/MongoDB and private TLS nginx/PHP-FPM on a separate Linux host. See [production acceptance](production-readiness.md) for current scope, policy hardening and remaining gates; the initial local-fixture milestones below are historical.
+
 V3 remains on the local development branch and is not published. These changes implement the six workstreams discussed after the authentication phases. Local fixtures are explicitly selected; real provider/database/SMTP acceptance and GitHub CI remain unverified. The version stays 2.0.0 until release requirements are satisfied.
 
 | Workstream | Local implementation | Acceptance still needed |

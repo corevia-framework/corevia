@@ -14,7 +14,9 @@ final class ReleaseReadiness
     public static function report(string $root):array
     {
         $plan=json_decode(file_get_contents($root.'/docs/v3/acceptance.json'),true,32,JSON_THROW_ON_ERROR);$file=$root.'/storage/v3-verification.json';$evidence=is_file($file)&&filesize($file)<=65536?json_decode(file_get_contents($file),true,32,JSON_THROW_ON_ERROR):[];
-        $checks=['local_checks_passed'=>($evidence['passed']??false)===true,'browser_matrix'=>($evidence['browser_matrix']??false)===true,'evidence_matches_sources'=>isset($evidence['source_fingerprint'])&&hash_equals(self::fingerprint($root),$evidence['source_fingerprint']),'clean_worktree'=>trim(self::git($root,['status','--porcelain']))===''];foreach($plan['reviews'] as $id=>$value){$checks[$id]=$value===true;}foreach($plan['external_checks'] as $id){$checks[$id]=($evidence['external'][$id]??false)===true;}
+        $fingerprint=self::fingerprint($root);$stagingFile=$root.'/storage/v3-staging-verification.json';$staging=is_file($stagingFile)&&filesize($stagingFile)<=262144?json_decode(file_get_contents($stagingFile),true,32,JSON_THROW_ON_ERROR):[];
+        $stagingMatches=($staging['format']??null)===1&&is_string($staging['source_fingerprint']??null)&&hash_equals($fingerprint,$staging['source_fingerprint']);
+        $checks=['local_checks_passed'=>($evidence['passed']??false)===true,'browser_matrix'=>($evidence['browser_matrix']??false)===true,'evidence_matches_sources'=>is_string($evidence['source_fingerprint']??null)&&hash_equals($fingerprint,$evidence['source_fingerprint']),'clean_worktree'=>trim(self::git($root,['status','--porcelain']))===''];foreach($plan['reviews'] as $id=>$value){$checks[$id]=$value===true;}foreach($plan['external_checks'] as $id){$checks[$id]=($evidence['external'][$id]??false)===true||($stagingMatches&&($staging['checks'][$id]??false)===true);}
         return ['ready'=>!in_array(false,$checks,true),'target'=>'3.0.0','published'=>false,'checks'=>$checks,'evidence_kind'=>'local/operator-supplied, not release certification'];
     }
 }

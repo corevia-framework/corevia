@@ -10,6 +10,7 @@ function cookie(string $value):string{return explode(';',$value)[0];}
 function request(string $method,string $cookie='',array $body=[],string $csrf='',string $origin='http://localhost:8081'):Request{return new Request($method,'/auth/login',['cookie'=>$cookie,'content-type'=>'application/json','x-csrf-token'=>$csrf,'origin'=>$origin],json_encode($body,JSON_THROW_ON_ERROR),attributes:['client_ip'=>'127.0.0.1']);}
 $directory=sys_get_temp_dir().'/corevia-auth-'.bin2hex(random_bytes(8));mkdir($directory);$path=$directory.'/auth.json';$now=1000;$store=new JsonAuthStore($path);$auth=new AuthService($store,ttl:3600,clock:static function()use(&$now):int{return $now;});
 try{
+    foreach(["https://example.test\n",'https://example.test\\evil','https://user:secret@example.test','https://example.test?secret=value'] as $invalid){rejects(fn()=>new AuthService($store,$invalid));}
     $anonymous=$auth->open(request('GET'));$oldCookie=cookie($anonymous->cookie());check($anonymous->user===null);check(str_contains($anonymous->cookie(),'HttpOnly'));check($auth->open(request('POST'))===null);
     rejects(fn()=>$auth->verify(request('POST',$oldCookie,[],''),$anonymous),'CSRF');rejects(fn()=>$auth->verify(request('POST',$oldCookie,[],$anonymous->csrf,'https://evil.example'),$anonymous),'CSRF');
     $auth->verify(request('POST',$oldCookie,[],$anonymous->csrf),$anonymous);

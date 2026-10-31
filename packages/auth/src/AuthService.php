@@ -22,6 +22,7 @@ final readonly class AuthService
     }
     private static function origin(string $url):?string
     {
+        if(str_contains($url,'\\')||preg_match('/[\x00-\x20\x7f]/',$url)){return null;}
         $parts=parse_url($url);if($parts===false || !in_array(strtolower($parts['scheme']??''),['http','https'],true) || empty($parts['host']) || isset($parts['user'],$parts['pass']) || isset($parts['user']) || isset($parts['query']) || isset($parts['fragment'])){return null;}
         $scheme=strtolower($parts['scheme']);$port=$parts['port']??($scheme==='https'?443:80);
         return $scheme.'://'.strtolower($parts['host']).(($scheme==='https' && $port===443)||($scheme==='http' && $port===80)?'':':'.$port);

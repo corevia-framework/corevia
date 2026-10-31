@@ -1,5 +1,7 @@
 # V3 foundations: local phase
 
+Later production hardening and real database/nginx/FPM acceptance are recorded in [production readiness](production-readiness.md). Earlier fixture-only statements below describe their original milestones, rather than the current acceptance state.
+
 This phase finishes the foundations previously marked partial. V3 is not released. Work stays on the local `develop/v3` branch until the complete V3 plan is ready; no push, PR, merge, tag or release is part of this phase.
 
 | Plan point | Delivered in this phase | Scope |

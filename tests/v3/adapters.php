@@ -35,6 +35,6 @@ if(function_exists('openssl_sign')){
     }finally{foreach(glob($directory.'/*') as $file){unlink($file);}rmdir($directory);}
 }
 if(getenv('COREVIA_DB_TESTS')==='1'){
-    $scope='test-'.bin2hex(random_bytes(10));$mongo=new MongoSnapshotStore('mongodb://127.0.0.1:27017','corevia_ci','cv_auth_test',$scope);
-    try{\CoreviaIdentityTests\contract(new SnapshotAuthStore($mongo),function_exists('openssl_encrypt'));echo "PASS live MongoDB identity contract\n";}finally{$manager=new \MongoDB\Driver\Manager('mongodb://127.0.0.1:27017');$bulk=new \MongoDB\Driver\BulkWrite();$bulk->delete(['_id'=>$scope],['limit'=>1]);$manager->executeBulkWrite('corevia_ci.cv_auth_test',$bulk);}
+    $scope='test-'.bin2hex(random_bytes(10));$uri=\CoreviaTests\Services::mongoUri();$database=\CoreviaTests\Services::database();$mongo=new MongoSnapshotStore($uri,$database,'cv_auth_test',$scope);
+    try{\CoreviaIdentityTests\contract(new SnapshotAuthStore($mongo),function_exists('openssl_encrypt'));echo "PASS live MongoDB identity contract\n";}finally{$manager=new \MongoDB\Driver\Manager($uri);$bulk=new \MongoDB\Driver\BulkWrite();$bulk->delete(['_id'=>$scope],['limit'=>1]);$manager->executeBulkWrite($database.'.cv_auth_test',$bulk);}
 }
