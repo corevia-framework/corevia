@@ -8,8 +8,8 @@ const storage=await mkdtemp(join(root,'storage','profiles-live-'));
 const children=[];
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 async function port(){const s=createServer();await new Promise(r=>s.listen(0,'127.0.0.1',r));const p=s.address().port;await new Promise(r=>s.close(r));return p;}
-function start(args,env){const child=spawn(php,['-n',...args],{windowsHide:true,env:{...process.env,COREVIA_BUILD_ARTIFACT:'',COREVIA_BUILD_KEY_FILE:'',...env},stdio:['ignore','pipe','pipe']});children.push(child);let output='';child.stdout.on('data',d=>output+=d);child.stderr.on('data',d=>output+=d);return {child,output:()=>output};}
-function cli(args,env){return spawnSync(php,['-n','corevia',...args],{windowsHide:true,env:{...process.env,COREVIA_BUILD_ARTIFACT:'',COREVIA_BUILD_KEY_FILE:'',...env},encoding:'utf8',timeout:10000});}
+function start(args,env){const child=spawn(php,['-n','-d','disable_functions=ctype_digit',...args],{windowsHide:true,env:{...process.env,COREVIA_BUILD_ARTIFACT:'',COREVIA_BUILD_KEY_FILE:'',...env},stdio:['ignore','pipe','pipe']});children.push(child);let output='';child.stdout.on('data',d=>output+=d);child.stderr.on('data',d=>output+=d);return {child,output:()=>output};}
+function cli(args,env){return spawnSync(php,['-n','-d','disable_functions=ctype_digit','corevia',...args],{windowsHide:true,env:{...process.env,COREVIA_BUILD_ARTIFACT:'',COREVIA_BUILD_KEY_FILE:'',...env},encoding:'utf8',timeout:10000});}
 try{
   const apiStorage=join(storage,'api'),apiEnv={COREVIA_PROFILE:'api',COREVIA_STORAGE:apiStorage};
   const apiPort=await port(),api=start(['-S',`127.0.0.1:${apiPort}`,'-t','public','public/index.php'],apiEnv),base=`http://127.0.0.1:${apiPort}`;

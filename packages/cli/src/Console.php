@@ -208,7 +208,7 @@ final readonly class Console
                     $result=$app->resume($argv[2] ?? '',$options['event'] ?? null); $this->print($result); return $result->status()==='failed' ? 1 : 0;
                 case 'worker:dispatch':
                     $file=$options['input'] ?? throw new \InvalidArgumentException('--input is required.');
-                    $delay=$options['delay'] ?? '0'; if (!ctype_digit($delay) || (int)$delay>31536000) { throw new \InvalidArgumentException('Invalid delay.'); }
+                    $delay=$options['delay'] ?? '0'; if (preg_match('/^[0-9]+$/D',$delay)!==1 || (int)$delay>31536000) { throw new \InvalidArgumentException('Invalid delay.'); }
                     $input=json_decode(file_get_contents($file),true,64,JSON_THROW_ON_ERROR);
                     $flow=$argv[2] ?? ''; $app->flow($flow);
                     $id=(new JobQueue($runtime['storage'].'/jobs'))->dispatch($flow,$input,time()+(int)$delay); $this->print(['job_id'=>$id]); break;
@@ -219,7 +219,7 @@ final readonly class Console
                     do { $worked=$queue->work($app); if (!isset($options['once']) && !$worked) { usleep(250000); } } while (!isset($options['once']) && $running);
                     break;
                 case 'flow:retry':
-                    if (!isset($argv[3]) || !ctype_digit($argv[3])) {
+                    if (!isset($argv[3]) || preg_match('/^[0-9]+$/D',$argv[3])!==1) {
                         throw new \InvalidArgumentException('A zero-based numeric step index is required.');
                     }
                     $result = $app->retry($argv[2] ?? '', (int) $argv[3]);
@@ -295,7 +295,7 @@ final readonly class Console
     }
     private function port(string $value): int
     {
-        if (!ctype_digit($value) || (int) $value < 1 || (int) $value > 65535) {
+        if (preg_match('/^[0-9]+$/D',$value)!==1 || (int) $value < 1 || (int) $value > 65535) {
             throw new \InvalidArgumentException('Invalid port.');
         }
         return (int) $value;
