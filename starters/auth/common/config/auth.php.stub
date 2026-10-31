@@ -1,0 +1,26 @@
+<?php
+declare(strict_types=1);
+return [
+    'stack'=>'{{stack}}',
+    'url'=>getenv('APP_URL')?:'http://127.0.0.1:8081',
+    'registration'=>getenv('AUTH_REGISTRATION')!=='false',
+    'store'=>(getenv('COREVIA_STORAGE')?:dirname(__DIR__).'/storage').'/auth/records.json',
+    'driver'=>getenv('AUTH_STORE')?:'json',
+    'connection'=>getenv('AUTH_CONNECTION')?:null,
+    'prefix'=>getenv('AUTH_TABLE_PREFIX')?:'cv_auth',
+    'delivery'=>getenv('AUTH_DELIVERY')?:(getenv('APP_ENV')==='production'?'disabled':'preview'),
+    'outbox'=>(getenv('COREVIA_STORAGE')?:dirname(__DIR__).'/storage').'/auth/outbox',
+    'require_verified'=>getenv('AUTH_REQUIRE_VERIFIED_EMAIL')==='true',
+    'mfa'=>getenv('AUTH_MFA')!=='false' && function_exists('openssl_encrypt'),
+    'key_file'=>getenv('AUTH_KEY_FILE')?:(getenv('COREVIA_STORAGE')?:dirname(__DIR__).'/storage').'/auth/security.key',
+    'remember_ttl'=>2592000,
+    // Named OAuthProvider class names, resolved by the application container.
+    'oauth'=>[],
+    'oauth_builtin'=>['github'=>['enabled'=>getenv('AUTH_GITHUB')==='true','id'=>getenv('AUTH_GITHUB_ID')?:'','secret'=>getenv('AUTH_GITHUB_SECRET')?:''],'google'=>['enabled'=>getenv('AUTH_GOOGLE')==='true','id'=>getenv('AUTH_GOOGLE_ID')?:'','secret'=>getenv('AUTH_GOOGLE_SECRET')?:'']],
+    'mongo'=>['uri'=>getenv('AUTH_MONGODB_URI')?:'mongodb://127.0.0.1:27017','database'=>getenv('AUTH_MONGODB_DATABASE')?:'corevia','collection'=>'cv_auth','scope'=>getenv('AUTH_SCOPE')?:'main'],
+    'roles'=>['admin'=>['admin.access'],'editor'=>['documents.read','documents.update']],
+    'mail_queue'=>(getenv('COREVIA_STORAGE')?:dirname(__DIR__).'/storage').'/auth/mail/queue.json',
+    'mail_connection'=>getenv('MAIL_CONNECTION')?:null,
+    'mail_prefix'=>getenv('MAIL_TABLE_PREFIX')?:'cv_mail',
+    'smtp'=>['host'=>getenv('SMTP_HOST')?:'','port'=>(int)(getenv('SMTP_PORT')?:587),'encryption'=>getenv('SMTP_ENCRYPTION')?:'starttls','username'=>getenv('SMTP_USERNAME')?:'','password'=>getenv('SMTP_PASSWORD')?:'','from'=>getenv('MAIL_FROM')?:'','cafile'=>getenv('SMTP_CA_FILE')?:null],
+];

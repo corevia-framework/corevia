@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace CoreviaDatabaseTests;
 require dirname(__DIR__,2).'/autoload.php';
+require_once dirname(__DIR__).'/support/Services.php';
 use Corevia\Core\{Action,Corevia,ExecutionContext,Flow,Logger,Module,ModuleContext,State};
 use Corevia\Persistence\{DatabaseManager,DocumentStore,JsonDocumentStore,SqlConnection,SqlRunStore};
 function check(bool $value):void{if(!$value){throw new \RuntimeException('Assertion failed.');}}
@@ -54,7 +55,7 @@ try{
     check(SqlConnection::dsn(['driver'=>'mysql','database'=>'app'])==='mysql:host=127.0.0.1;port=3306;dbname=app;charset=utf8mb4');
     check(SqlConnection::dsn(['driver'=>'pgsql','database'=>'app','sslmode'=>'require'])==='pgsql:host=127.0.0.1;port=5432;dbname=app;sslmode=require');rejects(fn()=>SqlConnection::dsn(['driver'=>'pgsql','host'=>'x;password=y','database'=>'app']));
     if(getenv('COREVIA_DB_TESTS')==='1'){
-        foreach(['mysql'=>3306,'pgsql'=>5432] as $driver=>$port){$db=SqlConnection::connect(['driver'=>$driver,'host'=>'127.0.0.1','port'=>$port,'database'=>'corevia_ci','username'=>'corevia','password'=>'ci-only-password','sslmode'=>'disable']);sqlContract($db);echo "PASS real $driver server contract\n";}
-        $mongo=new \Corevia\Persistence\MongoDocumentStore('mongodb://127.0.0.1:27017','corevia_ci');documentsContract($mongo);echo "PASS real MongoDB document contract\n";
+        foreach(\CoreviaTests\Services::drivers() as $driver){$db=SqlConnection::connect(\CoreviaTests\Services::sql($driver));sqlContract($db);echo "PASS real $driver server contract\n";}
+        $mongo=new \Corevia\Persistence\MongoDocumentStore(\CoreviaTests\Services::mongoUri(),\CoreviaTests\Services::database());documentsContract($mongo);echo "PASS real MongoDB document contract\n";
     }
 }finally{foreach(glob($directory.'/docs/*') ?: [] as $file){unlink($file);}if(is_dir($directory.'/docs')){rmdir($directory.'/docs');}rmdir($directory);}

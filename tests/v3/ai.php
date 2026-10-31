@@ -1,0 +1,30 @@
+<?php
+declare(strict_types=1);
+namespace CoreviaAiTests;
+require dirname(__DIR__,2).'/autoload.php';
+use Corevia\Ai\{AiClient,AiProvider,CompatibleProvider,EmbeddingProvider,MemoryVectorIndex,Retrieval,SqlVectorIndex};
+use Corevia\Core\ScopeManager;
+use Corevia\Http\{HttpClient,NativeHttpClient,SseDecoder};
+use Corevia\Http\Response;
+use Corevia\Persistence\SqlConnection;
+use Corevia\Protocol\ContractManifest;
+function check(bool $ok):void{if(!$ok){throw new \RuntimeException('AI assertion failed.');}}
+function rejects(callable $work):void{try{$work();}catch(\Throwable){return;}throw new \RuntimeException('Expected AI rejection.');}
+final class FixtureHttp implements HttpClient
+{
+    public array $chunks=[];public bool $closed=false;public array $request=[];
+    public function stream(string $method,string $url,array $headers=[],string $body=''):iterable{$this->request=compact('method','url','headers','body');try{yield from $this->chunks;}finally{$this->closed=true;}}
+}
+$decoder=new SseDecoder();$data="data: first\r\ndata: second\r\n\r\n";$events=[];foreach(str_split($data,1) as $byte){$events=[...$events,...$decoder->feed($byte)];}check($events===["first\nsecond"]);$decoder->finish();rejects(fn()=>(new SseDecoder())->feed(str_repeat('a',65537)));
+$contract=ContractManifest::load(dirname(__DIR__,2).'/contracts/ai.json');$contract->assertEvent('delta',(object)['text'=>'hello']);$contract->assertEvent('done',[]);$contract->assertEvent('error',(object)['code'=>'STREAM_FAILED']);rejects(fn()=>$contract->assertEvent('delta',(object)['text'=>42]));
+$http=new FixtureHttp();$wire='data: '.json_encode(['choices'=>[['delta'=>['content'=>'Hello 🌍']]]],JSON_UNESCAPED_UNICODE)."\n\ndata: [DONE]\n\n";$http->chunks=str_split($wire,3);$scopes=new ScopeManager();$client=new AiClient(new CompatibleProvider($http,'https://model.example/v1','chosen-model','private-fixture-key'),$scopes);check($client->complete([['role'=>'user','content'=>'private prompt']])==='Hello 🌍');check($http->closed&&$scopes->activeCount()===0&&json_decode($http->request['body'],true)['model']==='chosen-model');
+$http->chunks=["data: {\"choices\":[{\"delta\":{\"content\":\"one\"}}]}\n\n"];$http->closed=false;rejects(fn()=>$client->complete([['role'=>'user','content'=>'x']]));check($http->closed&&$scopes->activeCount()===0);
+$http->chunks=str_split($wire,3);$http->closed=false;rejects(fn()=>$client->stream([['role'=>'user','content'=>'x']],static fn()=>false));check($http->closed&&$scopes->activeCount()===0);rejects(fn()=>$client->complete([['role'=>'tool','content'=>'x']]));rejects(fn()=>$client->complete([['role'=>'user','content'=>str_repeat('a',65537)]]));
+$largeProvider=new class implements AiProvider{public function stream(array $messages,int $maxTokens):iterable{yield str_repeat('🌍',5000);}};$chunks=[];(new AiClient($largeProvider,$scopes))->stream([['role'=>'user','content'=>'x']],static function(string $text)use(&$chunks,$contract):void{$contract->assertEvent('delta',(object)['text'=>$text]);check(strlen(json_encode(['text'=>$text]))<65536);$chunks[]=$text;});check(count($chunks)===2&&implode('',$chunks)===str_repeat('🌍',5000));
+$embeddingRows=[];for($i=0;$i<16;$i++){$embeddingRows[]=['index'=>$i,'embedding'=>array_fill(0,4096,0.12345678901234567)];}$encoded=json_encode(['data'=>$embeddingRows],JSON_THROW_ON_ERROR);check(strlen($encoded)>1048576);$http->chunks=str_split($encoded,8192);$vectors=(new CompatibleProvider($http,'https://model.example/v1','chat','fixture',embeddingModel:'embedding'))->embed(array_fill(0,16,'text'));check(count($vectors)===16&&count($vectors[0])===4096);unset($vectors,$embeddingRows,$encoded);
+rejects(static function():void{foreach((new NativeHttpClient())->stream('GET','http://public.example') as $chunk){}});rejects(static function():void{foreach((new NativeHttpClient(true))->stream('GET','http://localhost') as $chunk){}});rejects(static function():void{foreach((new NativeHttpClient())->stream('GET','https://example.test',['Host'=>'attacker.test']) as $chunk){}});
+$embedding=new class implements EmbeddingProvider{public function embed(array $texts):array{return array_map(static fn($text)=>str_contains($text,'cat')?[1.0,0.1]:[0.1,1.0],$texts);}};
+$index=new MemoryVectorIndex();$rag=new Retrieval($embedding,$index);check($rag->ingest('tenant-a','doc-r1','A cat is an animal.')===1);$rag->ingest('tenant-b','secret-r1','private cat material');$context=$rag->context('tenant-a','cat');check($context['sources']===['doc-r1:0']&&!str_contains($context['context'],'private cat material')&&str_contains($context['context'],'untrusted data'));check($index->search('tenant-c',[1.0,0.1])===[]);rejects(fn()=>$index->put('tenant-a','bad','text',[0,0]));rejects(fn()=>$index->put('tenant-a','bad','text',[NAN,1]));rejects(fn()=>$index->search('tenant-a',[1]));$index->delete('tenant-a','doc-r1:0');check($index->search('tenant-a',[1,0.1])===[]);
+if(class_exists(\PDO::class)&&in_array('sqlite',\PDO::getAvailableDrivers(),true)){$sql=new SqlVectorIndex(SqlConnection::connect(['driver'=>'sqlite','database'=>':memory:']));$sql->migrate();$sql->migrate();$sql->put('a','one','A cat',[1,0.1]);$sql->put('b','one','Private cat',[1,0.1]);check($sql->search('a',[1,0.1])[0]['text']==='A cat');$sql->delete('a','one');check($sql->search('a',[1,0.1])===[]);}
+$closed=false;$prior=ignore_user_abort();$response=Response::events(static function(callable $emit)use($scopes,&$closed):void{check(ignore_user_abort()===1);$scopes->run('http.stream',static function($scope)use($emit,&$closed):void{$scope->onClose(static function()use(&$closed):void{$closed=true;});$emit('delta',['text'=>'fixture']);throw new \RuntimeException('private cancellation diagnostic');});});ob_start();ob_start();($response->body)();ob_end_flush();$output=ob_get_clean();check($closed&&$scopes->activeCount()===0&&ignore_user_abort()===$prior&&str_contains($output,'event: error')&&!str_contains($output,'private cancellation diagnostic')&&!str_contains($output,'event: done'));
+echo "PASS fragmented UTF-8 SSE, AI bounds/cancellation/cleanup, strict outbound policy, tenant-isolated retrieval and vector adapters\n";

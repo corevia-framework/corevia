@@ -32,6 +32,7 @@ final class JobQueue
     /** Returns true if one due job was claimed and processed. */
     public function work(Corevia $app): bool
     {
+        $app->requireFeature('jobs');
         foreach (glob($this->directory.'/*.json') ?: [] as $path) {
             $file=fopen($path,'r+b');
             if ($file===false) { continue; }
@@ -42,7 +43,7 @@ final class JobQueue
                 if (($job['status']??null)!=='pending' || $job['not_before']>time()) { continue; }
                 $job['status']='running'; $job['claimed_at']=gmdate('c'); $this->write($file,$job);
                 try {
-                    $result=$app->run($job['flow'],$job['input'],'job:'.$job['id']);
+                    $result=$app->scope('job',fn():FlowResult=>$app->run($job['flow'],$job['input'],'job:'.$job['id']),['job_id'=>$job['id']]);
                     $job['run_id']=$result->run['run_id']; $job['status']=$result->status();
                 } catch (\Throwable $error) { $job['status']='failed'; $job['error']=['code'=>'JOB_FAILED','exception'=>$error::class]; }
                 $job['finished_at']=gmdate('c'); $this->write($file,$job); return true;

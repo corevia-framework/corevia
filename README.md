@@ -1,6 +1,8 @@
-# Corevia
+# Corevia 3.0
 
-Corevia V2 includes a kernel, durable flows, compensation, CVP/2, presence channels, SDKs, database adapters, web routing and developer tooling while retaining V1 APIs. V1 is preserved at `v1.0.0`; stable V2 uses `v2.0.0`. Start with the [V2 kernel guide](docs/v2/kernel.md), [flow guide](docs/v2/flows.md), and [installation guide](docs/v2/installation.md). Run `php -n examples/v2/kernel.php` for a database-free example. See [migration notes](docs/v2/migration.md) and [release notes](RELEASE_NOTES_V2.md).
+Corevia 3.0 adds Bootstrap/Tailwind/React auth starters, MFA, account management, role/tenant authorization, shared SQL workers/mail, optional MongoDB auth, streaming AI/model adapters, runtime profiles and cross-runtime contracts to the existing modular PHP kernel. CVP/1 and CVP/2 remain supported. V1/V2 releases are preserved at `v1.0.0` and `v2.0.0`.
+
+This is the V3 release-preparation branch; a stable V3 tag/release follows required GitHub CI acceptance. Start with [auth kits](docs/v3/auth-starters.md), [identity/mail/authorization](docs/v3/identity-mail-authorization.md), [runtime profiles](docs/v3/profiles.md) and the [AI/shared-worker guide](docs/v3/remaining-phases.md). See the completed [14-point/security/upgrade review](docs/v3/final-review.md) and [upgrade notes](docs/v3/upgrade.md). Live OAuth and Docker image validation are explicitly deferred and have [user self-tests](docs/v3/optional-validation.md).
 
 A standalone PHP 8.2+ framework for modular actions, observable flows, isolated failures, events, WebSockets and CVP/1–2 interoperability. PHP core has no third-party runtime dependencies and does not require Node.js, Python, Redis or a broker.
 
@@ -8,10 +10,10 @@ A standalone PHP 8.2+ framework for modular actions, observable flows, isolated 
 
 **Requirements:** PHP 8.2+ with JSON. The starter needs no database, Node.js, Python, Redis, or Docker.
 
-Download the [latest source ZIP](https://github.com/corevia-framework/corevia/archive/refs/heads/main.zip), extract it, and open a terminal in the extracted project directory. Or clone it:
+Download the [V3 branch ZIP](https://github.com/corevia-framework/corevia/archive/refs/heads/develop/v3.zip), extract it, and open a terminal in the extracted project directory. Or clone the V3 branch:
 
 ```sh
-git clone https://github.com/corevia-framework/corevia.git myapp
+git clone --branch develop/v3 https://github.com/corevia-framework/corevia.git myapp
 cd myapp
 composer install
 php corevia serve
@@ -237,3 +239,5 @@ make:module <Name>            make:action <Name>           make:flow <Name>
 Generators refuse existing files and require PascalCase names. Generated actions/flows live under `app/Generated`; register them explicitly. Generated modules are added to the bootstrap module list. Server host/port options use `--host=127.0.0.1 --port=8081` for HTTP and port 8080 for realtime.
 
 MIT licensed. Contributions should preserve package boundaries, restrictive defaults and cross-language tests.
+
+Read the [foundation guide](docs/v3/foundations.md), [architecture checks](docs/v3/architecture.md), [production acceptance](docs/v3/production-readiness.md) and [progress record](docs/v3/progress.md). Framework/SDK metadata is 3.0.0; protocol versions remain CVP/1 and CVP/2. PHP, JS, Python and Dart package-registry publication is separate from this GitHub source distribution.

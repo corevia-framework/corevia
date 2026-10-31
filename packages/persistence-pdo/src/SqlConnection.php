@@ -37,6 +37,7 @@ final class SqlConnection
         catch (\PDOException) { throw new \RuntimeException('Database connection failed. Check private connection settings and server availability.'); }
     }
     public function pdo(): \PDO { return $this->pdo; }
+    public function inTransaction(): bool { return $this->pdo->inTransaction(); }
     public function driver(): string { return $this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME); }
     public function execute(string $sql, array $bindings=[]): \PDOStatement
     {

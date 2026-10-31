@@ -1,5 +1,14 @@
 name: Corevia tests
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      validate_docker:
+        description: Build the optional Docker image recipe
+        required: false
+        type: boolean
+        default: false
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -27,6 +36,34 @@ jobs:
       - run: composer test
       - run: php -n tests/v2/kernel.php
       - run: php -n tests/v2/flows.php
+      - run: php -n tests/v3/composition.php
+      - run: php -n tests/v3/scopes.php
+      - run: php -n tests/v3/units.php
+      - run: php -n tests/v3/artifact-boot.php
+      - run: php -n tests/v3/contracts.php
+      - run: php -n tests/v3/profiles.php
+      - run: php -n tests/v3/auth.php
+      - run: php -n tests/v3/auth-storage.php
+      - run: php -n tests/v3/auth-recovery.php
+      - run: php -n tests/v3/identity.php
+      - run: php -n tests/v3/mail.php
+      - run: php -n tests/v3/adapters.php
+      - run: php -n tests/v3/ai.php
+      - run: php -n tests/v3/operations.php
+      - run: php -n tests/v3/services.php
+      - run: php -n tests/v3/release.php
+      - run: node tests/v3/smtp.mjs
+      - run: node tests/v3/http-client.mjs
+      - run: node tests/v3/ai-sdk.mjs
+      - run: node tests/v3/profiles.mjs
+      - run: npm ci --ignore-scripts
+        working-directory: tools
+      - run: python tools/architecture.py
+      - run: python tests/v3/architecture.py
+      - run: php corevia contract:compile contracts/example.json --output=contracts/generated --check
+      - run: node tests/v3/contracts.mjs
+      - run: python tests/v3/contracts.py
+      - run: npm exec --yes --package=typescript@7.0.2 -- tsc tests/v3/contracts.types.mts --noEmit --strict --module NodeNext --moduleResolution NodeNext --target ES2022
       - run: php tests/features/databases.php
       - run: php -n tests/features/databases.php
       - run: php -n tests/features/web.php
@@ -48,6 +85,37 @@ jobs:
           PYTHON: python
       - run: python tests/v2/install.py
       - run: python tests/v2/history.py
+      - run: python tools/v3-upgrade-verify.py
+  auth-starters:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_sqlite
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: npm ci --ignore-scripts
+        working-directory: tools
+      - run: node tools/build-auth-starters.mjs --check
+      - run: node node_modules/playwright-core/cli.js install --with-deps chromium
+        working-directory: tools
+      - run: node tests/v3/auth-browser.mjs
+      - run: node tests/v3/auth-browser.mjs
+        env:
+          COREVIA_AUTH_SQL: '1'
+      - run: node tests/v3/auth-browser.mjs
+        env:
+          COREVIA_AUTH_CRYPTO: '1'
+      - run: node tests/v3/ai-browser.mjs
+        env:
+          PYTHON: python
   dart:
     runs-on: ubuntu-latest
     steps:
@@ -57,6 +125,9 @@ jobs:
           sdk: stable
       - run: dart analyze
         working-directory: sdk/dart
+      - run: dart analyze contracts/generated/dart
+      - run: dart run tests/v3/contracts.dart
+      - run: dart run tests/v3/ai.dart
       - run: dart run test/contracts.dart
         working-directory: sdk/dart
       - run: dart run test/io.dart
@@ -101,3 +172,21 @@ jobs:
       - run: php tests/features/databases.php
         env:
           COREVIA_DB_TESTS: '1'
+      - run: php tests/v3/auth-storage.php
+        env:
+          COREVIA_DB_TESTS: '1'
+      - run: php tests/v3/identity.php
+        env:
+          COREVIA_DB_TESTS: '1'
+      - run: php tests/v3/adapters.php
+        env:
+          COREVIA_DB_TESTS: '1'
+      - run: php tests/v3/distributed.php
+        env:
+          COREVIA_DB_TESTS: '1'
+  container:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.validate_docker }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f deploy/Dockerfile -t corevia-v3-ci .

@@ -43,6 +43,7 @@ return static function (string $basePath): array {
     $environment = getenv('APP_ENV') ?: 'development';
     $configuration = ConfigRepository::load($basePath . '/config/settings', $environment, $storage . '/config-' . $environment . '.json');
     $app = Corevia::create($basePath, $store, $logger, $configuration);
+    try {
     $database=new DatabaseManager($configuration->get('database',[]));
     $app->container->set(DatabaseManager::class,$database);
     $app->onShutdown(static fn()=>$database->disconnect());
@@ -67,4 +68,5 @@ return static function (string $basePath): array {
         $router->actionGateway(['orders.get'], static fn (Request $request): bool => hash_equals('Bearer ' . $apiToken, $request->header('authorization')));
     }
     return compact('app', 'router', 'secret', 'storage', 'origins', 'controlPort');
+    } catch (Throwable $error) { try { $app->shutdown(); } catch (Throwable) {} throw $error; }
 };

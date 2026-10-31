@@ -9,6 +9,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
+from .scopes import ExecutionScope, execution_scope
 
 TYPES = {"action.call", "action.result", "event", "subscribe", "unsubscribe", "ping", "pong"}
 
@@ -73,6 +74,27 @@ class Worker:
         self.timeout, self.max_bytes = timeout, max_bytes
         self.actions = {}
         self.server = None
+        self.scope_hooks = []
+        self.startup_hooks = []
+        self.shutdown_hooks = []
+
+    def on_startup(self, callback):
+        self.startup_hooks.append(callback)
+        return callback
+
+    def on_shutdown(self, callback):
+        self.shutdown_hooks.append(callback)
+        return callback
+
+    def on_scope(self, callback):
+        self.scope_hooks.append(callback)
+        return callback
+
+    def service(self, name, factory=None, cleanup=None):
+        scope = ExecutionScope.current()
+        if scope is None:
+            raise RuntimeError('Worker services require an execution scope.')
+        return scope.service(name, factory, cleanup)
 
     def action(self, name):
         def register(handler):
@@ -83,6 +105,25 @@ class Worker:
         return register
 
     def dispatch(self, envelope, authorization=None):
+        validate_envelope(envelope)
+        result = None
+        try:
+            with execution_scope('python') as scope:
+                for hook in self.scope_hooks:
+                    hook(scope)
+                result = self._dispatch(envelope, authorization)
+                return result
+        except Exception as error:
+            if result is not None and not result['ok']:
+                return result
+            try:
+                logging.getLogger('corevia').error('Worker scope failed exception=%s', type(error).__name__)
+            except Exception:
+                pass
+            code = 'SCOPE_CLEANUP_FAILED' if str(error) == 'SCOPE_CLEANUP_FAILED' else 'SCOPE_EXECUTION_FAILED'
+            return response(envelope['id'], error={'code':code, 'message':'Worker scope failed.', 'retryable':False}, version=envelope['cvp'], trace_id=envelope.get('meta', {}).get('trace_id'), parent_trace_id=envelope.get('meta', {}).get('parent_trace_id'))
+
+    def _dispatch(self, envelope, authorization=None):
         validate_envelope(envelope)
         trace = envelope.get("meta", {}).get("trace_id")
         target = envelope.get("target")
@@ -148,11 +189,31 @@ class Worker:
                 logging.getLogger("corevia.http").info("HTTP status %s", args[1] if len(args) > 1 else "unknown")
 
         self.server = ThreadingHTTPServer((self.host, self.port), Handler)
-        self.server.daemon_threads = True
+        # Drain request threads before releasing shared process resources.
+        self.server.daemon_threads = False
+        failed = False
         try:
+            for hook in self.startup_hooks:
+                hook(self)
             self.server.serve_forever(poll_interval=0.2)
+        except BaseException:
+            failed = True
+            raise
         finally:
             self.server.server_close()
+            failures = []
+            for hook in reversed(self.shutdown_hooks):
+                try:
+                    hook(self)
+                except BaseException as error:
+                    failures.append(type(error).__name__)
+            if failures:
+                try:
+                    logging.getLogger('corevia').error('Worker shutdown failed classes=%s', ','.join(failures))
+                except Exception:
+                    pass
+                if not failed:
+                    raise RuntimeError('WORKER_SHUTDOWN_FAILED')
 
     def stop(self):
         if self.server:

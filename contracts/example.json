@@ -1,0 +1,14 @@
+{
+  "format": 1,
+  "name": "Example",
+  "version": "1.0.0",
+  "$defs": {
+    "GreetingInput": {"type":"object","properties":{"name":{"type":"string","minLength":1,"maxLength":40}},"required":["name"],"additionalProperties":false},
+    "Greeting": {"type":"object","properties":{"message":{"type":"string","maxLength":200}},"required":["message"],"additionalProperties":false},
+    "Counter": {"type":"object","properties":{"count":{"type":"integer","minimum":0,"maximum":10},"kind":{"type":"string","enum":["small","large"]},"tags":{"type":"array","items":{"type":"string"},"maxItems":2}},"required":["count"],"additionalProperties":false}
+  },
+  "auth": {"session":{"type":"session","scopes":["greet:read"]}},
+  "errors": {"UNAVAILABLE":{"message":"Temporarily unavailable.","retryable":true}},
+  "actions": {"demo.greet":{"input":{"$ref":"#/$defs/GreetingInput"},"output":{"$ref":"#/$defs/Greeting"},"auth":[{"scheme":"session","scopes":["greet:read"]}],"errors":["UNAVAILABLE"]},"demo.count":{"input":{"$ref":"#/$defs/Counter"},"output":{"$ref":"#/$defs/Counter"},"auth":[],"errors":[]}},
+  "events": {"demo.greeted":{"payload":{"$ref":"#/$defs/Greeting"},"auth":[{"scheme":"session","scopes":["greet:read"]}]}}
+}

@@ -1,0 +1,23 @@
+[
+  {"kind":"input","name":"demo.greet","value":{"name":"Ada"},"valid":true},
+  {"kind":"input","name":"demo.greet","value":{"name":"😀"},"valid":true},
+  {"kind":"input","name":"demo.greet","value":{},"valid":false},
+  {"kind":"input","name":"demo.greet","value":[],"valid":false},
+  {"kind":"input","name":"demo.greet","value":{"name":""},"valid":false},
+  {"kind":"input","name":"demo.greet","value":{"name":true},"valid":false},
+  {"kind":"input","name":"demo.greet","value":{"name":"Ada","password":"must-not-slip-through"},"valid":false},
+  {"kind":"input","name":"unknown.action","value":{},"valid":false},
+  {"kind":"output","name":"demo.greet","value":{"message":"Hello"},"valid":true},
+  {"kind":"output","name":"demo.greet","value":{"message":null},"valid":false},
+  {"kind":"event","name":"demo.greeted","value":{"message":"Updated"},"valid":true},
+  {"kind":"event","name":"demo.greeted","value":{},"valid":false},
+  {"kind":"input","name":"demo.count","value":{"count":1,"kind":"small","tags":["a","b"]},"valid":true},
+  {"kind":"input","name":"demo.count","value":{"count":1.0},"valid":true},
+  {"kind":"input","name":"demo.count","value":{"count":true},"valid":false},
+  {"kind":"input","name":"demo.count","value":{"count":1.2},"valid":false},
+  {"kind":"input","name":"demo.count","value":{"count":11},"valid":false},
+  {"kind":"input","name":"demo.count","value":{"count":-1},"valid":false},
+  {"kind":"input","name":"demo.count","value":{"count":9007199254740992},"valid":false},
+  {"kind":"input","name":"demo.count","value":{"count":1,"kind":"unknown"},"valid":false},
+  {"kind":"input","name":"demo.count","value":{"count":1,"tags":["a","b","c"]},"valid":false}
+]

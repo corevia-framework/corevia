@@ -1,0 +1,1 @@
+{"name":"corevia-auth-bootstrap","private":true,"type":"module","coreviaStack":"bootstrap","scripts":{"build":"node build.mjs"},"devDependencies":{"bootstrap":"5.3.8"}}

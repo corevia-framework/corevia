@@ -1,0 +1,11 @@
+{
+  "format": 1,
+  "target": "3.0.0",
+  "reviews": {"original_14_point_review": true, "security_review": true, "upgrade_review": true},
+  "review_document": "docs/v3/final-review.md",
+  "external_checks": ["mysql_postgres_mongodb", "production_runtime", "real_smtp", "github_ci"],
+  "deferred_checks": {
+    "real_oauth": {"status":"deferred","reason":"Maintainer explicitly deferred live-provider login acceptance; applications must test their configured provider before enabling it.","guide":"docs/v3/optional-validation.md"},
+    "docker_image": {"status":"deferred","reason":"Maintainer explicitly deferred image validation; the recipe is optional and requires user/target testing before deployment.","guide":"docs/v3/optional-validation.md"}
+  }
+}
