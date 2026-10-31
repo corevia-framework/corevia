@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace Corevia\Cli;
+use Corevia\Core\Version;
 
 /** Read-only compatibility report. Behavioral checks still require an application's own tests. */
 final class UpgradeScanner
@@ -18,6 +19,6 @@ final class UpgradeScanner
                 if (preg_match('/->(?:registeredActions|registeredFlows|handlers)\s*(?:\[|=)/',$source)) { $issues[]=['severity'=>'warning','code'=>'DIRECT_REGISTRATION_MUTATION','file'=>substr($file->getPathname(),strlen($basePath)+1),'message'=>'Use ModuleContext registration methods inside register().']; }
             }
         }
-        return ['target'=>'2.0.0','files_scanned'=>$files,'issues'=>$issues,'compatible'=>!array_filter($issues,fn(array $issue):bool=>$issue['severity']==='error'),'manual_review'=>['Register modules/hooks before boot; use a new app after shutdown.','Keep CVP/1 constructors or explicitly select CVP/2 in every peer.','Review paused workflows before deploying changed action or condition code.','Authorize resume/approval endpoints and verify external side-effect idempotency.'],'mutated_files'=>false];
+        return ['target'=>Version::VERSION,'files_scanned'=>$files,'issues'=>$issues,'compatible'=>!array_filter($issues,fn(array $issue):bool=>$issue['severity']==='error'),'manual_review'=>['Register modules/hooks before boot; use a new app after shutdown.','Keep CVP/1 constructors or explicitly select CVP/2 in every peer.','Review paused workflows before deploying changed action or condition code.','Authorize resume/approval endpoints and verify external side-effect idempotency.'],'mutated_files'=>false];
     }
 }

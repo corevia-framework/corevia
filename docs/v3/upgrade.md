@@ -1,6 +1,6 @@
 # Local V3 upgrade notes
 
-Keep existing V2 sites on their released code while evaluating V3 in a separate checkout/environment. The local framework version intentionally remains 2.0.0; V3 is not a published upgrade yet.
+Keep existing V2 sites on their released code while evaluating V3 in a separate checkout/environment. The release-preparation branch uses framework/SDK version 3.0.0; the stable tag/release remains pending GitHub CI. Protocol versions stay CVP/1 and CVP/2.
 
 - JSON authentication file format remains 1. Extracting `AtomicAuthStore` preserves the JSON API and compatibility defaults. Existing hashes, session versions and recovery-token rules remain enforced. No automatic data conversion occurs when selecting another driver.
 - SQL auth uses explicit `auth:migrate`. Existing phase user/session/token tables stay compatible; the identity-state table is added by the latest kit. Experimental intermediate V3 schemas must be reviewed in a disposable test database before migration; this is not a versioned migration engine for arbitrary prior prototypes.

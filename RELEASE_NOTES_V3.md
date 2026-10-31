@@ -1,6 +1,6 @@
-# V3 — unreleased, local development
+# Corevia 3.0.0 — release preparation
 
-V3 has not been pushed or published. Version identifiers remain 2.0.0 pending acceptance.
+Framework and SDK metadata is 3.0.0. The V3 branch is prepared for GitHub CI; the stable tag/release is not published until mandatory acceptance passes. CVP/1 and CVP/2 protocol versions remain unchanged.
 
 Implemented locally: deterministic composition, runtime profiles, scoped lifecycle, architecture gates, signed config/build artifacts and cross-runtime contracts; Bootstrap/Tailwind/React auth kits with MFA, account recovery/management and authorization; GitHub/OIDC provider clients and MongoDB/CAS auth; shared SQL jobs, fencing and encrypted mail; streaming AI/embeddings/retrieval services and Python model hosting; authenticated AI starter with JS/Dart streaming; deployment and release-evidence tooling.
 

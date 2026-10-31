@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "corevia-python"
-version = "2.0.0"
+version = "3.0.0"
 description = "Corevia CVP/1 and CVP/2 external worker and HTTP client"
 requires-python = ">=3.10"
 license = "MIT"

@@ -1,6 +1,6 @@
 {
   "name": "@corevia/js",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "type": "module",
   "description": "CVP/1 and CVP/2 client for browsers, Node.js and React Native",
   "license": "MIT",

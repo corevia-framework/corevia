@@ -1,5 +1,7 @@
 # V3 foundations: local phase
 
+Release-preparation metadata is now 3.0.0; historical references to an unchanged 2.0.0 version below describe earlier milestones. The stable V3 tag remains pending mandatory GitHub CI.
+
 Current release review: the maintainer-confirmed 14-point scope, implementation-security and framework upgrade reviews are complete in [final review](final-review.md). Real databases, TLS nginx/FPM and SMTP have staging evidence. Live OAuth and Docker validation are explicitly deferred with [self-test instructions](optional-validation.md); mandatory GitHub CI remains pending. The milestones below retain their original historical context.
 
 Later production hardening and real database/nginx/FPM acceptance are recorded in [production readiness](production-readiness.md). Earlier fixture-only statements below describe their original milestones, rather than the current acceptance state.
