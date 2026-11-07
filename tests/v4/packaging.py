@@ -140,6 +140,20 @@ run(composer + ['install', '--no-interaction', '--no-progress', '--no-plugins', 
 assert 'Corevia' in run([php, '-n', 'corevia', 'about'], application)
 assert 'home' in run([php, '-n', 'corevia', 'route:list'], application)
 assert 'PASS' in run([php, '-n', 'corevia', 'test'], application)
+poison = application / 'config/auth.php'
+poison.write_text("<?php throw new RuntimeException('UNEXPECTED_CONFIG_EXECUTION');", encoding='utf-8')
+try:
+    hosting = json.loads(run([php, '-n', 'corevia', 'hosting:check', '--target=aws'], application))
+    assert hosting['baseline_compatible'] and not hosting['target_validated'] and not hosting['production_ready']
+    restricted = json.loads(run([php, '-n', '-d', 'disable_functions=flock', 'corevia', 'hosting:check'], application, success=False))
+    assert restricted['blocked'] and any(row['id'] == 'function.flock' and row['status'] == 'failed' for row in restricted['checks'])
+    run([php, '-n', 'corevia', 'hosting:check', '--public-path=' + str(application)], application, success=False)
+    policy = application / 'storage/requirements.json'
+    policy.write_text(json.dumps({'password': 'DO_NOT_DISCLOSE_THIS_VALUE'}), encoding='utf-8')
+    result = subprocess.run([php, '-n', 'corevia', 'hosting:check', '--requirements=' + str(policy)], cwd=application, env=environment, text=True, capture_output=True)
+    assert result.returncode != 0 and 'DO_NOT_DISCLOSE_THIS_VALUE' not in result.stdout + result.stderr
+finally:
+    poison.unlink()
 run([php, '-n', 'corevia', 'app:compile'], application)
 run([php, '-n', 'corevia', 'app:verify'], application)
 vendor = application / 'vendor/corevia-framework/runtime'
@@ -151,7 +165,7 @@ try:
 finally:
     source.write_bytes(original)
 run([php, '-n', 'corevia', 'app:verify'], application)
-print('PASS real Composer dependency separation and signed boot rejects modified vendor code')
+print('PASS detached hosting CLI does not execute app config or disclose invalid policy values; signed boot rejects vendor drift')
 
 dispatch = application / 'smoke.php'
 dispatch.write_text('''<?php
@@ -171,6 +185,9 @@ for stack in ['bootstrap', 'tailwind', 'react']:
     shutil.copytree(application, candidate)
     assert 'installed' in run([php, '-n', 'corevia', 'starter:auth', '--stack=' + stack], candidate)
     run([php, '-n', 'corevia', 'starter:auth', '--stack=' + stack, '--check'], candidate)
+    upgrade = json.loads(run([php, '-n', 'corevia', 'starter:upgrade'], candidate))
+    assert not upgrade['requires_review'] and not upgrade['files_written'] and not upgrade['can_apply']
+    run([php, '-n', 'corevia', 'starter:upgrade', '--apply'], candidate, success=False)
     run([php, '-n', 'corevia', 'starter:auth', '--stack=' + stack], candidate, success=False)
     run([php, '-n', 'corevia', 'starter:ai'], candidate)
     run([php, '-n', 'corevia', 'starter:ai'], candidate, success=False)

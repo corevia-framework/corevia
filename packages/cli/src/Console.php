@@ -27,6 +27,25 @@ final readonly class Console
             }
         }
         try {
+            if($command==='starter:upgrade'){
+                if(array_diff(array_keys($options),['path'])){throw new \InvalidArgumentException('Only --path is supported; starter upgrades are preview-only.');}
+                $this->print(StarterUpgradePlanner::plan($options['path']??$this->basePath));return 0;
+            }
+            if($command==='hosting:check'){
+                if(array_diff(array_keys($options),['target','requirements','public-path'])){throw new \InvalidArgumentException('Unknown hosting diagnostic option.');}
+                $policy=[];
+                if(isset($options['requirements'])){
+                    $path=$options['requirements'];
+                    if(!is_file($path)||!is_readable($path)||filesize($path)>65536){throw new \InvalidArgumentException('Hosting requirements must be a readable JSON file up to 64KiB.');}
+                    $wire=file_get_contents($path,false,null,0,65537);
+                    if($wire===false||strlen($wire)>65536){throw new \InvalidArgumentException('Hosting requirements exceed the readable size limit.');}
+                    $value=json_decode($wire,false,32,JSON_THROW_ON_ERROR);
+                    if(!$value instanceof \stdClass){throw new \InvalidArgumentException('Hosting requirements must be a JSON object.');}
+                    $policy=json_decode($wire,true,32,JSON_THROW_ON_ERROR);
+                }
+                $report=HostingInspector::inspect($this->basePath,$options['target']??'shared',$policy,$options['public-path']??null);
+                $this->print($report);return $report['blocked']?1:0;
+            }
             if($command==='starter:ai'){$this->print((new AiStarterInstaller(FrameworkResources::root()))->install($options['path']??$this->basePath,isset($options['dry-run'])));return 0;}
             if($command==='release:check'){$report=ReleaseReadiness::report($this->basePath);$this->print($report);return $report['ready']?0:1;}
             if($command==='deploy:check'){
@@ -149,6 +168,8 @@ final readonly class Console
                 passthru('composer outdated --direct --format=json --working-dir='.escapeshellarg($this->basePath),$code); return $code;
             }
             if ($command === 'help') {
+                echo "starter:upgrade [--path=existing-application] (read-only auth-starter upgrade preview)\n";
+                echo "hosting:check [--target=shared|vps|aws|azure --requirements=private.json --public-path=path]\n";
                 echo "auth:migrate | auth:outbox [--show=private-preview-file.json]\n";
                 echo "auth:roles --email=address --set=admin[,editor] [--tenant=id] (empty --set revokes roles)\n";
                 echo "mail:migrate | mail:status | mail:work [--once | --max=100]\n";

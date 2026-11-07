@@ -2,9 +2,11 @@
 
 Updated 2026-11-07 (Asia/Karachi). Work is local on `develop/v4`. No V4 push, registry publication, tag, release or deployment is included in this increment.
 
+The roadmap now includes item 20: the V4 frontend starter redesign. This remains planned; the current preview uses V3 views. Welcome/guide pages, auth/account/recovery screens, the dashboard shell and optional AI view will be refreshed across Bootstrap, Tailwind and React, with responsive layouts, themes, reusable components and the accessibility/upgrade criteria in the roadmap.
+
 ## Phase A: started
 
-The [compatibility/ownership baseline](baseline.md) records the V3 source reference, critical existing contracts, package boundaries and artifact trust limits. Full public-API/schema inventory, threat models, measured benchmarks and the hosting capability implementation remain outstanding. Phase A is not complete.
+The [compatibility/ownership baseline](baseline.md) records the V3 source reference, critical existing contracts, package boundaries and artifact trust limits. The [foundation tools](foundation-tools.md) now capture/compare 143 V3 PHP symbols, verify actual V3-created JSON workflow/auth data and backup restoration, and expose read-only hosting diagnostics. Complete schema/SDK behavioral inventory, threat models, measured benchmarks and real hosting acceptance remain outstanding. Phase A is not complete.
 
 ## Phase B: first packaging prototype implemented
 
@@ -15,7 +17,9 @@ The [compatibility/ownership baseline](baseline.md) records the V3 source refere
 - Database-free routes and real loopback HTTP auth/CSRF/assets/private-file checks pass for all three UI stacks. AI is installed disabled; no external model or provider was contacted by these checks.
 - The packaging integration test is added to the existing PHP CI matrix. CI has not been run for local V4 changes; this is a configured check, not a GitHub pass claim.
 
-This is not the complete Phase B installer or safe-upgrade system. Missing: registry publication, feature composition/dependency solving, extension manifests, edited-application upgrade planning, a ready-to-upload shared-host layout and target hosting acceptance. Phases C-G remain planned.
+This is not the complete Phase B installer or safe-upgrade system. Missing: registry publication, feature composition/dependency solving, extension manifests, general application upgrade planning/execution, a ready-to-upload shared-host layout and target hosting acceptance. Phases C-G remain planned.
+
+Follow-on increment: `starter:upgrade` now previews auth-starter changes using the original file inventory, current application files and current templates. It preserves edited/deleted/obsolete files and rejects an apply request. This starts upgrade planning; general application/configuration/database migration and patch application remain unimplemented. `hosting:check` separates measured prerequisites from unverified operator declarations and never grants production readiness. See [commands and limits](foundation-tools.md).
 
 ## Try the prototype locally
 
@@ -35,6 +39,10 @@ Open http://127.0.0.1:8081. Choose a new output directory if one already exists;
 
 ```sh
 python tests/v4/packaging.py
+php -n tests/v4/hosting.php
+php -n tests/v4/upgrades.php
+python tests/v4/compatibility.py
+python tests/v4/persistence.py
 python tools/architecture.py
 php tests/v3/composition.php
 php tests/v3/artifact-boot.php

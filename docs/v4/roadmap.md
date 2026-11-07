@@ -33,6 +33,7 @@ The competitive target is to outperform established frameworks on specific, publ
 | 17 | Accessible, multilingual starters | Keyboard and screen-reader support, accessible validation, translated UI/messages and RTL layouts across all three auth stacks. Define and test the accessibility target before acceptance. |
 | 18 | Offline/mobile synchronization | Optional authenticated change feeds, resumable cursors, tombstones, bounded offline queues and documented conflict resolution for Dart/Flutter and React Native clients. Enforce tenant access on every synchronization path. |
 | 19 | Hosting portability | Tested deployment presets for constrained PHP shared hosting, VPS/dedicated servers, AWS and Azure; build-off-server source bundles; safe public/private directory separation; bounded cron workers; external service adapters; explicit capability diagnostics and platform-specific acceptance. Hosting presets remain separate from runtime/module profiles. |
+| 20 | V4 frontend starter redesign | Refresh the default welcome/guide pages, auth/account/recovery screens, dashboard shell and optional AI page with a coherent V4 visual identity across Bootstrap, Tailwind and React. Provide responsive navigation, reusable UI components, light/dark themes and loading/empty/error states; preserve feature parity, safe rendering, CSRF/session behavior and application ownership. Ship prebuilt assets for hosts without Node. |
 
 The installer syntax must be designed and tested before documentation presents it as available. A future experience could compose UI, auth, a database and AI/realtime modules in one command; no proposed command in this plan is an existing CLI feature.
 
@@ -42,13 +43,24 @@ The installer syntax must be designed and tested before documentation presents i
 | --- | --- | --- |
 | A. Baseline and design | Inventory V3 public APIs, user-owned files and persisted formats; specify package/contract ownership, threat models, hosting capability matrix for item 19 and benchmark methodology for item 8 | Recorded baseline, compatibility matrix and accepted designs for cross-cutting changes. |
 | B. Distribution and upgrades | Items 1, 9 and 16; shared-host distribution layout from item 19 | Fresh install, feature composition, dependency conflict and edited-application upgrade fixtures pass from distributable artifacts. No application code is silently overwritten. |
-| C. Daily application development | Items 2, 3, 5 and 12 | A documented reference API/application runs against advertised drivers, with application migrations and tests using the public toolkit. Contract and API upgrade fixtures pass. |
-| D. Identity and tenant applications | Items 11, 13, 14 and 17 | Tenant-escape negatives pass across storage/queues/retrieval; identity enrollment/recovery/revocation and export/deletion flows pass; all starters meet the declared accessibility target. |
+| C. Daily application development | Items 2, 3, 5 and 12; welcome pages, UI foundations and dashboard shell from item 20 | A documented reference API/application runs against advertised drivers, with application migrations and tests using the public toolkit. Contract and API upgrade fixtures pass; the frontend foundations work at mobile/tablet/desktop sizes. |
+| D. Identity and tenant applications | Items 11, 13, 14 and 17; auth/account frontend work from item 20 | Tenant-escape negatives pass across storage/queues/retrieval; identity enrollment/recovery/revocation and export/deletion flows pass; all three redesigned starters meet the declared accessibility target and browser/security checks. |
 | E. Reliable operations | Items 4, 6, 10 and 15; VPS/cloud adapters and bounded cron execution from item 19 | Traces correlate across runtimes; outbox/webhook replay and crash recovery pass; scheduler overlap and worker ownership are verified under concurrency; failure injection demonstrates retry/deadline bounds. |
-| F. AI and connected clients | Items 7 and 18 | Real configured model/vector adapters pass supported contracts and budget/isolation checks; mobile synchronization passes disconnect/resume, conflicts, deletion and revoked-access tests. |
-| G. Release acceptance | Finish items 8 and 19 and verify all 19 workstreams | Clean source/package installs, V3-to-V4 staged upgrades and matching backup restoration, required CI, hosting-target acceptance, supported service/runtime integration, soak/load reports and complete operator/user documentation. |
+| F. AI and connected clients | Items 7 and 18; optional AI frontend from item 20 | Real configured model/vector adapters pass supported contracts and budget/isolation checks; mobile synchronization passes disconnect/resume, conflicts, deletion and revoked-access tests; the AI view handles streaming, cancellation and failures accessibly. |
+| G. Release acceptance | Finish items 8 and 19 and verify all 20 workstreams | Clean source/package installs, V3-to-V4 staged upgrades and matching backup restoration, required CI, hosting-target acceptance, supported service/runtime integration, soak/load reports and complete operator/user documentation. |
 
 Each phase can contain several pull requests. A phase is complete only when its exit evidence is recorded for the implementation being released. A scope change needs an explicit roadmap update; an untested adapter is not marked complete because its interface exists.
+
+## Frontend redesign acceptance
+
+Item 20 is planned; the current packaging preview still uses existing V3 views. Establish the V4 visual direction before replacing starter templates, then deliver equivalent workflows through each stack's native components. Coordinate accessibility, translation and RTL work with item 17 rather than treating a visual refresh as accessibility acceptance.
+
+- Cover welcome/onboarding, navigation, auth/recovery/account screens and a useful dashboard shell. Display only real application data; represent unconfigured capabilities with clear empty states.
+- Define reusable typography, spacing, colors, forms, buttons and feedback states, including light/dark themes and persisted non-sensitive theme preferences.
+- Verify mobile, tablet and desktop layouts, keyboard/focus behavior, contrast, reduced-motion preferences, translated text expansion and RTL layouts.
+- Run browser checks across Bootstrap, Tailwind and React for sign-in, registration, recovery, account actions and optional AI streaming/error/cancellation behavior. Preserve output escaping, cookie/CSRF protections and CSP-compatible assets.
+- Bundle production CSS/JS with dependency licenses and reproducible asset checks; a normal installation must not require a CDN, Node or a frontend build on the hosting server.
+- Preview generated-file changes during upgrades. Existing customized views, routes and assets must not be overwritten automatically.
 
 ## Architecture and compatibility rules
 

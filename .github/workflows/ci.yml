@@ -85,6 +85,10 @@ jobs:
           PYTHON: python
       - run: python tests/v2/install.py
       - run: python tests/v4/packaging.py
+      - run: php -n tests/v4/hosting.php
+      - run: php -n tests/v4/upgrades.php
+      - run: python tests/v4/compatibility.py
+      - run: python tests/v4/persistence.py
       - run: python tests/v2/history.py
       - run: python tools/v3-upgrade-verify.py
   auth-starters:

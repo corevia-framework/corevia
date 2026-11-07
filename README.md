@@ -1,6 +1,6 @@
 # Corevia 3.0
 
-V4 development is underway locally. See the [19-workstream roadmap](docs/v4/roadmap.md) and [experimental detached-application preview](docs/v4/progress.md). V4 is not a stable release.
+V4 development is underway locally. See the [20-workstream roadmap](docs/v4/roadmap.md) and [experimental detached-application preview](docs/v4/progress.md). V4 is not a stable release.
 
 Corevia 3.0 adds Bootstrap/Tailwind/React auth starters, MFA, account management, role/tenant authorization, shared SQL workers/mail, optional MongoDB auth, streaming AI/model adapters, runtime profiles and cross-runtime contracts to the existing modular PHP kernel. CVP/1 and CVP/2 remain supported. V1/V2 releases are preserved at `v1.0.0` and `v2.0.0`.
 

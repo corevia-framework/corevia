@@ -22,7 +22,7 @@ Do not replace an application's files when updating a dependency. Keep legacy ch
 - Private source-bound HMAC application artifacts: detached framework dependencies and executable Composer autoload files must participate in the declared source fingerprint.
 - A PHP/JSON-only database-free application path. Composer/build tools can run off-server. Optional Python, Node, databases and infrastructure remain capability-specific.
 
-This is an initial critical-contract inventory, not an exhaustive public-symbol compatibility snapshot. Full API/schema inventory, hosting measurements, threat models and benchmark baselines remain Phase A work.
+The [foundation tools](foundation-tools.md) now add an actual V3 PHP public/protected symbol-shape snapshot and comparison plus V3 JSON workflow/auth backup fixtures. This is not exhaustive behavioral/schema compatibility: full SDK/schema inventory, target-host measurements, threat models and benchmark baselines remain Phase A work.
 
 ## First design decisions
 
