@@ -21,7 +21,7 @@ def selected(name):
     return (name.startswith(('packages/', 'starters/', 'resources/views/', 'config/settings/'))
             or name in {'LICENSE', 'composer.json', 'corevia', 'app/Http/HomeController.php',
                         'routes/web.php', 'routes/api.php', 'config/web.php', 'config/runtime.php',
-                        'config/modules.php', 'public/assets/app.css', 'public/assets/icon.svg',
+                        'config/modules.php', 'public/assets/app.css', 'public/assets/app.js', 'public/assets/icon.svg',
                         'sdk/js/index.js', 'sdk/js/ai.js'})
 
 
@@ -78,7 +78,7 @@ def assemble():
                    if name.startswith(('resources/views/', 'config/settings/'))
                    or name in {'LICENSE', 'corevia', 'app/Http/HomeController.php', 'routes/web.php',
                                'routes/api.php', 'config/web.php', 'config/runtime.php', 'config/modules.php',
-                               'public/assets/app.css', 'public/assets/icon.svg'}}
+                               'public/assets/app.css', 'public/assets/app.js', 'public/assets/icon.svg'}}
     for template, destination in {'autoload.php': 'autoload.php', 'bootstrap.php': 'config/bootstrap.php',
                                   'index.php': 'public/index.php', 'README.md': 'README.md',
                                   'tests.php': 'tests/run.php'}.items():
@@ -94,6 +94,7 @@ def assemble():
     })
     application['.gitignore'] = b'/vendor/\n/storage/*\n!/storage/.gitkeep\n.env\n.env.*\n!.env.example\nnode_modules/\n*.log\n'
     application['storage/.gitkeep'] = b''
+    application['database/migrations/.gitkeep'] = b''
     baseline = 'd7429ed14356de39aaf8e98fa0993fc5c8f38337'
     old = subprocess.check_output(GIT + ['archive', '--format=zip', baseline, 'packages', 'autoload.php'], cwd=ROOT)
     with zipfile.ZipFile(io.BytesIO(old)) as incoming:

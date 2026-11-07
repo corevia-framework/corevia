@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Begin local V4 daily-development APIs: checksummed application SQL migrations, prepared joins/pagination, seeders/repositories, explicit HTTP/auth/mail/job/AI test helpers, nested validation, versioned API envelopes/OpenAPI, scoped bearer credentials, private files and localization primitives. Refresh the database-free welcome/workspace with responsive navigation and persistent themes.
+- Add experimental V4 tenant-bound SQL/document/cache/file/retrieval adapters and signed job envelopes, SQL transactional outbox, webhook signature/replay contract, cooperative deadlines, conservative tenant usage budgets and resumable revision/tombstone synchronization. These increments are not completion of the full V4 identity/operations/AI roadmap. See `docs/v4/progress.md` for remaining gates and local acceptance commands.
+
 - Add local V3 SQL auth storage/migrations, credential-version session checks, atomic recovery/verification tokens, private preview delivery and a production delivery port. Add recovery/verification pages across all starters and verified-email middleware. MySQL/PostgreSQL service checks are configured in CI; local coverage includes JSON and SQLite.
 - Add the local V3 base auth milestone: safe one-command Bootstrap/Tailwind/React starters with offline assets, session/password services, private JSON storage, CSRF/origin checks, rotation/logout, attempt limits and browser coverage. SQL auth storage, recovery/verification and MFA remain separate phases.
 - Add V3 runtime profiles with a lazy module catalog, profile-aware database-free API/worker/realtime boot, feature guards and artifact profile verification. Add static PHP/Python/frontend architecture rules, negative fixtures and local CI configuration.

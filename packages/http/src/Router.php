@@ -11,6 +11,10 @@ use Corevia\Protocol\{ContractManifest,ContractViolation};
 
 final class Router
 {
+    public function documentedRoutes():array
+    {
+        return array_map(static fn(Route $route):array=>['method'=>$route->method,'path'=>$route->path,'documentation'=>$route->documentation()],$this->routes);
+    }
     private array $routes = [];
     private string $prefix = '';
     private string $namePrefix = '';

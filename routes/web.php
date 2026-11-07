@@ -6,6 +6,7 @@ use Corevia\Http\{Csrf,Router};
 return static function(Router $router,Csrf $csrf):void{
     $router->group('',static function(Router $route):void{
         $route->get('/',[HomeController::class,'index'])->name('home');
+        $route->get('/workspace',[HomeController::class,'workspace'])->name('workspace');
         $route->get('/guide',[HomeController::class,'guide'])->name('guide');
         $route->get('/database',[HomeController::class,'database'])->name('database');
         $route->get('/hello/{name}',[HomeController::class,'hello'])->name('hello')->where('name','[A-Za-z0-9_-]{1,40}');

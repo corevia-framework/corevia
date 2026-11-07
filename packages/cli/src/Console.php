@@ -27,6 +27,20 @@ final readonly class Console
             }
         }
         try {
+            if(in_array($command,['migration:status','migration:up','migration:down'],true)){
+                if(array_diff(array_keys($options),['connection','directory','steps'])){throw new \InvalidArgumentException('Unknown migration option.');}
+                $configuration=ConfigRepository::load($this->basePath.'/config/settings',getenv('APP_ENV')?:'development');
+                $manager=new DatabaseManager($configuration->get('database',[]));
+                try{
+                    $runner=new \Corevia\Persistence\MigrationRunner($manager->sql($options['connection']??null));$directory=$options['directory']??$this->basePath.'/database/migrations';
+                    $result=match($command){'migration:status'=>$runner->status($directory),'migration:up'=>$runner->up($directory),default=>$runner->down($directory,filter_var($options['steps']??1,FILTER_VALIDATE_INT)?:throw new \InvalidArgumentException('Invalid rollback count.'))};
+                    $this->print($result);return 0;
+                }finally{$manager->disconnect();}
+            }
+            if($command==='openapi:export'){
+                $bootstrap=require $this->basePath.'/config/runtime.php';$runtime=$bootstrap($this->basePath);
+                try{$this->print(\Corevia\Http\OpenApi::generate($runtime['router'],$options['title']??'Application API',$options['version']??'1.0.0'));return 0;}finally{$runtime['app']->shutdown();}
+            }
             if($command==='app:upgrade'){
                 if(array_diff(array_keys($options),['from','output','runtime-path','offline','dry-run'])){throw new \InvalidArgumentException('Unknown staged upgrade option.');}
                 $this->print(ApplicationUpgrade::stage($options['from']??$this->basePath,$options['output']??throw new \InvalidArgumentException('Provide --output for a separate replacement.'),$options['runtime-path']??FrameworkResources::root(),isset($options['offline']),isset($options['dry-run'])));return 0;
@@ -168,7 +182,7 @@ final readonly class Console
             }
             if ($command === 'test') {
                 $status=0;$found=false;
-                foreach (['tests/run.php','tests/v2/kernel.php','tests/v2/flows.php','tests/v2/protocol.php','tests/v2/tooling.php','tests/v2/upgrade.php','tests/v2/diagnostics.php','tests/v2/security.php','tests/features/databases.php','tests/features/web.php','tests/v3/composition.php','tests/v3/scopes.php','tests/v3/units.php','tests/v3/artifact-boot.php','tests/v3/contracts.php','tests/v3/profiles.php','tests/v3/auth.php','tests/v3/auth-storage.php','tests/v3/auth-recovery.php','tests/v3/identity.php','tests/v3/mail.php','tests/v3/adapters.php','tests/v3/distributed.php','tests/v3/ai.php','tests/v3/services.php','tests/v3/release.php','tests/v3/operations.php'] as $test) {
+                foreach (['tests/run.php','tests/v2/kernel.php','tests/v2/flows.php','tests/v2/protocol.php','tests/v2/tooling.php','tests/v2/upgrade.php','tests/v2/diagnostics.php','tests/v2/security.php','tests/features/databases.php','tests/features/web.php','tests/v3/composition.php','tests/v3/scopes.php','tests/v3/units.php','tests/v3/artifact-boot.php','tests/v3/contracts.php','tests/v3/profiles.php','tests/v3/auth.php','tests/v3/auth-storage.php','tests/v3/auth-recovery.php','tests/v3/identity.php','tests/v3/mail.php','tests/v3/adapters.php','tests/v3/distributed.php','tests/v3/ai.php','tests/v3/services.php','tests/v3/release.php','tests/v3/operations.php','tests/v4/data.php','tests/v4/application-toolkit.php','tests/v4/api.php','tests/v4/catalog.php','tests/v4/tenants.php','tests/v4/reliability.php','tests/v4/connected.php'] as $test) {
                     if(!is_file($this->basePath.'/'.$test)){
                         if(is_dir($this->basePath.'/packages/core/src')){throw new \LogicException('Missing framework test entry point: '.$test);}
                         continue;
@@ -183,6 +197,7 @@ final readonly class Console
                 passthru('composer outdated --direct --format=json --working-dir='.escapeshellarg($this->basePath),$code); return $code;
             }
             if ($command === 'help') {
+                echo "migration:status | migration:up | migration:down [--connection=name --directory=database/migrations --steps=1]\nopenapi:export [--title=name --version=1.0.0]\n";
                 echo "app:upgrade --from=application --output=new-directory --runtime-path=package [--dry-run | --offline]\n";
                 echo "app:new <new-directory> [--features=web|api|auth,ai --stack=bootstrap|tailwind|react --database=json|sqlite|mysql|pgsql|mongodb --runtime-path=package-directory --dry-run]\nextension:check <catalog.json> [--features=id,id]\n";
                 echo "starter:upgrade [--path=existing-application] (read-only auth-starter upgrade preview)\n";

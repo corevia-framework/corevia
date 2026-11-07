@@ -89,6 +89,14 @@ jobs:
       - run: python tools/v4-inventory.py
       - run: php -n tests/v4/hosting.php
       - run: php -n tests/v4/upgrades.php
+      - run: php tests/v4/data.php
+      - run: php -n tests/v4/application-toolkit.php
+      - run: php -n tests/v4/api.php
+      - run: php tests/v4/catalog.php
+      - run: php tests/v4/tenants.php
+      - run: php tests/v4/reliability.php
+      - run: php tests/v4/connected.php
+      - run: python tests/v4/concurrency.py
       - run: python tests/v4/compatibility.py
       - run: python tests/v4/persistence.py
       - run: python tests/v2/history.py
@@ -123,6 +131,7 @@ jobs:
       - run: node tests/v3/ai-browser.mjs
         env:
           PYTHON: python
+      - run: node tests/v4/workspace-browser.mjs .
   dart:
     runs-on: ubuntu-latest
     steps:
@@ -189,6 +198,12 @@ jobs:
         env:
           COREVIA_DB_TESTS: '1'
       - run: php tests/v3/distributed.php
+        env:
+          COREVIA_DB_TESTS: '1'
+      - run: php tests/v4/data.php
+        env:
+          COREVIA_DB_TESTS: '1'
+      - run: php tests/v4/catalog.php
         env:
           COREVIA_DB_TESTS: '1'
   container:

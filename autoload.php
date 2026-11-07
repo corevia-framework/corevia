@@ -12,6 +12,7 @@ spl_autoload_register(static function (string $class): void {
         'Corevia\\Persistence\\' => 'packages/persistence-pdo/src/',
         'Corevia\\Realtime\\' => 'packages/realtime/src/',
         'Corevia\\Cli\\' => 'packages/cli/src/',
+        'Corevia\\Testing\\' => 'packages/testing/src/',
         'App\\' => 'app/',
     ];
     foreach ($prefixes as $prefix => $directory) {
