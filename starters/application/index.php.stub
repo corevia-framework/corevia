@@ -1,0 +1,34 @@
+<?php
+declare(strict_types=1);
+
+// Only public/ is a document root. This allowlist is for PHP's development router.
+$path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+$assets = ['app.css','icon.svg','auth.css','auth.js','auth.js.LEGAL.txt',
+    'auth-LICENSES.txt','auth-account.js','ai.js','corevia-ai.js'];
+if (in_array($_SERVER['REQUEST_METHOD'] ?? 'GET', ['GET','HEAD'], true)
+    && is_string($path) && str_starts_with($path, '/assets/')
+    && in_array(substr($path, 8), $assets, true)) {
+    $file = __DIR__ . $path;
+    if (!is_file($file) || is_link($file)) { http_response_code(404); return; }
+    $type = match (pathinfo($file, PATHINFO_EXTENSION)) {
+        'css' => 'text/css', 'js' => 'text/javascript', 'svg' => 'image/svg+xml', default => 'text/plain',
+    };
+    header('Content-Type: ' . $type . '; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'HEAD') { readfile($file); }
+    return;
+}
+
+try {
+    require_once dirname(__DIR__) . '/autoload.php';
+    $bootstrap = require dirname(__DIR__) . '/config/runtime.php';
+    $runtime = $bootstrap(dirname(__DIR__));
+    $runtime['router']->dispatch(\Corevia\Http\Request::fromGlobals())->send();
+} catch (Throwable $error) {
+    error_log('Corevia bootstrap failed: ' . $error::class);
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo '{"error":"Application unavailable"}';
+} finally {
+    if (isset($runtime)) { $runtime['app']->shutdown(); }
+}

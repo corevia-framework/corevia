@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace Corevia\Cli;
 use Corevia\Core\CanonicalJson;
+use Corevia\Core\FrameworkResources;
 
 /** Additive starter installation: never overwrite an application file. */
 final readonly class StarterInstaller
@@ -28,7 +29,7 @@ final readonly class StarterInstaller
     }
     public function install(string $stack,string $directory,bool $dryRun=false,bool $check=false):array
     {
-        $root=realpath($directory);if($root===false || !is_file($root.'/corevia') || !is_file($root.'/autoload.php') || !is_file($root.'/packages/auth/src/AuthService.php')){throw new \InvalidArgumentException('Install into an existing V3 Corevia app with the auth package.');}
+        $root=realpath($directory);if($root===false || !is_file($root.'/corevia') || !is_file($root.'/autoload.php') || !FrameworkResources::hasPackage($root,'auth')){throw new \InvalidArgumentException('Install into an existing Corevia app with the auth package.');}
         $files=$this->files($stack);$hashes=[];foreach($files as $name=>$content){$hashes[$name]=hash('sha256',$content);}
         $marker='.corevia-auth-starter.json';$files[$marker]=CanonicalJson::encode(['format'=>1,'stack'=>$stack,'files'=>$hashes])."\n";
         foreach($files as $name=>$content){$path=$root;foreach(explode('/',$name) as $part){$path.='/'.$part;if(is_link($path)){throw new \LogicException('Starter output may not follow symlinks.');}}}

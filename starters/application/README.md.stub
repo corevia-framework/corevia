@@ -1,0 +1,27 @@
+# Corevia detached application preview
+
+This experimental application keeps your code in `app/`, `routes/`, `resources/`
+and `config/`. Framework dependencies live in `vendor/corevia-framework/runtime`.
+The runtime package is a local V4 prototype, not a published registry release.
+
+Install dependencies using the sibling `runtime/` directory from this preview:
+
+```sh
+composer install --no-interaction --no-scripts --no-plugins
+php corevia serve
+```
+
+Run the included application smoke check with `php corevia test`.
+
+Open http://127.0.0.1:8081. No database is required. Optionally install one auth kit:
+
+```sh
+php corevia starter:auth --stack=bootstrap
+# Alternatives: --stack=tailwind or --stack=react
+```
+
+Serve only `public/`. Build dependencies off-server before uploading to a host
+without Composer. This first preview does not yet supply a shared-host upload
+layout, cloud adapters, a package registry release or a V3-to-V4 upgrade tool.
+Never expose the project root, vendor/, storage/ or configuration as public files.
+No optional AI/provider credentials are enabled automatically.

@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 $source = new RecursiveDirectoryIterator(dirname(__DIR__), FilesystemIterator::SKIP_DOTS);
-$filtered = new RecursiveCallbackFilterIterator($source, static fn (SplFileInfo $file): bool => !$file->isDir() || !in_array($file->getFilename(), ['.git', 'storage', 'vendor', 'node_modules', '.dart_tool'], true));
+$filtered = new RecursiveCallbackFilterIterator($source, static fn (SplFileInfo $file): bool => !$file->isDir() || !in_array($file->getFilename(), ['.git', 'storage', 'vendor', 'node_modules', '.dart_tool', 'local-v3-acceptance'], true));
 $iterator = new RecursiveIteratorIterator($filtered);
 $failed = false;
 $count = 0;

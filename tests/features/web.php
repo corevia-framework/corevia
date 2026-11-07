@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace CoreviaWebTests;
 require dirname(__DIR__,2).'/autoload.php';
+require dirname(__DIR__).'/support/Fixtures.php';
 use Corevia\Core\Corevia;
 use Corevia\Http\{Csrf,Request,Response,Router,View};
 function check(bool $value):void{if(!$value){throw new \RuntimeException('Assertion failed.');}}
@@ -38,4 +39,4 @@ try{
     check($runtime['router']->dispatch(new Request('GET','/docs'))->headers['Location']==='/guide');
     foreach($runtime['database']->configured() as $connection){check(!$connection['connected']);}$runtime['app']->shutdown();
     echo "PASS prebuilt pages boot without opening any database connection\n";
-}finally{putenv('COREVIA_STORAGE');foreach(glob($directory.'/*') as $file){unlink($file);}rmdir($directory);}
+}finally{putenv('COREVIA_STORAGE');\CoreviaTests\Fixtures::remove($directory,'corevia-web-');}

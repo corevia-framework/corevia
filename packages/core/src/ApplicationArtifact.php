@@ -8,7 +8,12 @@ final readonly class ApplicationArtifact
     private function __construct(private array $document) {}
     public static function defaultSources(string $basePath): array
     {
-        return array_values(array_filter(['app','packages','config','routes','contracts','autoload.php','composer.json'], static fn(string $path):bool=>file_exists($basePath.'/'.$path)));
+        $paths = ['app','packages','config','routes','contracts','autoload.php','composer.json'];
+        if (is_dir($basePath.'/vendor/corevia-framework/runtime')) {
+            // Detached framework code and the executable Composer loader are part of signed boot.
+            $paths = [...$paths,'vendor/corevia-framework/runtime','vendor/composer','vendor/autoload.php'];
+        }
+        return array_values(array_filter($paths, static fn(string $path):bool=>file_exists($basePath.'/'.$path)));
     }
     public static function build(Corevia $app, string $environment, array $sourcePaths, string $key): self
     {

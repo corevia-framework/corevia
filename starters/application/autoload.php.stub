@@ -1,0 +1,8 @@
+<?php
+declare(strict_types=1);
+
+$loader = __DIR__ . '/vendor/autoload.php';
+if (!is_file($loader)) {
+    throw new RuntimeException('Dependencies are missing. Run Composer install before starting the application.');
+}
+require_once $loader;

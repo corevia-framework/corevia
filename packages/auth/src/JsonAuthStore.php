@@ -27,7 +27,18 @@ final readonly class JsonAuthStore extends AtomicAuthStore
             $result=$work($data);$wire=json_encode($data,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);
             if(strlen($wire)>16777216){throw new \RuntimeException('Auth storage exceeds its single-node size limit.');}
             $temporary=$this->path.'.'.bin2hex(random_bytes(8)).'.tmp';$file=fopen($temporary,'x+b');if($file===false){throw new \RuntimeException('Cannot create auth records.');}
-            try{try{if(!chmod($temporary,0600) || fwrite($file,$wire)!==strlen($wire) || !fflush($file)){throw new \RuntimeException('Cannot persist auth records.');}}finally{fclose($file);}if(!rename($temporary,$this->path)){throw new \RuntimeException('Cannot replace auth records.');}}
+            try{
+                try{if(!chmod($temporary,0600) || fwrite($file,$wire)!==strlen($wire) || !fflush($file)){throw new \RuntimeException('Cannot persist auth records.');}}finally{fclose($file);}
+                // Windows scanners can briefly hold a destination without delete-sharing.
+                // Retain the transaction lock and retry only the same atomic replacement;
+                // never rerun the callback or unlink the committed destination.
+                $attempts=PHP_OS_FAMILY==='Windows'?10:1;$replaced=false;
+                for($attempt=0;$attempt<$attempts;$attempt++){
+                    if(@rename($temporary,$this->path)){$replaced=true;break;}
+                    if($attempt+1<$attempts){usleep(10000);}
+                }
+                if(!$replaced){throw new \RuntimeException('Cannot replace auth records.');}
+            }
             finally{if(is_file($temporary)){unlink($temporary);}}
             return $result;
         }finally{flock($lock,LOCK_UN);fclose($lock);}

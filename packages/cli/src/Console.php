@@ -6,7 +6,7 @@ namespace Corevia\Cli;
 
 use Corevia\Realtime\{Server, SocketBroadcaster};
 use Corevia\Core\{ConfigRepository, JobQueue, Version};
-use Corevia\Core\{ApplicationArtifact,CanonicalJson};
+use Corevia\Core\{ApplicationArtifact,CanonicalJson,FrameworkResources};
 use Corevia\Protocol\{ContractGenerator,ContractManifest};
 use Corevia\Persistence\{DatabaseManager,SqlConnection,SqlRunStore};
 
@@ -27,7 +27,7 @@ final readonly class Console
             }
         }
         try {
-            if($command==='starter:ai'){$this->print((new AiStarterInstaller($this->basePath))->install($options['path']??$this->basePath,isset($options['dry-run'])));return 0;}
+            if($command==='starter:ai'){$this->print((new AiStarterInstaller(FrameworkResources::root()))->install($options['path']??$this->basePath,isset($options['dry-run'])));return 0;}
             if($command==='release:check'){$report=ReleaseReadiness::report($this->basePath);$this->print($report);return $report['ready']?0:1;}
             if($command==='deploy:check'){
                 $auth=is_file($this->basePath.'/config/auth.php')?require $this->basePath.'/config/auth.php':[];$ai=is_file($this->basePath.'/config/ai.php')?require $this->basePath.'/config/ai.php':[];
@@ -73,7 +73,7 @@ final readonly class Console
                 if(isset($options['show'])){$name=$options['show'];if(!preg_match('/^[a-f0-9]{32}\.json$/D',$name) || !isset($records[$name])){throw new \InvalidArgumentException('Choose a file listed by auth:outbox.');}$data=json_decode(file_get_contents($directory.'/'.$name),true,32,JSON_THROW_ON_ERROR);if($data['expires']<=time()){throw new \LogicException('This preview link has expired. Request another link.');}$this->print($data);}
                 else{$this->print(array_values($records));}return 0;
             }
-            if($command==='starter:auth'){$this->print((new StarterInstaller($this->basePath))->install($options['stack']??'bootstrap',$options['path']??$this->basePath,isset($options['dry-run']),isset($options['check'])));return 0;}
+            if($command==='starter:auth'){$this->print((new StarterInstaller(FrameworkResources::root()))->install($options['stack']??'bootstrap',$options['path']??$this->basePath,isset($options['dry-run']),isset($options['check'])));return 0;}
             if($command==='profile:list'){$this->print(\Corevia\Core\RuntimeProfile::presets());return 0;}
             if($command==='profile:show'){$bootstrap=require $this->basePath.'/config/runtime.php';$runtime=$bootstrap($this->basePath);$app=$runtime['app'];$this->print($app->runtimeProfile());return 0;}
             if ($command === 'contract:compile') {
@@ -133,10 +133,15 @@ final readonly class Console
                 return 0;
             }
             if ($command === 'test') {
-                $status=0;
+                $status=0;$found=false;
                 foreach (['tests/run.php','tests/v2/kernel.php','tests/v2/flows.php','tests/v2/protocol.php','tests/v2/tooling.php','tests/v2/upgrade.php','tests/v2/diagnostics.php','tests/v2/security.php','tests/features/databases.php','tests/features/web.php','tests/v3/composition.php','tests/v3/scopes.php','tests/v3/units.php','tests/v3/artifact-boot.php','tests/v3/contracts.php','tests/v3/profiles.php','tests/v3/auth.php','tests/v3/auth-storage.php','tests/v3/auth-recovery.php','tests/v3/identity.php','tests/v3/mail.php','tests/v3/adapters.php','tests/v3/distributed.php','tests/v3/ai.php','tests/v3/services.php','tests/v3/release.php','tests/v3/operations.php'] as $test) {
+                    if(!is_file($this->basePath.'/'.$test)){
+                        if(is_dir($this->basePath.'/packages/core/src')){throw new \LogicException('Missing framework test entry point: '.$test);}
+                        continue;
+                    }$found=true;
                     passthru(escapeshellarg(PHP_BINARY).' '.escapeshellarg($this->basePath.'/'.$test),$code); if ($code!==0) { $status=1; }
                 }
+                if(!$found){throw new \LogicException('No test entry point found. Add tests/run.php to your application.');}
                 return $status;
             }
             if ($command === 'update:check') {
