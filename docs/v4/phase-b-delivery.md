@@ -1,6 +1,6 @@
 # Phase B delivery and publication boundary
 
-Updated 2026-11-08 (Asia/Karachi). Local engineering acceptance covers composition, dependency checks, staged upgrades and upload artifacts. Public registry publication is a separate outstanding action; the publication-timing question is pending. No V4 code, release or package has been uploaded by these commands.
+Updated 2026-11-08 (Asia/Karachi). Local engineering acceptance covers composition, dependency checks, staged upgrades and upload artifacts. The maintainer explicitly scheduled public package publication for the final V4 release. Phase B is complete for local delivery; publication is retained as a Phase G release task. No V4 code, release or package has been uploaded by these commands.
 
 ## One-command application composition
 
@@ -99,4 +99,4 @@ Publishing still requires a maintainer-selected endpoint/channel, actual upload,
 - `python tests/v4/apache.py <generated-shared-directory>`: optional isolated Windows Apache/FastCGI recipe validation when those binaries are available.
 - Existing API, persistence, architecture, SDK and PHP regressions remain required.
 
-Phase B's local exit fixtures pass. Registry publication remains explicitly unperformed, and real hosting/release-scale acceptance belongs to Phase G. The frontend redesign is still Phase C/D/F work.
+Phase B's local exit fixtures pass and the maintainer-approved delivery scope is complete. Registry publication remains explicitly unperformed and is scheduled for the final V4 release in Phase G, alongside real hosting/release-scale acceptance. The frontend redesign is still Phase C/D/F work.

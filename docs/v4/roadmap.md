@@ -4,7 +4,7 @@ Status: maintainer-approved scope. Workstreams are planned or in progress; none 
 
 Implementation has started locally: see [progress and prototype instructions](progress.md) and the [compatibility baseline](baseline.md). A workstream remains incomplete until its exit evidence is satisfied.
 
-Current phase status (2026-11-08): Phase A baseline/design is complete; Phase B local engineering/acceptance is complete, with public package publication still outstanding pending the maintainer's timing decision. See the [design record](phase-a-design.md) and [delivery evidence/publication boundary](phase-b-delivery.md). This does not mark all cross-phase workstreams or release acceptance complete.
+Current phase status (2026-11-08): Phase A baseline/design is complete; Phase B is complete for local delivery. The maintainer explicitly scheduled package publication for the final V4 release in Phase G. See the [design record](phase-a-design.md) and [delivery evidence/publication boundary](phase-b-delivery.md). This does not mark all cross-phase workstreams or release acceptance complete.
 
 ## Product direction
 
@@ -49,7 +49,7 @@ The tested development installer now supports `app:new` with the built-in web/AP
 | D. Identity and tenant applications | Items 11, 13, 14 and 17; auth/account frontend work from item 20 | Tenant-escape negatives pass across storage/queues/retrieval; identity enrollment/recovery/revocation and export/deletion flows pass; all three redesigned starters meet the declared accessibility target and browser/security checks. |
 | E. Reliable operations | Items 4, 6, 10 and 15; VPS/cloud adapters and bounded cron execution from item 19 | Traces correlate across runtimes; outbox/webhook replay and crash recovery pass; scheduler overlap and worker ownership are verified under concurrency; failure injection demonstrates retry/deadline bounds. |
 | F. AI and connected clients | Items 7 and 18; optional AI frontend from item 20 | Real configured model/vector adapters pass supported contracts and budget/isolation checks; mobile synchronization passes disconnect/resume, conflicts, deletion and revoked-access tests; the AI view handles streaming, cancellation and failures accessibly. |
-| G. Release acceptance | Finish items 8 and 19 and verify all 20 workstreams | Clean source/package installs, V3-to-V4 staged upgrades and matching backup restoration, required CI, hosting-target acceptance, supported service/runtime integration, soak/load reports and complete operator/user documentation. |
+| G. Release acceptance | Finish items 8 and 19, publish the prepared Composer packages at the final V4 release, and verify all 20 workstreams | Clean source/package installs, V3-to-V4 staged upgrades and matching backup restoration, required CI, hosting-target acceptance, supported service/runtime integration, soak/load reports and complete operator/user documentation. |
 
 Each phase can contain several pull requests. A phase is complete only when its exit evidence is recorded for the implementation being released. A scope change needs an explicit roadmap update; an untested adapter is not marked complete because its interface exists.
 
