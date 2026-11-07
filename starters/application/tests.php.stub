@@ -5,7 +5,8 @@ require dirname(__DIR__) . '/autoload.php';
 $bootstrap = require dirname(__DIR__) . '/config/runtime.php';
 $runtime = $bootstrap(dirname(__DIR__));
 try {
-    $response = $runtime['router']->dispatch(new \Corevia\Http\Request('GET', '/up'));
+    $path = $runtime['app']->runtimeProfile()?->name === 'api' ? '/health' : '/up';
+    $response = $runtime['router']->dispatch(new \Corevia\Http\Request('GET', $path));
     if ($response->status !== 200 || ($response->body['status'] ?? null) !== 'ok') {
         throw new RuntimeException('Application health route failed.');
     }

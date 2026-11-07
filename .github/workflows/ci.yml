@@ -84,7 +84,9 @@ jobs:
         env:
           PYTHON: python
       - run: python tests/v2/install.py
-      - run: python tests/v4/packaging.py
+      - run: python tests/v4/phase-b.py
+      - run: php -n tests/v4/features.php
+      - run: python tools/v4-inventory.py
       - run: php -n tests/v4/hosting.php
       - run: php -n tests/v4/upgrades.php
       - run: python tests/v4/compatibility.py

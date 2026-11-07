@@ -1,14 +1,14 @@
 # V4 implementation progress
 
-Updated 2026-11-07 (Asia/Karachi). Work is local on `develop/v4`. No V4 push, registry publication, tag, release or deployment is included in this increment.
+Updated 2026-11-08 (Asia/Karachi). Work is local on `develop/v4`. No V4 push, registry publication, tag, release or deployment is included in this increment.
 
 The roadmap now includes item 20: the V4 frontend starter redesign. This remains planned; the current preview uses V3 views. Welcome/guide pages, auth/account/recovery screens, the dashboard shell and optional AI view will be refreshed across Bootstrap, Tailwind and React, with responsive layouts, themes, reusable components and the accessibility/upgrade criteria in the roadmap.
 
-## Phase A: started
+## Phase A: baseline/design complete
 
-The [compatibility/ownership baseline](baseline.md) records the V3 source reference, critical existing contracts, package boundaries and artifact trust limits. The [foundation tools](foundation-tools.md) now capture/compare 143 V3 PHP symbols, verify actual V3-created JSON workflow/auth data and backup restoration, and expose read-only hosting diagnostics. Complete schema/SDK behavioral inventory, threat models, measured benchmarks and real hosting acceptance remain outstanding. Phase A is not complete.
+The [Phase A design record](phase-a-design.md) completes the compatibility matrix, persisted-storage/SDK inventory, package/file ownership, threat model, hosting capability design and benchmark methodology. Actual V3/current API and JSON backup fixtures pass; native PHP/JS/Python/Dart conformance checks pass. `tools/v4-inventory.py` records source inventories and a matched 180-sample in-process baseline. This closes design/baseline requirements, not exhaustive behavioral proof, comparative speed claims or Phase G hosting/security/load acceptance.
 
-## Phase B: first packaging prototype implemented
+## Phase B: local engineering acceptance complete; publication outstanding
 
 - `tools/v4-package.py` builds deterministic runtime/application ZIPs and SHA-256 inventories from explicitly selected Git-index files. Preview mode writes nothing. Existing output directories, output outside repository storage and selected indexed symlinks/conflicts are rejected.
 - The application skeleton has its own Composer metadata, `App` autoloading and `tests/run.php` smoke check through `php corevia test`. The experimental `corevia-framework/runtime:dev-v4` dependency installs under `vendor/`; no framework `packages/` directory is copied into application ownership.
@@ -17,9 +17,9 @@ The [compatibility/ownership baseline](baseline.md) records the V3 source refere
 - Database-free routes and real loopback HTTP auth/CSRF/assets/private-file checks pass for all three UI stacks. AI is installed disabled; no external model or provider was contacted by these checks.
 - The packaging integration test is added to the existing PHP CI matrix. CI has not been run for local V4 changes; this is a configured check, not a GitHub pass claim.
 
-This is not the complete Phase B installer or safe-upgrade system. Missing: registry publication, feature composition/dependency solving, extension manifests, general application upgrade planning/execution, a ready-to-upload shared-host layout and target hosting acceptance. Phases C-G remain planned.
+The [Phase B delivery guide](phase-b-delivery.md) documents working feature composition, extension compatibility metadata, staged V3/detached upgrades and the public_html/private upload layout. End-to-end fixtures cover application-edit/state preservation, unchanged source rollback copies, unrelated dependency pins, script rejection, stale-cache quarantine, fork refusal and shared-host HTTP isolation. The local Apache/FastCGI recipe also passes without touching installed services. Prepared Composer repository/ZIP consumer installation is tested. Public upload/registry registration has not occurred; the publication-timing question remains pending. Phase B cannot be represented as publicly published. Phases C-G remain planned.
 
-Follow-on increment: `starter:upgrade` now previews auth-starter changes using the original file inventory, current application files and current templates. It preserves edited/deleted/obsolete files and rejects an apply request. This starts upgrade planning; general application/configuration/database migration and patch application remain unimplemented. `hosting:check` separates measured prerequisites from unverified operator declarations and never grants production readiness. See [commands and limits](foundation-tools.md).
+`starter:upgrade` remains a read-only auth-template comparison. `app:upgrade` implements separate staged replacement rather than in-place patching; no arbitrary database/schema migration or traffic switch is performed. `hosting:check` still separates measured prerequisites from unverified operator declarations and never grants production readiness. See [foundation commands](foundation-tools.md) and [delivery commands](phase-b-delivery.md).
 
 ## Try the prototype locally
 
@@ -39,6 +39,9 @@ Open http://127.0.0.1:8081. Choose a new output directory if one already exists;
 
 ```sh
 python tests/v4/packaging.py
+php -n tests/v4/features.php
+python tests/v4/phase-b.py
+python tools/v4-inventory.py
 php -n tests/v4/hosting.php
 php -n tests/v4/upgrades.php
 python tests/v4/compatibility.py

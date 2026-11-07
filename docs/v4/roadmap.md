@@ -4,6 +4,8 @@ Status: maintainer-approved scope. Workstreams are planned or in progress; none 
 
 Implementation has started locally: see [progress and prototype instructions](progress.md) and the [compatibility baseline](baseline.md). A workstream remains incomplete until its exit evidence is satisfied.
 
+Current phase status (2026-11-08): Phase A baseline/design is complete; Phase B local engineering/acceptance is complete, with public package publication still outstanding pending the maintainer's timing decision. See the [design record](phase-a-design.md) and [delivery evidence/publication boundary](phase-b-delivery.md). This does not mark all cross-phase workstreams or release acceptance complete.
+
 ## Product direction
 
 Make Corevia easier to install, extend, operate and upgrade while developing its distinctive combination of explicit modules, durable workflows and PHP/Python/frontend/mobile contracts. Feature count alone is not a release criterion. Deliver the complete target scope through reviewable phases, preserving a small PHP application footprint.
@@ -35,7 +37,7 @@ The competitive target is to outperform established frameworks on specific, publ
 | 19 | Hosting portability | Tested deployment presets for constrained PHP shared hosting, VPS/dedicated servers, AWS and Azure; build-off-server source bundles; safe public/private directory separation; bounded cron workers; external service adapters; explicit capability diagnostics and platform-specific acceptance. Hosting presets remain separate from runtime/module profiles. |
 | 20 | V4 frontend starter redesign | Refresh the default welcome/guide pages, auth/account/recovery screens, dashboard shell and optional AI page with a coherent V4 visual identity across Bootstrap, Tailwind and React. Provide responsive navigation, reusable UI components, light/dark themes and loading/empty/error states; preserve feature parity, safe rendering, CSRF/session behavior and application ownership. Ship prebuilt assets for hosts without Node. |
 
-The installer syntax must be designed and tested before documentation presents it as available. A future experience could compose UI, auth, a database and AI/realtime modules in one command; no proposed command in this plan is an existing CLI feature.
+The tested development installer now supports `app:new` with the built-in web/API/auth/AI selections, three UI choices and explicit database-driver requirements. Other proposed feature combinations, such as automatic realtime infrastructure provisioning, are not implied. See [delivery commands](phase-b-delivery.md).
 
 ## Delivery phases
 

@@ -71,7 +71,9 @@ def assemble():
         'name': RUNTIME_NAME, 'description': 'Corevia runtime and optional starter resources; V4 packaging preview',
         'type': 'library', 'license': 'MIT', 'require': manifest['require'],
         'suggest': manifest.get('suggest', {}), 'autoload': {'psr-4': prefixes},
+        'bin': ['bin/corevia-new'],
     })
+    runtime['bin/corevia-new'] = source['starters/application/new.php.stub']
     application = {name: data for name, data in source.items()
                    if name.startswith(('resources/views/', 'config/settings/'))
                    or name in {'LICENSE', 'corevia', 'app/Http/HomeController.php', 'routes/web.php',
@@ -92,6 +94,18 @@ def assemble():
     })
     application['.gitignore'] = b'/vendor/\n/storage/*\n!/storage/.gitkeep\n.env\n.env.*\n!.env.example\nnode_modules/\n*.log\n'
     application['storage/.gitkeep'] = b''
+    baseline = 'd7429ed14356de39aaf8e98fa0993fc5c8f38337'
+    old = subprocess.check_output(GIT + ['archive', '--format=zip', baseline, 'packages', 'autoload.php'], cwd=ROOT)
+    with zipfile.ZipFile(io.BytesIO(old)) as incoming:
+        legacy = {name: incoming.read(name).replace(b'\r\n', b'\n') for name in incoming.namelist() if not name.endswith('/')}
+    runtime['v3-compatibility.json'] = canonical({'format': 1, 'commit': baseline,
+        'autoload': hashlib.sha256(legacy['autoload.php']).hexdigest(),
+        'packages': {name: hashlib.sha256(data).hexdigest() for name, data in legacy.items() if name.startswith('packages/')}})
+    # Embed an application skeleton inside the library so installed CLI tools can compose new apps.
+    for name, data in application.items():
+        runtime['starters/application/skeleton/' + name] = data
+    runtime['corevia-package.json'] = canonical({'format': 1, 'files': {
+        name: hashlib.sha256(data).hexdigest() for name, data in sorted(runtime.items())}})
     return runtime, application
 
 
@@ -101,7 +115,7 @@ def archive(files):
         for name, content in sorted(files.items()):
             entry = zipfile.ZipInfo(name, date_time=(2000, 1, 1, 0, 0, 0))
             entry.create_system = 3
-            entry.external_attr = (0o100755 if name == 'corevia' else 0o100644) << 16
+            entry.external_attr = (0o100600 if name.startswith('private/') else (0o100755 if name in {'corevia','bin/corevia-new'} else 0o100644)) << 16
             entry.compress_type = zipfile.ZIP_DEFLATED
             output.writestr(entry, content, compresslevel=9)
     return buffer.getvalue()

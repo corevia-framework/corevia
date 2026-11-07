@@ -27,6 +27,21 @@ final readonly class Console
             }
         }
         try {
+            if($command==='app:upgrade'){
+                if(array_diff(array_keys($options),['from','output','runtime-path','offline','dry-run'])){throw new \InvalidArgumentException('Unknown staged upgrade option.');}
+                $this->print(ApplicationUpgrade::stage($options['from']??$this->basePath,$options['output']??throw new \InvalidArgumentException('Provide --output for a separate replacement.'),$options['runtime-path']??FrameworkResources::root(),isset($options['offline']),isset($options['dry-run'])));return 0;
+            }
+            if($command==='app:new'){
+                if(array_diff(array_keys($options),['features','stack','database','dry-run','runtime-path'])){throw new \InvalidArgumentException('Unknown application installer option.');}
+                $this->print(ApplicationInstaller::create($argv[2]??throw new \InvalidArgumentException('Provide a new application directory.'),explode(',',$options['features']??'web'),$options['stack']??'bootstrap',$options['database']??'json',isset($options['dry-run']),$options['runtime-path']??null));return 0;
+            }
+            if($command==='extension:check'){
+                $path=$argv[2]??throw new \InvalidArgumentException('Provide an extension catalog JSON file.');
+                $wire=file_get_contents($path,false,null,0,262145);if($wire===false||strlen($wire)>262144){throw new \InvalidArgumentException('Extension catalog exceeds its size limit.');}
+                $catalog=json_decode($wire,true,64,JSON_THROW_ON_ERROR);
+                if(!is_array($catalog)){throw new \InvalidArgumentException('Extension catalog must be an object keyed by ID.');}
+                $this->print(FeatureResolver::resolve(isset($options['features'])?explode(',',$options['features']):array_keys($catalog),$catalog));return 0;
+            }
             if($command==='starter:upgrade'){
                 if(array_diff(array_keys($options),['path'])){throw new \InvalidArgumentException('Only --path is supported; starter upgrades are preview-only.');}
                 $this->print(StarterUpgradePlanner::plan($options['path']??$this->basePath));return 0;
@@ -168,6 +183,8 @@ final readonly class Console
                 passthru('composer outdated --direct --format=json --working-dir='.escapeshellarg($this->basePath),$code); return $code;
             }
             if ($command === 'help') {
+                echo "app:upgrade --from=application --output=new-directory --runtime-path=package [--dry-run | --offline]\n";
+                echo "app:new <new-directory> [--features=web|api|auth,ai --stack=bootstrap|tailwind|react --database=json|sqlite|mysql|pgsql|mongodb --runtime-path=package-directory --dry-run]\nextension:check <catalog.json> [--features=id,id]\n";
                 echo "starter:upgrade [--path=existing-application] (read-only auth-starter upgrade preview)\n";
                 echo "hosting:check [--target=shared|vps|aws|azure --requirements=private.json --public-path=path]\n";
                 echo "auth:migrate | auth:outbox [--show=private-preview-file.json]\n";

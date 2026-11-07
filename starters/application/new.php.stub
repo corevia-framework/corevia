@@ -1,0 +1,16 @@
+#!/usr/bin/env php
+<?php
+declare(strict_types=1);
+
+if (($argv[1] ?? null) === '--help') {
+    echo "corevia-new <new-directory> [--features=web|api|auth,ai --stack=bootstrap|tailwind|react --database=json|sqlite|mysql|pgsql|mongodb --dry-run]\n";
+    exit(0);
+}
+$loader = dirname(__DIR__, 3) . '/autoload.php';
+if (!is_file($loader)) {
+    fwrite(STDERR, "Install the runtime package with Composer before using corevia-new.\n");
+    exit(1);
+}
+require $loader;
+$console = new \Corevia\Cli\Console(getcwd());
+exit($console->run(['corevia', 'app:new', ...array_slice($argv, 1)]));
