@@ -35,3 +35,5 @@ The [SQL scheduler](scheduler.md) now supplies explicit cron/timezone/DST rules,
 ## Instrumentation and delivery increment
 
 [Private operations and budgets](observability-and-budgets.md) now provide registered redacted spans, bounded metrics, optional OTLP export, private health/readiness and development-only inspection. [Webhook delivery](webhook-delivery.md) adds durable attempt intent/history, fixed signed destinations, shared replay reservations and controlled operator redelivery. Actual loopback contracts cover PHP/Python HTTP/stdin trace/budget correlation and slow-stream limits. Cloud presets/hosting, actual collector acceptance, live remote cancellation and worker soak/load remain unaccepted.
+
+Reviewable [hosting recipes and bounded queue batches](hosting-presets.md) are now implemented. Isolated routing and short worker cleanup fixtures are separate from actual platform/sustained-load acceptance.

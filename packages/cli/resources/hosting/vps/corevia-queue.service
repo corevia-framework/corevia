@@ -1,0 +1,23 @@
+[Unit]
+Description=Corevia bounded queue batch (review paths and account before installation)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=corevia
+Group=corevia
+WorkingDirectory=/srv/corevia/current
+EnvironmentFile=/etc/corevia/app.env
+ExecStart=/usr/bin/php /srv/corevia/current/corevia queue:work --max=20 --budget-ms=20000
+TimeoutStartSec=35
+TimeoutStopSec=10
+KillMode=control-group
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/corevia/shared/storage
+StandardOutput=journal
+StandardError=journal

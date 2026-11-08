@@ -1,0 +1,7 @@
+# Review paths and host support; this file does not install cron entries.
+# Upload an off-server-built private/public_html bundle using tools/v4-shared.py.
+# Choose the actual CLI PHP binary (same supported version/extensions as web PHP).
+# flock is optional host functionality; do not assume all shared hosts provide it.
+* * * * * /usr/bin/flock -n /home/ACCOUNT/private/corevia/storage/queue-cron.lock /usr/bin/php /home/ACCOUNT/private/corevia/corevia queue:work --max=20 --budget-ms=20000 >> /home/ACCOUNT/private/corevia/storage/queue-cron.log 2>&1
+# Configure bounded log rotation privately; never expose this log via public_html.
+# Hosts without cron/CLI/SQL support cannot use this queue recipe.

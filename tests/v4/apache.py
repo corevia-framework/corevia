@@ -1,6 +1,7 @@
 """Optional isolated Windows Apache/FastCGI acceptance. Never loads global httpd.conf or touches services."""
 import http.cookiejar
 import json
+import shutil
 import os
 from pathlib import Path
 import socket
@@ -24,6 +25,12 @@ def port():
 http_port,fcgi_port=port(),port()
 origin='http://127.0.0.1:'+str(http_port)
 workspace=Path(tempfile.mkdtemp(prefix='apache-fixture-',dir=bundle.parent))
+recipe=sys.argv[2] if len(sys.argv)>2 else None
+if recipe is not None:
+    if recipe not in {'shared','aws'}:raise SystemExit('Unknown Apache recipe.')
+    copied=workspace/'bundle';shutil.copytree(bundle,copied);bundle=copied
+    (bundle/'public_html/.htaccess').write_bytes((ROOT/'packages/cli/resources/hosting'/recipe/'apache.htaccess').read_bytes())
+    for name in ['other.php','other.PHP','.env']:(bundle/'public_html'/name).write_text('PRIVATE_FIXTURE_MUST_NOT_BE_SERVED',encoding='utf-8')
 modules=['authz_core','dir','mime','rewrite','proxy','proxy_fcgi']
 configuration='\n'.join([
     'ServerRoot "'+apache.as_posix()+'"',
@@ -75,6 +82,9 @@ with (workspace/'process.log').open('wb') as log:
         for path in ['/','/hello/Apache','/login','/assets/auth.css']:
             status,body=request(path);assert status==200,(path,status,body[:160])
         for path in ['/private/corevia/config/auth.php','/vendor/autoload.php','/.env','/storage/auth/records.json']:assert request(path)[0] in {403,404},path
+        if recipe:
+            for path in ['/other.php','/other.PHP','/.env']:
+                status,body=request(path);assert status in {403,404} and b'PRIVATE_FIXTURE' not in body,path
         session=json.loads(request('/auth/session')[1])
         payload={'name':'Apache fixture','email':'apache@example.test','password':'fixture-password-123','password_confirmation':'fixture-password-123'}
         assert request('/auth/register',payload)[0]==419

@@ -140,6 +140,12 @@ run(composer + ['install', '--no-interaction', '--no-progress', '--no-plugins', 
 assert 'Corevia' in run([php, '-n', 'corevia', 'about'], application)
 assert 'home' in run([php, '-n', 'corevia', 'route:list'], application)
 assert 'PASS' in run([php, '-n', 'corevia', 'test'], application)
+for target in ['shared', 'vps', 'aws', 'azure']:
+    preset = json.loads(run([php, '-n', 'corevia', 'hosting:prepare', '--target=' + target, '--output=recipe-' + target], application))
+    assert preset['written'] and not preset['target_validated']
+    for name, digest in preset['files'].items():
+        assert hashlib.sha256((application / 'storage' / ('recipe-' + target) / name).read_bytes()).hexdigest() == digest
+
 poison = application / 'config/auth.php'
 poison.write_text("<?php throw new RuntimeException('UNEXPECTED_CONFIG_EXECUTION');", encoding='utf-8')
 try:

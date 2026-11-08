@@ -192,3 +192,8 @@ standalone=base/'standalone-created'
 run([php,str(consumer/'vendor/corevia-framework/runtime/bin/corevia-new'),str(standalone),'--features=auth','--stack=tailwind'])
 assert 'PASS' in run([php,'-n','corevia','test'],standalone)
 print('PASS prepared Composer publication metadata and ZIP-based consumer install; nothing uploaded')
+
+if os.environ.get('COREVIA_APACHE_PRESETS') == '1':
+    import sys
+    for target in ['shared', 'aws']:
+        print(run([sys.executable, str(ROOT / 'tests/v4/apache.py'), str(bundle), target]))
