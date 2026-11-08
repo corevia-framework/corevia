@@ -9,7 +9,7 @@ final class AccountRoutes
     {
         $page=static function(Request $request,string $page,?string $notice=null)use($view,$accounts,$stack):Response{
             $context=$request->attributes['auth'];
-            return Response::html($view->render($stack==='react'?'auth.shell':'auth.account',['page'=>$page,'csrf'=>$context->csrf,'user'=>$context->user,'stack'=>$stack,'verified'=>$accounts->isVerified($context),'notice'=>$notice]));
+            return Response::html($view->render($stack==='react'?'auth.shell':'auth.account',['ui'=>AuthPresentation::for($request),'page'=>$page,'csrf'=>$context->csrf,'user'=>$context->user,'stack'=>$stack,'verified'=>$accounts->isVerified($context),'notice'=>$notice]));
         };
         foreach(['forgot-password','reset-password','verify-email'] as $name){$router->get('/'.$name,static fn(Request $request):Response=>$page($request,$name))->middleware($session);}
         $router->post('/forgot-password',static function(Request $request)use($accounts,$page):Response{$accounts->requestReset($request);return $page($request,'forgot-password','If an account exists, a recovery link has been requested.');})->middleware($session);

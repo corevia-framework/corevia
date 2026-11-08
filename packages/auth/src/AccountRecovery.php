@@ -16,6 +16,7 @@ final readonly class AccountRecovery
     public function isVerified(AuthContext $context):bool{return $context->user!==null && ($this->store->userById($context->user['id'])['email_verified_at']??null)!==null;}
     private function send(array $user,string $purpose):void
     {
+        if($this->store instanceof IdentityStore&&isset($this->store->state('user:'.$user['id'])['lifecycle_deletion'])){return;}
         try{
         $now=($this->clock)();$token=bin2hex(random_bytes(32));$expires=$now+($purpose==='reset'?1800:86400);
         if(!$this->store->issueAccountToken($user['id'],$purpose,hash('sha256',$token),$expires,$user['auth_version']??0,$now,$user['email'])){return;}

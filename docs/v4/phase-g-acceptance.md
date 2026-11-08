@@ -5,12 +5,14 @@ Phase G has started with an evidence runner. Release acceptance and publication 
 Stage intended framework changes first: distribution packaging reads the Git index. Then run from the checkout:
 
 ```sh
-python tools/v4-acceptance.py --output=storage/v4-acceptance-new --browser
+python tools/v4-acceptance.py --output=storage/v4-acceptance-new --browser --auth-ui --passkeys
 ```
 
 Use a new ignored output directory each time. PHP/Composer, Python and Node must be available. Install the pinned tools dependencies with `npm ci --ignore-scripts` in `tools/`; install Playwright's Chromium on the development/CI machine or set `COREVIA_BROWSER` to an existing compatible Chrome executable. No frontend tooling is required on the installed application's host.
 
 The runner checks Composer metadata, PHP lint/regression (including new C-F fixtures), independent-process SQLite races, architecture, the V3 public API baseline, backup restoration, detached packages/upgrades and JS/Python SDKs. Browser mode builds/installs another clean indexed application and tests its workspace at three sizes. It does not exercise a maintainer's generated auth files. The JSON receipt records file hashes, a source digest, runtime versions, per-check exit codes and durations; logs stay private under storage. Source drift invalidates the local pass. Inspect the receipt's actual results; this command list is not evidence that a remote CI job ran.
+
+`--auth-ui` verifies reproducible assets and all three auth stacks across JSON/SQLite, MFA/provider fixtures and automated multilingual/theme accessibility checks. `--passkeys` installs and audits the locked optional verifier test dependency and runs actual WebAuthn virtual-authenticator checks. These flags need development browser/tooling, not a production hosting account.
 
 `--services` explicitly opts into disposable MySQL/PostgreSQL fixtures with the separate `COREVIA_TEST_*` settings documented in `tests/support/Services.php`. The only permitted test database names are `corevia_ci` and `corevia_test`; application connection secrets are never inherited as test credentials. Do not select production databases. The default run opens no database service or mail/model provider connection.
 

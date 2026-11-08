@@ -8,13 +8,15 @@ const {fileURLToPath}=await import('node:url');
 const cwd=fileURLToPath(new URL('.',import.meta.url));
 const output=process.argv[2]?resolve(process.argv[2]):resolve(cwd,'../../public/assets');
 await mkdir(output,{recursive:true});
-await copyFile(join(cwd,'src/account.js'),join(output,'auth-account.js'));
+await writeFile(join(output,'auth-account.js'),(await readFile(join(cwd,'src/account.js'),'utf8')).replace("'./presentation.js'","'./auth-presentation.js'"));
+await copyFile(join(cwd,'src/presentation.js'),join(output,'auth-presentation.js'));
 if(stack==='bootstrap')await writeFile(join(output,'auth.css'),await readFile(join(cwd,'node_modules/bootstrap/dist/css/bootstrap.min.css'),'utf8')+'\n.auth-card{max-width:28rem;border-radius:1rem}\n');
 else{
   const cli=join(cwd,'node_modules/@tailwindcss/cli/dist/index.mjs');
   const result=spawnSync(process.execPath,[cli,'-i','src/auth.css','-o',join(output,'auth.css'),'--minify'],{cwd,windowsHide:true,stdio:'inherit'});
   if(result.status!==0)process.exit(result.status??1);
 }
+await writeFile(join(output,'auth.css'),await readFile(join(output,'auth.css'),'utf8')+'\n'+await readFile(join(cwd,'src/presentation.css'),'utf8'));
 if(stack==='react'){
   const {build}=await import('esbuild');
   await build({entryPoints:[join(cwd,'src/app.jsx')],outfile:join(output,'auth.js'),bundle:true,minify:true,format:'esm',target:['es2022'],define:{'process.env.NODE_ENV':'"production"'},legalComments:'linked'});

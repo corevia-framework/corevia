@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add local V4 identity capabilities: scoped machine credentials, provisioned organization OIDC assurance, chained audit/checkpoints, resumable application-data erasure and optional WebAuthn verification. Refresh all auth starters with multilingual RTL layouts, themes and native React account management. Source-bound local acceptance passes all 21 configured checks; real services/devices/providers, manual review and remaining operations/AI/release gates are still open.
+
 - Begin local V4 daily-development APIs: checksummed application SQL migrations, prepared joins/pagination, seeders/repositories, explicit HTTP/auth/mail/job/AI test helpers, nested validation, versioned API envelopes/OpenAPI, scoped bearer credentials, private files and localization primitives. Refresh the database-free welcome/workspace with responsive navigation and persistent themes.
 - Add experimental V4 tenant-bound SQL/document/cache/file/retrieval adapters and signed job envelopes, SQL transactional outbox, webhook signature/replay contract, cooperative deadlines, conservative tenant usage budgets and resumable revision/tombstone synchronization. These increments are not completion of the full V4 identity/operations/AI roadmap. See `docs/v4/progress.md` for remaining gates and local acceptance commands.
 

@@ -2,14 +2,14 @@
 declare(strict_types=1);
 namespace Corevia\Auth;
 /** Shared identity invariants. Transaction callbacks must have no external side effects. */
-abstract readonly class AtomicAuthStore implements IdentityStore
+abstract readonly class AtomicAuthStore implements PasskeyStore
 {
     abstract protected function transaction(callable $work,?int $now=null):mixed;
     public function findUser(string $email):?array{return $this->transaction(static fn(array &$data):?array=>isset($data['users'][$email])?$data['users'][$email]+['auth_version'=>0,'email_verified_at'=>null]:null);}
     public function userById(string $id):?array{return $this->transaction(static function(array &$data)use($id):?array{foreach($data['users'] as $user){if(($user['id']??null)===$id){return $user+['auth_version'=>0,'email_verified_at'=>null];}}return null;});}
     public function createUser(string $email,string $name,string $passwordHash):?array{return $this->transaction(static function(array &$data)use($email,$name,$passwordHash):?array{if(isset($data['users'][$email])){return null;}$user=['id'=>bin2hex(random_bytes(16)),'email'=>$email,'name'=>$name,'password_hash'=>$passwordHash,'auth_version'=>0,'email_verified_at'=>null];$data['users'][$email]=$user;return $user;});}
     public function saveSession(string $digest,array $session,int $now):void{$this->transaction(static function(array &$data)use($digest,$session):void{
-        if(($session['user_id']??null)!==null){$user=null;foreach($data['users'] as $row){if($row['id']===$session['user_id']){$user=$row;break;}}if($user===null || ($user['auth_version']??0)!==($session['user_version']??0)){throw new AuthFailure('SESSION_CHANGED','Sign in again.',401);}if(isset($data['state']['user:'.$user['id']]['mfa']['secret']) && !($session['mfa_verified']??false)){throw new AuthFailure('MFA_REQUIRED','An authenticator or recovery code is required.',401);}}
+        if(($session['user_id']??null)!==null){$user=null;foreach($data['users'] as $row){if($row['id']===$session['user_id']){$user=$row;break;}}if($user===null || ($user['auth_version']??0)!==($session['user_version']??0)){throw new AuthFailure('SESSION_CHANGED','Sign in again.',401);}if(isset($data['state']['user:'.$user['id']]['lifecycle_deletion'])){throw new AuthFailure('ACCOUNT_UNAVAILABLE','Account access is unavailable.',403);}if(isset($data['state']['user:'.$user['id']]['mfa']['secret']) && !($session['mfa_verified']??false)){throw new AuthFailure('MFA_REQUIRED','An authenticator or recovery code is required.',401);}}
         if(count($data['sessions'])>=10000){throw new AuthFailure('CAPACITY','Please try again later.',503);}$data['sessions'][$digest]=$session;
     },$now);}
     public function session(string $digest,int $now):?array{return $this->transaction(static fn(array &$data):?array=>$data['sessions'][$digest]??null,$now);}
@@ -24,7 +24,7 @@ abstract readonly class AtomicAuthStore implements IdentityStore
         if(!in_array($purpose,['reset','verify'],true)){throw new \InvalidArgumentException('Unknown account token purpose.');}
         return $this->transaction(static function(array &$data)use($userId,$purpose,$digest,$expires,$userVersion,$expectedEmail):bool{
             $user=null;foreach($data['users'] as $row){if($row['id']===$userId){$user=$row;break;}}
-            if($user===null || ($user['auth_version']??0)!==$userVersion || ($expectedEmail!==null && $user['email']!==$expectedEmail)){return false;}
+            if($user===null || isset($data['state']['user:'.$userId]['lifecycle_deletion']) || ($user['auth_version']??0)!==$userVersion || ($expectedEmail!==null && $user['email']!==$expectedEmail)){return false;}
             foreach($data['tokens'] as $id=>$record){if($record['user_id']===$userId && $record['purpose']===$purpose){unset($data['tokens'][$id]);}}
             if(count($data['tokens'])>=10000){throw new AuthFailure('CAPACITY','Please try again later.',503);}
             $data['tokens'][$digest]=['user_id'=>$userId,'purpose'=>$purpose,'email'=>$user['email'],'user_version'=>$userVersion,'expires'=>$expires];return true;
@@ -65,6 +65,16 @@ abstract readonly class AtomicAuthStore implements IdentityStore
         if($hash!==null){if($binding===[]){unset($data['state']['oid:'.$hash]);}else{$data['state']['oid:'.$hash]=$binding;}}foreach(['sessions','tokens'] as $section){foreach($data[$section] as $key=>$record){if(($record['user_id']??null)===$id){unset($data[$section][$key]);}}}return $user;
     });}
     public function authority(string $id,string $digest,int $now):?array{return $this->transaction(static function(array &$data)use($id,$digest):?array{
-        $session=$data['sessions'][$digest]??null;if(($session['user_id']??null)!==$id){return null;}foreach($data['users'] as $user){if($user['id']===$id && ($user['auth_version']??0)===($session['user_version']??0)){return $data['state']['user:'.$id]??[];}}return null;
+        $session=$data['sessions'][$digest]??null;if(isset($data['state']['user:'.$id]['lifecycle_deletion'])){return null;}if(($session['user_id']??null)!==$id){return null;}foreach($data['users'] as $user){if($user['id']===$id && ($user['auth_version']??0)===($session['user_version']??0)){return $data['state']['user:'.$id]??[];}}return null;
     },$now);}
+    public function changePasskey(string $id,int $version,string $digest,?array $record,?string $expectedHash=null):array
+    {
+        return $this->transaction(static function(array &$data)use($id,$version,$digest,$record,$expectedHash):array{
+            $email=null;$user=null;foreach($data['users'] as $key=>$row){if($row['id']===$id){$email=$key;$user=$row;break;}}
+            $security=$data['state']['user:'.$id]??[];$binding=$data['state']['pkey:'.$digest]??[];$revoke=PasskeyRules::apply($user,$version,$digest,$record,$expectedHash,$security,$binding);
+            IdentityRules::state('user:'.$id,$security);IdentityRules::state('pkey:'.$digest,$binding);$data['users'][$email]=$user;$data['state']['user:'.$id]=$security;
+            if($binding===[]){unset($data['state']['pkey:'.$digest]);}else{$data['state']['pkey:'.$digest]=$binding;}
+            if($revoke){foreach(['sessions','tokens'] as $section){foreach($data[$section] as $key=>$row){if(($row['user_id']??null)===$id){unset($data[$section][$key]);}}}}return $user;
+        });
+    }
 }

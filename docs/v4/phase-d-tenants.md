@@ -1,6 +1,6 @@
 # Phase D: tenant isolation increment
 
-Phase D is in progress. This increment supplies tenant-bound data/IO helpers; it does not complete the identity, audit, data lifecycle or auth-starter redesign requirements.
+Phase D is in progress. Tenant-bound data/IO helpers are now accompanied by the [identity, audit and account-data APIs](identity-and-data.md) and refreshed multilingual starters. External service/provider/device, manual accessibility/security and final source-bound acceptance remain open.
 
 ## Resolve authority on the server
 
@@ -27,4 +27,4 @@ Use scoped adapters in application containers and handlers; do not expose underl
 
 `php tests/v4/tenants.php` verifies SQL/document/cache/file/vector/job escape negatives, signed-envelope tampering, authority mismatch and membership revocation. `python tests/v4/concurrency.py` exercises SQLite write races in independent processes. MySQL/PostgreSQL/MongoDB versions of these new tenant adapters still require real-service acceptance.
 
-Optional passkey/WebAuthn, service-account/organization SSO packages, audit integrity/retention, account export/deletion, and the accessible multilingual Bootstrap/Tailwind/React auth redesign remain open. No provider login or accessibility certification is claimed.
+Optional WebAuthn, service-account/organization SSO, audit integrity/retention and account-data workflows now have working local implementations and fixtures. The three auth redesigns have local browser and automated accessibility coverage; native React account management passes SQLite/MFA/provider/accessibility browser checks. Actual provider/device/service validation and manual review remain required. No real provider login or accessibility certification is claimed.

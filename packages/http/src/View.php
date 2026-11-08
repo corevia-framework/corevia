@@ -13,7 +13,7 @@ final readonly class View
         $root=realpath($this->directory);$file=realpath($this->directory.'/'.str_replace('.','/',$name).'.php');
         if($root===false || $file===false || !str_starts_with($file,$root.DIRECTORY_SEPARATOR)){throw new \OutOfBoundsException('View not found.');}
         $level=ob_get_level();ob_start();
-        try{(static function(string $__file,array $__data):void{$e=View::escape(...);extract($__data,EXTR_SKIP);require $__file;})($file,$data);return ob_get_clean();}
+        try{(static function(string $__file,array $__data,View $__view):void{$e=View::escape(...);$__render=$__view->render(...);extract($__data,EXTR_SKIP);require $__file;})($file,$data,$this);return ob_get_clean();}
         finally{while(ob_get_level()>$level){ob_end_clean();}}
     }
 }

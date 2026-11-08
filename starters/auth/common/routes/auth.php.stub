@@ -14,7 +14,7 @@ return static function(Router $router,Corevia $app):void{
     $box=($settings['mfa'] || $settings['oauth']!==[] || $builtins!==[])?SecretBox::fromFile($settings['key_file']):null;
     $mfa=$settings['mfa']?new MfaService($store,$box):null;
     $auth=new AuthService($store,$settings['url'],$settings['registration'],mfa:$mfa,rememberTtl:$settings['remember_ttl']);
-    $manager=new AccountManager($store,$auth);$gate=new Gate($store,$settings['roles']);$providers=array_map(static fn(string $class)=>$app->container->get($class),$settings['oauth']);if(array_intersect_key($providers,$builtins)!==[]){throw new LogicException('Duplicate provider name.');}$providers+=$builtins;$oauth=$providers!==[]?new OAuthService($store,$box,$auth,$providers):null;
+    $manager=new AccountManager($store,$auth);$gate=new Gate($store,$settings['roles']);$providers=array_map(static fn(string $class)=>$app->container->get($class),$settings['oauth']);if(array_intersect_key($providers,$builtins)!==[]){throw new LogicException('Duplicate provider name.');}$providers+=$builtins;$sso=($settings['organization_sso']??[])!==[]?new \Corevia\Auth\OrganizationSso($store,$settings['organization_sso']):null;if($sso!==null){$sso->validateProviders($providers);$app->container->set(\Corevia\Auth\OrganizationSso::class,$sso);$app->capabilities->define('auth.organization_sso');}$oauth=$providers!==[]?new OAuthService($store,$box,$auth,$providers,$sso):null;
     $app->container->set(IdentityStore::class,$store);$app->container->set(AccountManager::class,$manager);$app->container->set(Gate::class,$gate);
     if($mfa!==null){$app->container->set(MfaService::class,$mfa);$app->capabilities->define('auth.mfa');}if($oauth!==null){$app->container->set(OAuthService::class,$oauth);$app->capabilities->define('auth.oauth');}
     $app->container->set(AuthStore::class,$store);$app->container->set(AuthService::class,$auth);
@@ -26,5 +26,11 @@ return static function(Router $router,Corevia $app):void{
         if(!$delivery instanceof AccountDelivery){throw new LogicException('Delivery must implement AccountDelivery.');}
         $accounts=new AccountRecovery($store,$delivery,$auth,$app->logger);$app->container->set(AccountDelivery::class,$delivery);$app->container->set(AccountRecovery::class,$accounts);$app->capabilities->define('auth.recovery');
     }
-    AuthRoutes::mount($router,$app->container->get(View::class),$auth,$settings['stack'],$accounts,$settings['require_verified'],$manager,$mfa,$gate,$oauth);
+    $passkeys=null;if($settings['passkeys']??false){
+        if(!$store instanceof \Corevia\Auth\PasskeyStore){throw new LogicException('The selected identity adapter must implement PasskeyStore.');}
+        $passkeys=new \Corevia\Auth\Passkeys($store,$auth,new \Corevia\Auth\WebAuthnVerifier($auth->origin));$app->container->set(\Corevia\Auth\Passkeys::class,$passkeys);$app->capabilities->define('auth.passkeys');
+    }
+    $lifecycle=($settings['lifecycle_service']??null)!==null?$app->container->get($settings['lifecycle_service']):null;
+    if($lifecycle!==null&&!$lifecycle instanceof \Corevia\Auth\AccountLifecycle){throw new LogicException('Configure a bound AccountLifecycle service.');}
+    AuthRoutes::mount($router,$app->container->get(View::class),$auth,$settings['stack'],$accounts,$settings['require_verified'],$manager,$mfa,$gate,$oauth,$passkeys,$lifecycle);
 };

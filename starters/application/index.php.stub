@@ -4,7 +4,7 @@ declare(strict_types=1);
 // Only public/ is a document root. This allowlist is for PHP's development router.
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 $assets = ['app.css','app.js','icon.svg','auth.css','auth.js','auth.js.LEGAL.txt',
-    'auth-LICENSES.txt','auth-account.js','ai.js','corevia-ai.js'];
+    'auth-LICENSES.txt','auth-account.js','auth-presentation.js','ai.js','corevia-ai.js'];
 if (in_array($_SERVER['REQUEST_METHOD'] ?? 'GET', ['GET','HEAD'], true)
     && is_string($path) && str_starts_with($path, '/assets/')
     && in_array(substr($path, 8), $assets, true)) {

@@ -16,6 +16,11 @@ return [
     'remember_ttl'=>2592000,
     // Named OAuthProvider class names, resolved by the application container.
     'oauth'=>[],
+    // Exact provider name => tenant, pre-provisioned roles and maximum assurance age.
+    'organization_sso'=>[],
+    'passkeys'=>getenv('AUTH_PASSKEYS')==='true',
+    // Optional container-bound AccountLifecycle factory with explicit application data adapters.
+    'lifecycle_service'=>null,
     'oauth_builtin'=>['github'=>['enabled'=>getenv('AUTH_GITHUB')==='true','id'=>getenv('AUTH_GITHUB_ID')?:'','secret'=>getenv('AUTH_GITHUB_SECRET')?:''],'google'=>['enabled'=>getenv('AUTH_GOOGLE')==='true','id'=>getenv('AUTH_GOOGLE_ID')?:'','secret'=>getenv('AUTH_GOOGLE_SECRET')?:'']],
     'mongo'=>['uri'=>getenv('AUTH_MONGODB_URI')?:'mongodb://127.0.0.1:27017','database'=>getenv('AUTH_MONGODB_DATABASE')?:'corevia','collection'=>'cv_auth','scope'=>getenv('AUTH_SCOPE')?:'main'],
     'roles'=>['admin'=>['admin.access'],'editor'=>['documents.read','documents.update']],

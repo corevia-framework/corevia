@@ -31,6 +31,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', required=True, help='New private directory under repository storage/')
     parser.add_argument('--browser', action='store_true')
+    parser.add_argument('--auth-ui', action='store_true', help='Rebuild/verify assets and test all auth stacks, locales, themes and storage modes')
+    parser.add_argument('--passkeys', action='store_true', help='Install/audit locked optional test dependencies and run real WebAuthn virtual-authenticator tests')
     parser.add_argument('--services', action='store_true', help='Explicit disposable SQL service tests; never reads application credentials')
     args = parser.parse_args()
     target = Path(args.output)
@@ -79,11 +81,21 @@ def main():
     if args.services:
         for suite in ['data', 'catalog']:
             checks.append(('services-' + suite, [php, 'tests/v4/' + suite + '.php'], {'COREVIA_DB_TESTS': '1'}))
+    if args.auth_ui:
+        checks.append(('auth-assets', ['node', 'tools/build-auth-starters.mjs', '--check'], {}))
+        for name, sql, crypto, accessibility in [('auth-json-accessibility', '0', '0', '1'), ('auth-json-identity', '0', '1', '0'), ('auth-sql-identity', '1', '1', '0')]:
+            checks.append((name, ['node', 'tests/v3/auth-browser.mjs'], {'COREVIA_AUTH_STACK': '', 'COREVIA_AUTH_SQL': sql, 'COREVIA_AUTH_CRYPTO': crypto, 'COREVIA_AUTH_A11Y': accessibility}))
+    if args.passkeys:
+        optional = ROOT / 'tests/v4/passkey-dependencies'
+        for name, command in [('passkey-dependencies', ['install', '--no-interaction', '--no-scripts', '--no-plugins', '--prefer-dist']),
+                              ('passkey-metadata', ['validate', '--strict']), ('passkey-advisories', ['audit', '--locked'])]:
+            checks.append((name, composer_command + ['--working-dir=' + str(optional), *command], {}))
+        checks.append(('passkey-browser', ['node', 'tests/v4/passkey-browser.mjs'], {'COREVIA_PASSKEY_AUTOLOAD': str(optional / 'vendor/autoload.php')}))
     report = {'format': 1, 'source': baseline, 'checks': [], 'release_ready': False,
               'runtimes': {'python': sys.version.split()[0], 'php': subprocess.run([php, '-r', 'echo PHP_VERSION;'], capture_output=True, text=True, check=True).stdout,
                            'node': subprocess.run(['node', '--version'], capture_output=True, text=True, check=True).stdout.strip()},
               'unmet_release_gates': [
-                  'Phase D identity packages, audit/data lifecycle and all-stack accessible multilingual auth redesign',
+                  'Phase D full application identity/audit/data-lifecycle integration, accessibility/manual review and real provider/service/device acceptance',
                   'Phase E scheduler, inspection/trace export, cross-runtime resilience and delivery acceptance',
                   'Phase F ingestion/vector-provider acceptance, tool isolation/evaluations and mobile SDK workflows',
                   'Required remote CI, supported services/runtimes, security review and worker soak/load acceptance',

@@ -15,8 +15,9 @@ for(const stack of ['bootstrap','tailwind','react']){
   if(stack!=='react')await copyFile(join(source,'common/resources/views/auth/account.php.stub'),join(project,'resources/views/auth/account.php'));
   for(const name of ['settings','challenge'])await copyFile(join(source,'common/resources/views/auth',name+'.php.stub'),join(project,'resources/views/auth',name+'.php'));
   await copyFile(join(source,'frontend/src/account.js'),join(frontend,'src/account.js'));
+  for(const name of ['presentation.js','presentation.css'])await copyFile(join(source,'frontend/src',name),join(frontend,'src',name));
   if(stack!=='bootstrap'){let css=await readFile(join(source,'frontend/src/auth.css'),'utf8');if(stack!=='react')css=css.replace('@source "./app.jsx";','');await writeFile(join(frontend,'src/auth.css'),css);}
-  if(stack==='react')await copyFile(join(source,'frontend/src/app.jsx'),join(frontend,'src/app.jsx'));
+  if(stack==='react')for(const name of ['app.jsx','settings.jsx'])await copyFile(join(source,'frontend/src',name),join(frontend,'src',name));
   const npm=process.platform==='win32'?'npm.cmd':'npm';
   try{await readFile(join(frontend,'package-lock.json'));}catch{if(check)throw new Error('Missing starter dependency lock.');run(npm,['install','--package-lock-only','--ignore-scripts','--no-audit','--no-fund'],frontend);await copyFile(join(frontend,'package-lock.json'),join(source,'stacks',stack,'package-lock.json'));}
   run(npm,['ci','--ignore-scripts','--no-audit','--no-fund'],frontend);

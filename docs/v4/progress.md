@@ -2,7 +2,7 @@
 
 Updated 2026-11-08 (Asia/Karachi). Work is local on `develop/v4`. No V4 push, registry publication, tag, release or deployment is included in this increment.
 
-Work has started across the next five phases (C-G). The database-free welcome/workspace now has V4 responsive navigation, light/dark/system themes and an honest empty state. The three auth-kit and AI-view redesigns remain open; existing generated application files are preserved.
+Work has started across the next five phases (C-G). The database-free welcome/workspace has V4 responsive navigation, themes and an honest empty state. All three auth kits now have responsive V4 layouts, themes and English/Urdu/Arabic presentation with RTL support; native React account management passes its SQLite/MFA/provider/accessibility browser checks. The optional AI view remains open. Existing generated application files are preserved.
 
 ## Phase A: baseline/design complete
 
@@ -26,7 +26,7 @@ The [Phase B delivery guide](phase-b-delivery.md) documents working feature comp
 | Phase | Implemented in this increment | Still required for phase completion |
 | --- | --- | --- |
 | C | Checksummed application migrations; joins/pagination; seeders/repositories; public testing toolkit; nested validation; API envelopes/OpenAPI, scoped bearer credentials and idempotency; private files/localization; V4 welcome/workspace; JSON/SQLite catalog reference | Run new contracts against actual MySQL/PostgreSQL services and required CI; record driver-bound acceptance. |
-| D | Revocable server-validated tenant scopes; scoped SQL/documents/cache/files/retrieval; signed jobs with worker authority resolution | Passkeys, service accounts/org SSO, audit/retention/export/deletion, all three accessible multilingual auth redesigns, real-service tenant acceptance. |
+| D | Tenant-scoped adapters/jobs; scoped machine credentials; provisioned organization OIDC policy and MFA-bound assurance; HMAC audit chains/checkpoints/retention/holds; account exports and resumable erasure; optional real WebAuthn verifier with atomic ownership/CAS; multilingual/RTL auth screens | Audit/application integration review, real-driver/provider/device checks and manual accessibility/security review. |
 | E | Transactional SQL outbox, fenced relay/retries/dead state; rotating webhook signatures and replay reservation contract; cooperative monotonic deadline | Inspector/traces/metrics, scheduler/overlap, full webhook operations/history, retry budgets/circuit breakers/cross-runtime propagation, hosting adapters and failure acceptance. |
 | F | Atomic tenant usage reservations and budgeted provider wrapper; signed actor/tenant-bound resumable change feeds with optimistic revisions and tombstones | Ingestion/vector-provider/structured-output/evaluation/tool execution work, Dart/React Native offline UX and SDK workflows, AI frontend and real-provider acceptance. |
 | G | Source-bound private acceptance runner, clean-package browser checks, expanded CI configuration and eight-process SQLite races | Complete D-F, real-service/provider/runtime/hosting/security/soak/load gates, remote CI and final publication. |
@@ -34,6 +34,14 @@ The [Phase B delivery guide](phase-b-delivery.md) documents working feature comp
 See [Phase C developer guide](phase-c-development.md), [D tenant boundaries](phase-d-tenants.md), [E operations](phase-e-operations.md), [F connected clients](phase-f-connected.md), and [G acceptance tooling](phase-g-acceptance.md). These are working increments, not five completed phases. No V4 push, provider login, mail delivery or production-site access is included.
 
 Focused local contracts pass for the new C-F primitives; the initial full framework regression and existing A/B packaging checks pass. Eight separate SQLite processes verify bounded reservations, one optimistic writer and exclusive active outbox claims. The acceptance runner records the final source-bound results under an explicitly chosen ignored storage directory. New MySQL/PostgreSQL/MongoDB driver behavior and external provider/hosting checks remain unverified until their actual suites run.
+
+## Current identity increment
+
+The source-bound identity acceptance completed all 21 checks successfully with `source_unchanged: true` and `local_passed: true` (`storage/v4-phase-d-identity-acceptance-20261108/report.json`). This private receipt covers the staged identity increment before this documentation update. It intentionally records `release_ready: false` with the remaining gates.
+
+See [identity, audit and account-data APIs](identity-and-data.md). JSON/SQLite lifecycle and service-account tests pass; organization policy fixtures preserve MFA/age/tenant requirements. Real WebAuthn verification passes with Chrome virtual authenticators on JSON/SQLite, including signed UV/RP/counter negatives and removal/replay checks. Passkey storage also passes a NoSQL CAS fixture. The optional verifier is locked at 5.3.12 for development acceptance; Composer reported no known advisories for that locked dependency set. This is not an independent security review.
+
+All three refreshed starters pass the database-free auth/recovery/account workflow and automated WCAG-tagged scans for English/Urdu/Arabic, RTL, both themes, validation focus and keyboard navigation. SQLite browser flows also pass MFA/recovery/provider fixtures. Native React account management also passes its SQLite/MFA/provider/accessibility browser checks. Automated scans retain items needing manual review; they do not certify screen-reader, translation or physical-device acceptance. CI is configured, not yet run remotely. Work remains local.
 
 ## Try the prototype locally
 

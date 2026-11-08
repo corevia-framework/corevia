@@ -1,0 +1,2 @@
+<?php $ui??=new \Corevia\Auth\AuthPresentation(); ?>
+</main><footer class="auth-footer"><a href="/"><?= $e($ui->text('Back home')) ?></a><span><?= $e($ui->text('Built with Corevia.')) ?></span></footer></body></html>

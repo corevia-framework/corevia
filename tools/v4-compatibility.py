@@ -15,6 +15,40 @@ BASELINE = 'd7429ed14356de39aaf8e98fa0993fc5c8f38337'
 GIT = ['git', '-c', 'safe.directory=' + ROOT.as_posix()]
 
 
+def optional_final_extension(owner, previous, current):
+    """Final classes cannot have application overrides invalidated by extra parameters."""
+    if not owner['final'] or owner['kind'] != 'class':
+        return False
+    old_parameters, parameters = previous.get('parameters', []), current.get('parameters', [])
+    return (len(parameters) > len(old_parameters)
+            and parameters[:len(old_parameters)] == old_parameters
+            and not any(parameter['variadic'] for parameter in old_parameters)
+            and all(parameter['optional'] for parameter in parameters[len(old_parameters):])
+            and {key: value for key, value in previous.items() if key != 'parameters'}
+            == {key: value for key, value in current.items() if key != 'parameters'})
+
+
+def additive_capabilities(previous, current, symbols):
+    if previous['kind'] != 'class' or not set(previous['interfaces']).issubset(current['interfaces']):
+        return False
+    for name in set(current['interfaces']) - set(previous['interfaces']):
+        interface = symbols.get(name)
+        if interface is None or interface['kind'] != 'interface' or interface['constants']:
+            return False
+        for method, obligation in interface['methods'].items():
+            owner = current
+            while method not in owner['methods'] and owner['parent'] in symbols:
+                owner = symbols[owner['parent']]
+            implementation = owner['methods'].get(method)
+            if implementation is None or implementation.get('abstract', True):
+                return False
+            ignored = {'abstract', 'final'}
+            if ({key: value for key, value in implementation.items() if key not in ignored}
+                    != {key: value for key, value in obligation.items() if key not in ignored}):
+                return False
+    return True
+
+
 def compare(before, after):
     findings = []
     for symbol, old in before['symbols'].items():
@@ -24,6 +58,8 @@ def compare(before, after):
             continue
         for field in ['kind', 'abstract', 'final', 'readonly', 'parent', 'interfaces', 'traits']:
             if old[field] != new[field]:
+                if field == 'interfaces' and additive_capabilities(old, new, after['symbols']):
+                    continue
                 findings.append({'symbol': symbol, 'change': 'changed_' + field})
         for group in ['methods', 'properties', 'constants']:
             for name, shape in old[group].items():
@@ -35,7 +71,7 @@ def compare(before, after):
                     if symbol == 'Corevia\\Core\\Version' and group == 'constants' and name == 'VERSION':
                         shape = {key: value for key, value in shape.items() if key != 'value'}
                         current = {key: value for key, value in current.items() if key != 'value'}
-                    if shape != current:
+                    if shape != current and not (group == 'methods' and optional_final_extension(old, shape, current)):
                         findings.append({'symbol': symbol, 'member': name, 'change': 'changed_' + group})
             if group == 'methods':
                 for name, shape in new[group].items():
@@ -77,7 +113,7 @@ def verify(baseline):
               'baseline_symbols': len(before['symbols']), 'current_symbols': len(after['symbols']),
               'api_fingerprints': fingerprints,
               'findings': findings, 'limits': [
-                  'Conservative API shapes only; compatible signature edits can require manual review.',
+                  'API shapes only. Optional trailing parameters on final classes and declared capability interfaces with matching concrete implementations are additive; other signature/interface changes require review.',
                   'Method bodies, literal default values, persisted schemas, side effects and SDK wire behavior are not established by this check.',
                   'New concrete methods may conflict with application subclasses; application upgrade tests remain necessary.']}
     (storage / 'v4-api-verification.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
