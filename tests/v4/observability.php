@@ -33,6 +33,12 @@ check($exporter->export($telemetry)['exported']===0&&count($client->sent)===1);
 $telemetry->span('sql.read',fn()=>true);(new OtlpTraceExporter($client,'https://collector.example.test/v1/traces',metricsEndpoint:'https://collector.example.test/v1/metrics'))->export($telemetry);
 $metrics=$client->sent[1]['resourceMetrics'][0]['scopeMetrics'][0]['metrics'];check(count($metrics)===2&&$metrics[0]['sum']['aggregationTemporality']===1&&$metrics[0]['sum']['dataPoints'][0]['asInt']==='1');
 $client->reply='{"partialSuccess":{"rejectedSpans":"1"}}';$telemetry->span('sql.read',fn()=>true);rejects(fn()=>$exporter->export($telemetry));
+foreach(['{"partialSuccess":{}}','{"partialSuccess":{"rejectedSpans":"0","errorMessage":""}}','{"partialSuccess":{"rejectedDataPoints":0}}']as $reply){
+    $client->reply=$reply;$telemetry->span('sql.read',fn()=>true);check($exporter->export($telemetry)['exported']===1);
+}
+foreach(['[]','null','{"partialSuccess":null}','{"partialSuccess":[]}','{"partialSuccess":{"rejectedSpans":1}}','{"partialSuccess":{"rejectedSpans":false}}','{"partialSuccess":{"rejectedDataPoints":"1"}}','{"partialSuccess":{"errorMessage":"private-collector-warning"}}','{"partialSuccess":{"unknown":0}}',str_repeat('x',65537)]as $reply){
+    $client->reply=$reply;$telemetry->span('sql.read',fn()=>true);rejects(fn()=>$exporter->export($telemetry));check($telemetry->snapshot()['spans']===[]);
+}
 
 $app=Corevia::create(dirname(__DIR__,2));$app->boot();$router=new Router($app);
 try {

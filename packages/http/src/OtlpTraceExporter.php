@@ -47,7 +47,22 @@ final readonly class OtlpTraceExporter
         foreach ($this->http->stream('POST',$endpoint,[...$this->headers,'Content-Type'=>'application/json'],$body) as $chunk) {
             $response.=$chunk;if (strlen($response)>65536) { throw new \LengthException('Collector response exceeds 64 KiB.'); }
         }
-        $decoded=$response===''?[]:json_decode($response,true,16,JSON_THROW_ON_ERROR);
-        if (!is_array($decoded)||isset($decoded['partialSuccess'])) { throw new \RuntimeException('TRACE_EXPORT_NOT_FULLY_ACCEPTED'); }
+        $decoded=$response===''?new \stdClass():json_decode($response,false,16,JSON_THROW_ON_ERROR);
+        if (!$decoded instanceof \stdClass) { throw new \RuntimeException('TRACE_EXPORT_NOT_FULLY_ACCEPTED'); }
+        if(property_exists($decoded,'partialSuccess')){
+            // Collector 0.165.0 emits an empty protobuf message on full acceptance.
+            // Only its default-valued form is equivalent to an unset field. A warning,
+            // rejected item, malformed value or unknown partial field stays observable.
+            $partial=$decoded->partialSuccess;
+            if(!$partial instanceof \stdClass){throw new \RuntimeException('TRACE_EXPORT_NOT_FULLY_ACCEPTED');}
+            foreach(get_object_vars($partial)as $key=>$value){
+                $empty=match($key){
+                    'rejectedSpans','rejectedDataPoints'=>$value===0||$value==='0',
+                    'errorMessage'=>$value==='',
+                    default=>false,
+                };
+                if(!$empty){throw new \RuntimeException('TRACE_EXPORT_NOT_FULLY_ACCEPTED');}
+            }
+        }
     }
 }
