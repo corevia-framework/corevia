@@ -55,7 +55,7 @@ maximum-count and adapter timeout behavior; `--budget-ms` is a queue-worker opti
 private output confinement, symlinks on Unix and overwrite refusal.
 `php tests/v4/workers.php` exercises 1,000 real SQL queue claims in one process,
 including 40 deliberate handler failures, weak-reference release and scope/context
-cleanup, followed by a cooperative timeout. This short bounded test reports
+cleanup, followed by deterministic cooperative batch cancellation. Monotonic deadline expiry has separate contracts. This short bounded test reports
 allocation growth and duration; it is not sustained-load acceptance or a speed
 comparison with another framework.
 

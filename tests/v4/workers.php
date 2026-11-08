@@ -9,11 +9,11 @@ function rejects(callable $work):void{try{$work();}catch(InvalidArgumentExceptio
 foreach([0,1001]as $max){rejects(fn()=>WorkerLoop::run(fn()=>[], $max));}
 foreach([0,3600001]as $budget){rejects(fn()=>WorkerLoop::run(fn()=>[],1,$budget));}
 check(WorkerLoop::run(fn()=>['status'=>'empty'])===['processed'=>[],'stopped'=>'empty']);
-$calls=0;$report=WorkerLoop::run(function()use(&$calls):array{$calls++;usleep(20000);return ['status'=>'completed'];},10,1);
+$calls=0;$report=WorkerLoop::run(function()use(&$calls):array{$calls++;WorkContext::current()->deadline->cancel();return ['status'=>'completed'];},10,30000);
 check($calls===1&&count($report['processed'])===1&&$report['stopped']==='budget'&&WorkContext::current()===null);
-$cancel=new Deadline(1000);$cancel->cancel();$calls=0;
-try{WorkContext::run($cancel,function()use(&$calls):void{WorkerLoop::run(function()use(&$calls):array{$calls++;return ['status'=>'completed'];});});}catch(RuntimeException){}
-check($calls===0&&WorkContext::current()===null);
+$cancel=new Deadline(30000);$calls=0;$parentResult=null;
+try{WorkContext::run($cancel,function()use(&$calls,$cancel,&$parentResult):void{$cancel->cancel();$parentResult=WorkerLoop::run(function()use(&$calls):array{$calls++;return ['status'=>'completed'];});});}catch(RuntimeException){}
+check($calls===0&&$parentResult===['processed'=>[],'stopped'=>'budget']&&WorkContext::current()===null);
 $db=new SqlConnection(new PDO('sqlite::memory:'));$queue=new SqlCoordinator($db,'cv_soak',1);$queue->migrate();$scopes=new ScopeManager();$closed=0;$seen=[];
 $handler=function(array $input,$claim,$scope)use(&$closed,&$seen,$scopes):array{
     check($scopes->activeCount()===1&&$scopes->current()===$scope&&WorkContext::current()!==null);
@@ -36,9 +36,10 @@ for($batch=0;$batch<10;$batch++){
 }
 gc_collect_cycles();foreach($seen as $reference){check($reference->get()===null);}
 check($closed===1000&&$completed===960&&$failed===40);
-// Cooperative timeout fails the claim, releases its scope and stops before another claim.
-$slow=new JobWorker($queue,$scopes,['slow'=>function($input,$claim,$scope)use(&$closed):array{$scope->onClose(function()use(&$closed):void{$closed++;});usleep(20000);WorkContext::current()->check();return [];}]);
+// Deterministically end the parent batch budget inside a scoped job, avoiding millisecond sleeps.
+$batchDeadline=null;
+$slow=new JobWorker($queue,$scopes,['slow'=>function($input,$claim,$scope)use(&$closed,&$batchDeadline):array{$scope->onClose(function()use(&$closed):void{$closed++;});$batchDeadline->cancel();WorkContext::current()->check();return [];}]);
 $queue->dispatch('slow',[],true,$queue->clock());
-$report=WorkerLoop::run(fn()=>$slow->once(),10,1);
+$report=WorkerLoop::run(function()use($slow,&$batchDeadline):array{$batchDeadline=WorkContext::current()->deadline;return $slow->once();},10,30000);
 check($report['stopped']==='budget'&&$report['processed'][0]['status']==='failed'&&$closed===1001&&$scopes->activeCount()===0&&WorkContext::current()===null);
 echo json_encode(['passed'=>true,'jobs'=>1000,'completed'=>$completed,'injected_failures'=>$failed,'elapsed_ms'=>round((hrtime(true)-$start)/1e6),'allocated_growth_bytes'=>memory_get_usage(true)-$before],JSON_THROW_ON_ERROR)."\n";
