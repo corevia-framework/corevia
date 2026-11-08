@@ -94,6 +94,10 @@ jobs:
       - run: php -n tests/v4/api.php
       - run: php tests/v4/catalog.php
       - run: php tests/v4/tenants.php
+      - run: python tests/v4/cross-runtime.py
+      - run: python tests/v4/outbound-http.py
+      - run: php tests/v4/observability.php
+      - run: php tests/v4/webhooks.php
       - run: php tests/v4/reliability.php
       - run: php tests/v4/connected.php
       - run: python tests/v4/concurrency.py

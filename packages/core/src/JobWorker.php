@@ -8,7 +8,7 @@ final readonly class JobWorker
     {
         $now??=$this->queue->clock();$claim=$this->queue->claim($now,$this->leaseSeconds);if($claim===null){return ['status'=>'empty'];}$handler=$this->handlers[$claim->task]??null;
         if(!is_callable($handler)){$this->queue->fail($claim,$now,true);return ['status'=>'unknown_task','id'=>$claim->id];}
-        try{$result=$this->scopes->run('job',fn(ExecutionScope $scope)=>$handler($claim->input(),$claim,$scope),['job_id'=>$claim->id,'attempt'=>$claim->attempt]);if(!is_array($result)){throw new \LogicException('Job handlers return an array.');}$ok=$this->queue->complete($claim,$result,$this->queue->clock());return ['status'=>$ok?'completed':'lease_lost','id'=>$claim->id];}
+        try{$result=$this->scopes->run('job',fn(ExecutionScope $scope)=>WorkContext::run(new Deadline(max(1,($this->leaseSeconds-1)*1000)),fn()=>$handler($claim->input(),$claim,$scope)),['job_id'=>$claim->id,'attempt'=>$claim->attempt]);if(!is_array($result)){throw new \LogicException('Job handlers return an array.');}$ok=$this->queue->complete($claim,$result,$this->queue->clock());return ['status'=>$ok?'completed':'lease_lost','id'=>$claim->id];}
         catch(\Throwable){$ok=$this->queue->fail($claim,$this->queue->clock());return ['status'=>$ok?'failed':'lease_lost','id'=>$claim->id];}
     }
 }

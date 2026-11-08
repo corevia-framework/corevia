@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Corevia\Protocol;
 
-use Corevia\Core\ActionResult;
+use Corevia\Core\{ActionResult,WorkContext};
 
 final class RemoteAction
 {
@@ -20,9 +20,11 @@ final class RemoteAction
 
     public function call(string $name, array $payload, ?string $traceId = null, ?string $requestId = null, ?string $parentTraceId = null): ActionResult
     {
-        $request = Protocol::request('action.call', $name, $payload, $requestId, $traceId, $this->version, $parentTraceId, max(1, (int) ($this->timeout * 1000)));
+        $work=WorkContext::current();$work?->check();$timeout=$work===null?$this->timeout:min($this->timeout,$work->remainingMilliseconds()/1000);
+        $request = Protocol::request('action.call', $name, $payload, $requestId, $traceId, $this->version, $parentTraceId, max(1, (int) ($timeout * 1000)));
         $wire = $this->protocol->encode($request);
-        $headers = "Content-Type: application/json\r\n";
+        $headers = "Content-Type: application/json\r\nConnection: close\r\n";
+        if($work?->trace!==null){$headers.='traceparent: '.$work->trace->header()."\r\n";}
         if ($this->token !== null) {
             if (preg_match('/[\r\n]/', $this->token)) {
                 return ActionResult::failure('INVALID_AUTH', 'Invalid token.');
@@ -35,20 +37,28 @@ final class RemoteAction
                 $headers .= $name . ': ' . $value . "\r\n";
             }
         }
-        $context = stream_context_create(['http' => ['method' => 'POST', 'header' => $headers, 'content' => $wire, 'timeout' => $this->timeout, 'ignore_errors' => true, 'follow_location' => 0]]);
+        if($work!==null){$timeout=min($timeout,$work->remainingMilliseconds()/1000);}
+        $context = stream_context_create(['http' => ['method' => 'POST', 'header' => $headers, 'content' => $wire, 'timeout' => $timeout, 'ignore_errors' => true, 'follow_location' => 0]]);
         set_error_handler(static function (): bool { return true; });
         $started = hrtime(true);
         try {
             $stream = fopen($this->url, 'rb', false, $context);
             if ($stream === false) {
-                if ((hrtime(true) - $started) / 1e9 >= $this->timeout) { return ActionResult::failure('REMOTE_TIMEOUT', 'Remote runtime timed out.', true); }
+                if ((hrtime(true) - $started) / 1e9 >= $timeout) { return ActionResult::failure('REMOTE_TIMEOUT', 'Remote runtime timed out.', true); }
                 return ActionResult::failure('REMOTE_UNAVAILABLE', 'Remote runtime unavailable.', true);
             }
             try {
-                $raw = stream_get_contents($stream, $this->protocol->maxBytes + 1);
-                if ($raw === false || (stream_get_meta_data($stream)['timed_out'] ?? false)) {
-                    return ActionResult::failure('REMOTE_TIMEOUT', 'Remote runtime timed out.', true);
+                if(!stream_set_blocking($stream,false)){return ActionResult::failure('REMOTE_UNAVAILABLE','Remote streaming unavailable.',true);}
+                $raw='';
+                while(!feof($stream)){
+                    try{$work?->check();}catch(\RuntimeException $failure){return ActionResult::failure($failure->getMessage(),'Remote budget ended.',false);}
+                    if((hrtime(true)-$started)/1e9>=$timeout){return ActionResult::failure('REMOTE_TIMEOUT','Remote runtime timed out.',true);}
+                    $chunk=fread($stream,min(16384,$this->protocol->maxBytes+1-strlen($raw)));
+                    if($chunk===false){return ActionResult::failure('REMOTE_UNAVAILABLE','Remote read failed.',true);}
+                    $raw.=$chunk;if(strlen($raw)>$this->protocol->maxBytes){return ActionResult::failure('PAYLOAD_TOO_LARGE','Remote result exceeds limit.');}
+                    if($chunk===''&&!feof($stream)){usleep(1000);}
                 }
+                $work?->check();
             } finally {
                 fclose($stream);
             }

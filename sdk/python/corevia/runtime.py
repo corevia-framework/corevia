@@ -3,13 +3,21 @@ import json
 import logging
 import math
 import socket
+import time
 import uuid
 from functools import partial
+from contextlib import nullcontext
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import Request, build_opener, HTTPRedirectHandler
 from .scopes import ExecutionScope, execution_scope
+from .work_context import Deadline, WorkContext, WorkBudgetError, work_context, parse_traceparent, child_traceparent
+
+class _NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, request, fp, code, message, headers, new_url):
+        return None
+
 
 TYPES = {"action.call", "action.result", "event", "subscribe", "unsubscribe", "ping", "pong"}
 
@@ -31,6 +39,11 @@ def validate_envelope(value):
         for key in ("trace_id", "parent_trace_id"):
             if meta.get(key) is not None and (not isinstance(meta[key], str) or not 0 < len(meta[key]) <= 128):
                 raise CoreviaError("INVALID_META", "Invalid trace metadata.")
+        if "traceparent" in meta and parse_traceparent(meta["traceparent"]) is None:
+            raise CoreviaError("INVALID_META", "Invalid trace context.")
+        deadline = meta.get("deadline_unix_ms")
+        if deadline is not None and (type(deadline) is not int or not 1 <= deadline <= 253402300799999):
+            raise CoreviaError("INVALID_TIMEOUT", "Invalid deadline.")
         timeout = meta.get("timeout_ms", 5000)
         if type(timeout) is not int or not 1 <= timeout <= 300000:
             raise CoreviaError("INVALID_TIMEOUT", "Invalid timeout.")
@@ -63,7 +76,7 @@ def response(request_id, result=None, error=None, trace_id=None, version="1.0", 
 
 
 class Worker:
-    def __init__(self, url="http://127.0.0.1:8090", token=None, authorize=None, timeout=5.0, max_bytes=65536):
+    def __init__(self, url="http://127.0.0.1:8090", token=None, authorize=None, timeout=5.0, max_bytes=65536, telemetry=None):
         parsed = urlparse(url)
         if parsed.scheme != "http" or not parsed.hostname or timeout <= 0:
             raise ValueError("Worker requires an HTTP bind URL and positive timeout; terminate TLS at a proxy.")
@@ -73,6 +86,7 @@ class Worker:
         self.token, self.authorize = token, authorize
         self.timeout, self.max_bytes = timeout, max_bytes
         self.actions = {}
+        self.telemetry = telemetry
         self.server = None
         self.scope_hooks = []
         self.startup_hooks = []
@@ -108,11 +122,22 @@ class Worker:
         validate_envelope(envelope)
         result = None
         try:
-            with execution_scope('python') as scope:
+            timeout_ms = min(300000, max(1, int(self.timeout * 1000)), envelope.get('meta', {}).get('timeout_ms', 5000)) if envelope['cvp'] == '2.0' else min(300000, max(1, int(self.timeout * 1000)))
+            if envelope['cvp'] == '2.0' and 'deadline_unix_ms' in envelope.get('meta', {}):
+                timeout_ms = min(timeout_ms, envelope['meta']['deadline_unix_ms'] - time.time_ns() // 1000000)
+                if timeout_ms < 1:
+                    raise WorkBudgetError('DEADLINE_EXCEEDED')
+            incoming = envelope.get('meta', {}).get('traceparent') if envelope['cvp'] == '2.0' else None
+            traceparent = (incoming if self.telemetry is not None else child_traceparent(incoming)) if incoming else None
+            with (work_context(Deadline(timeout_ms), traceparent) if envelope['cvp'] == '2.0' else nullcontext()), execution_scope('python') as scope, (self.telemetry.span('python.action') if self.telemetry is not None else nullcontext()):
                 for hook in self.scope_hooks:
                     hook(scope)
                 result = self._dispatch(envelope, authorization)
+                if self.telemetry is not None and not result['ok']:
+                    raise RuntimeError('ACTION_FAILED')  # Record failure without exporting its message or data.
                 return result
+        except WorkBudgetError as error:
+            return response(envelope['id'], error={'code': error.code, 'message': 'Worker budget ended.', 'retryable': False}, version=envelope['cvp'], trace_id=envelope.get('meta', {}).get('trace_id'))
         except Exception as error:
             if result is not None and not result['ok']:
                 return result
@@ -138,9 +163,16 @@ class Worker:
         if envelope.get("type") != "action.call" or target not in self.actions:
             return reply(envelope["id"], error={"code": "ACTION_NOT_FOUND", "message": "Action not registered.", "retryable": False}, trace_id=trace)
         try:
+            context = WorkContext.current()
+            if context is not None:
+                context.check()
             result = self.actions[target](envelope["payload"])
+            if context is not None:
+                context.check()
             json.dumps(result, allow_nan=False)
             return reply(envelope["id"], result, trace_id=trace)
+        except WorkBudgetError as error:
+            return reply(envelope["id"], error={"code": error.code, "message": "Worker budget ended.", "retryable": False}, trace_id=trace)
         except CoreviaError as error:
             return reply(envelope["id"], error={"code": error.code, "message": str(error), "retryable": error.retryable}, trace_id=trace)
         except Exception as error:
@@ -230,10 +262,18 @@ class Client:
         self.version = version
 
     def call(self, target, payload, trace_id=None, request_id=None, parent_trace_id=None):
-        request_id, trace_id = request_id or str(uuid.uuid4()), trace_id or str(uuid.uuid4())
+        context = WorkContext.current()
+        if context is not None:
+            context.check()
+        timeout = self.timeout if context is None else min(self.timeout, context.remaining_milliseconds() / 1000)
+        request_id, trace_id = request_id or str(uuid.uuid4()), trace_id or (context.traceparent[3:35] if context is not None and context.traceparent else str(uuid.uuid4()))
         envelope = {"cvp": self.version, "id": request_id, "type": "action.call", "target": target, "payload": payload, "meta": {"trace_id": trace_id}}
         if self.version == "2.0":
-            envelope["meta"]["timeout_ms"] = max(1, int(self.timeout * 1000))
+            envelope["meta"]["timeout_ms"] = max(1, int(timeout * 1000))
+            if context is not None:
+                envelope["meta"]["deadline_unix_ms"] = time.time_ns() // 1000000 + max(1, int(timeout * 1000))
+            if context is not None and context.traceparent:
+                envelope["meta"]["traceparent"] = context.traceparent
             if parent_trace_id is not None:
                 envelope["meta"]["parent_trace_id"] = parent_trace_id
         validate_envelope(envelope)
@@ -241,17 +281,46 @@ class Client:
         if len(wire) > self.max_bytes:
             raise CoreviaError("PAYLOAD_TOO_LARGE", "Request too large.")
         headers = {"Content-Type": "application/json", "X-Trace-Id": trace_id, "X-Request-Id": request_id}
+        if context is not None and context.traceparent:
+            headers["traceparent"] = context.traceparent
         token = self.token() if callable(self.token) else self.token
         if token:
             headers["Authorization"] = "Bearer " + token
+        if context is not None:
+            timeout = min(timeout, context.remaining_milliseconds() / 1000)
+        end = time.monotonic() + timeout
         try:
             try:
-                stream = urlopen(Request(self.base_url + "/cvp", wire, headers), timeout=self.timeout)
+                stream = build_opener(_NoRedirect()).open(Request(self.base_url + "/cvp", wire, headers), timeout=timeout)
             except HTTPError as error:
                 stream = error
             with stream:
-                raw = stream.read(self.max_bytes + 1)
                 status = stream.status
+                response_stream = stream.fp if isinstance(stream, HTTPError) else stream
+                raw = bytearray()
+                while len(raw) <= self.max_bytes:
+                    if context is not None:
+                        context.check()
+                    remaining = end - time.monotonic()
+                    if context is not None:
+                        remaining = min(remaining, context.remaining_milliseconds() / 1000)
+                    if remaining <= 0:
+                        raise CoreviaError('REMOTE_TIMEOUT', 'Remote runtime timed out.', False, request_id, trace_id)
+                    # CPython's stdlib HTTPResponse exposes the underlying socket through its buffered reader.
+                    reader = getattr(response_stream, 'fp', None)
+                    transport = getattr(getattr(reader, 'raw', None), '_sock', None)
+                    if transport is not None:
+                        transport.settimeout(remaining)
+                    elif reader is not None:
+                        raise CoreviaError('REMOTE_UNAVAILABLE', 'Transport cannot enforce its read deadline.', False, request_id, trace_id)
+                    chunk = response_stream.read1(min(16384, self.max_bytes + 1 - len(raw)))
+                    if context is not None:
+                        context.check()
+                    if time.monotonic() >= end:
+                        raise CoreviaError('REMOTE_TIMEOUT', 'Remote runtime timed out.', False, request_id, trace_id)
+                    if not chunk:
+                        break
+                    raw.extend(chunk)
             if len(raw) > self.max_bytes:
                 raise CoreviaError("PAYLOAD_TOO_LARGE", "Response too large.")
             value = validate_envelope(json.loads(raw))

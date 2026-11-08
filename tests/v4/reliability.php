@@ -41,6 +41,6 @@ if(getenv('COREVIA_DB_TESTS')==='1'){
     foreach(\CoreviaTests\Services::drivers() as $driver){
         $db=SqlConnection::connect(\CoreviaTests\Services::sql($driver));$prefix='cv_v4relay_'.bin2hex(random_bytes(6));
         try{contract($db,$prefix);echo "PASS $driver outbox contract\n";}
-        finally{foreach(['outbox','orders'] as $table){$db->execute('DROP TABLE IF EXISTS '.$db->quoteIdentifier($prefix.'_'.$table));}}
+        finally{foreach(['outbox_attempts','outbox_operations','outbox','orders'] as $table){$db->execute('DROP TABLE IF EXISTS '.$db->quoteIdentifier($prefix.'_'.$table));}}
     }
 }

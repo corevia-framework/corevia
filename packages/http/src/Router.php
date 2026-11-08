@@ -125,7 +125,13 @@ final class Router
                 try { $shape = json_decode($request->body, false, 64, JSON_THROW_ON_ERROR); $contract->assertInput($envelope['target'], $shape->payload); }
                 catch (ContractViolation) { return new Response(Protocol::response($envelope['id'], ActionResult::failure('CONTRACT_INPUT_INVALID', 'Action input does not match its contract.'), $trace, $envelope['cvp']), 400); }
             }
-            $result = $this->app->call($envelope['target'], $envelope['payload'], $trace, $envelope['id']);
+            if($envelope['cvp']===Protocol::V2){
+                $parent=\Corevia\Core\TraceContext::parse($envelope['meta']['traceparent']??'');
+                $budget=$envelope['meta']['timeout_ms']??5000;if(isset($envelope['meta']['deadline_unix_ms'])){$budget=min($budget,$envelope['meta']['deadline_unix_ms']-(int)floor(microtime(true)*1000));}
+                if($budget<1){return new Response(Protocol::response($envelope['id'],ActionResult::failure('DEADLINE_EXCEEDED','Action budget ended.',false),$trace,$envelope['cvp']),422);}
+                try{$result=\Corevia\Core\WorkContext::run(new \Corevia\Core\Deadline($budget),fn()=>$this->app->call($envelope['target'],$envelope['payload'],$trace,$envelope['id']),$parent?->child());}
+                catch(\RuntimeException $failure){if(!in_array($failure->getMessage(),['WORK_CANCELLED','DEADLINE_EXCEEDED'],true)){throw $failure;}$result=ActionResult::failure($failure->getMessage(),'Action budget ended.',false);}
+            }else{$result=$this->app->call($envelope['target'],$envelope['payload'],$trace,$envelope['id']);}
             if ($contract !== null) {
                 try { if ($result->ok) { $contract->assertOutput($envelope['target'], $result->data instanceof \Corevia\Core\State ? $result->data->data : $result->data); } else { $contract->assertError($envelope['target'], $result->error->code, $result->error->retryable); } }
                 catch (ContractViolation) { return new Response(Protocol::response($envelope['id'], ActionResult::failure('CONTRACT_OUTPUT_INVALID', 'Action result does not match its contract.'), $trace, $envelope['cvp']), 500); }

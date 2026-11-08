@@ -2,7 +2,7 @@
 declare(strict_types=1);
 namespace Corevia\Persistence;
 
-use Corevia\Core\{Deadline,ScheduleEntry,ScopeManager};
+use Corevia\Core\{Deadline,ScheduleEntry,ScopeManager,WorkContext};
 
 /** A dedicated scheduler queue; same named scope must use the same definitions on every host. */
 final readonly class SqlScheduler
@@ -54,7 +54,7 @@ final readonly class SqlScheduler
         try {
             $deadline=new Deadline($entry->timeoutSeconds*1000);
             $result=$this->scopes->run('job',
-                fn($scope)=>$handlers[$entry->task]($entry->input(),$claim,$deadline,$scope,$lease->fence),
+                fn($scope)=>WorkContext::run($deadline,fn()=>$handlers[$entry->task]($entry->input(),$claim,$deadline,$scope,$lease->fence)),
                 ['job_id'=>$claim->id,'schedule_id'=>$entry->id]);
             if (!is_array($result)) { throw new \LogicException('Scheduled handlers return an array.'); }
             $deadline->check();$finished=$this->queue->clock();

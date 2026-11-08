@@ -8,6 +8,8 @@ if($directory===false||dirname($directory)!==$storage||!str_starts_with(basename
 $pdo=new PDO('sqlite:'.$directory.'/test.sqlite');$pdo->exec('PRAGMA busy_timeout=10000');$db=new SqlConnection($pdo);
 $scope=new TenantScope('alpha','fixture',fn()=>true);$budget=new SqlUsageBudget($db,100);$sync=new SqlSyncStore($db,str_repeat('s',32));$outbox=new SqlOutbox($db);$queue=new SqlCoordinator($db);
 if(($argv[1]??'')==='prepare'){
+    // Provision only this private fixture for the documented local multi-worker SQLite mode.
+    if(strtolower((string)$pdo->query('PRAGMA journal_mode=WAL')->fetchColumn())!=='wal'){throw new RuntimeException('Multi-worker fixture requires SQLite WAL on local disk.');}
     $budget->migrate();$sync->migrate();$outbox->migrate();$queue->migrate();$resilience=new SqlResilience($db,'shared',1,10,30,10,60,clock:fn()=>1000);$resilience->migrate();$resilience->fail($resilience->enter());
     for($i=0;$i<12;$i++){$outbox->commit('test.delivery',['number'=>$i],fn()=>null,1000);}
     echo "prepared\n";exit;

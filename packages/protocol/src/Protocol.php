@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Corevia\Protocol;
 
-use Corevia\Core\ActionResult;
+use Corevia\Core\{ActionResult,WorkContext};
 
 final class Protocol
 {
@@ -49,6 +49,8 @@ final class Protocol
             foreach (['trace_id', 'parent_trace_id'] as $key) {
                 if (isset($value['meta'][$key]) && (!is_string($value['meta'][$key]) || $value['meta'][$key] === '' || strlen($value['meta'][$key]) > 128)) { throw new \InvalidArgumentException('INVALID_META'); }
             }
+            if(isset($value['meta']['traceparent'])&&(!is_string($value['meta']['traceparent'])||\Corevia\Core\TraceContext::parse($value['meta']['traceparent'])===null)){throw new \InvalidArgumentException('INVALID_META');}
+            if(isset($value['meta']['deadline_unix_ms'])&&(!is_int($value['meta']['deadline_unix_ms'])||$value['meta']['deadline_unix_ms']<1||$value['meta']['deadline_unix_ms']>253402300799999)){throw new \InvalidArgumentException('INVALID_TIMEOUT');}
             $timeout = $value['meta']['timeout_ms'] ?? 5000;
             if (!is_int($timeout) || $timeout < 1 || $timeout > 300000) { throw new \InvalidArgumentException('INVALID_TIMEOUT'); }
             if (array_key_exists('ok', $value) && ($value['type'] ?? null) !== 'action.result') { throw new \InvalidArgumentException('INVALID_MESSAGE_TYPE'); }
@@ -101,8 +103,11 @@ final class Protocol
 
     public static function request(string $type, string $target = '', array $payload = [], ?string $id = null, ?string $traceId = null, string $version = self::VERSION, ?string $parentTraceId = null, int $timeoutMs = 5000): array
     {
-        $meta = ['trace_id' => $traceId ?? bin2hex(random_bytes(16))];
-        if ($version === self::V2) { $meta['timeout_ms'] = $timeoutMs; if ($parentTraceId !== null) { $meta['parent_trace_id'] = $parentTraceId; } }
+        $context=WorkContext::current();$context?->check();
+        $meta = ['trace_id' => $traceId ?? $context?->trace?->traceId ?? bin2hex(random_bytes(16))];
+        if($context?->trace!==null){$meta['traceparent']=$context->trace->header();}
+        if($context!==null){$timeoutMs=min($timeoutMs,$context->remainingMilliseconds());}
+        if ($version === self::V2) { $meta['timeout_ms'] = $timeoutMs; if($context!==null){$meta['deadline_unix_ms']=(int)floor(microtime(true)*1000)+$timeoutMs;} if ($parentTraceId !== null) { $meta['parent_trace_id'] = $parentTraceId; } }
         return ['cvp' => $version, 'id' => $id ?? 'req_' . bin2hex(random_bytes(12)), 'type' => $type, 'target' => $target, 'payload' => $payload, 'meta' => $meta];
     }
 

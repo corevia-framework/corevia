@@ -63,6 +63,8 @@ def main():
         ('php-lint', composer_command + ['lint'], {}),
         ('php-regression', composer_command + ['test'], {}),
         ('sqlite-concurrency', [sys.executable, 'tests/v4/concurrency.py'], {}),
+        ('cross-runtime-budgets', [sys.executable, 'tests/v4/cross-runtime.py'], {}),
+        ('outbound-http-budgets', [sys.executable, 'tests/v4/outbound-http.py'], {}),
         ('architecture', [sys.executable, 'tools/architecture.py'], {}),
         ('v3-api-compatibility', [sys.executable, 'tests/v4/compatibility.py'], {}),
         ('v3-backup-restoration', [sys.executable, 'tests/v4/persistence.py'], {}),

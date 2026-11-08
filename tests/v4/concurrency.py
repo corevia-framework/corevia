@@ -35,4 +35,4 @@ assert sum(row['mutation'] for row in results) == 1, results
 assert sum(row['sent'] for row in results) == 12, results
 deliveries = (directory / 'deliveries.txt').read_text().splitlines()
 assert len(deliveries) == len(set(deliveries)) == 12
-print('PASS 8-process races: budget cannot overspend; one optimistic writer; unique active outbox claims; deduplicated dispatch and single overlap lease; one circuit probe and bounded shared retries')
+print('PASS 8-process SQLite WAL races: budget cannot overspend; one optimistic writer; unique active outbox claims; deduplicated dispatch and single overlap lease; one circuit probe and bounded shared retries')
