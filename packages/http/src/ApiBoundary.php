@@ -11,7 +11,7 @@ final readonly class ApiBoundary implements Middleware
         catch(ApiProblem $error){$response=ApiResponse::error($error->errorCode,$error->getMessage(),$error->status);}
         catch(\LengthException){$response=ApiResponse::error('REQUEST_TOO_LARGE','Reduce the request size.',413);}
         catch(\JsonException|\InvalidArgumentException){$response=ApiResponse::error('INVALID_INPUT','Check the request data.',422);}
-        catch(\Throwable $error){$this->logger?->log('error','API handler failed',['exception'=>$error::class]);$response=ApiResponse::error('INTERNAL_ERROR','Request could not be completed.',500);}
+        catch(\Throwable $error){$this->logger?->log('error','API handler failed',['exception'=>\Corevia\Core\ExceptionIdentity::name($error)]);$response=ApiResponse::error('INTERNAL_ERROR','Request could not be completed.',500);}
         return $response->withHeaders(ApiResponse::version($this->version,$this->sunset));
     }
 }

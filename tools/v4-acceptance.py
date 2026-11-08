@@ -35,6 +35,8 @@ def main():
     parser.add_argument('--mobile', action='store_true', help='Require Dart analysis/unit tests and actual JS/Dart/PHP offline HTTP acceptance')
     parser.add_argument('--ai-ui', action='store_true', help='Test the common AI page across all UI stacks with multilingual accessibility, streaming and cancellation fixtures')
     parser.add_argument('--passkeys', action='store_true', help='Install/audit locked optional test dependencies and run real WebAuthn virtual-authenticator tests')
+    parser.add_argument('--worker-endurance', action='store_true', help='Explicit bounded PHP/SQLite lifecycle soak plus actual killed-worker recovery')
+    parser.add_argument('--soak-seconds', type=int, default=60)
     parser.add_argument('--services', action='store_true', help='Explicit disposable SQL service tests; never reads application credentials')
     args = parser.parse_args()
     target = Path(args.output)
@@ -75,6 +77,8 @@ def main():
         ('javascript-sdk', ['node', '--test', *[p.relative_to(ROOT).as_posix() for p in sorted((ROOT / 'sdk/js/test').glob('*.test.js'))]], {}),
         ('python-sdk', [sys.executable, '-m', 'unittest', 'discover', '-s', 'sdk/python/tests'], {'PYTHONPATH': 'sdk/python'}),
     ]
+    if args.worker_endurance:
+        checks.append(('worker-endurance', [sys.executable, 'tests/v4/worker-endurance.py', '--seconds=' + str(args.soak_seconds), '--output=' + str(target / 'worker-endurance')], {}))
     if args.mobile:
         dart = os.environ.get('COREVIA_DART') or shutil.which('dart')
         cached = ROOT / 'storage/dart-tools/dart-sdk/bin' / ('dart.exe' if os.name == 'nt' else 'dart')
@@ -116,8 +120,8 @@ def main():
                            'node': subprocess.run(['node', '--version'], capture_output=True, text=True, check=True).stdout.strip()},
               'unmet_release_gates': [
                   'Phase D full application identity/audit/data-lifecycle integration, accessibility/manual review and real provider/service/device acceptance',
-                  'Phase E trace/metric export, cross-runtime resilience, full delivery operations and hosting acceptance',
-                  'Phase F ingestion/vector-provider acceptance, tool isolation/evaluations and mobile SDK workflows',
+                  'Phase E authenticated collector/TLS/persistence, full hosting and sustained workload acceptance',
+                  'Phase F real model/provider evaluations, OS tool isolation and native-device/durable mobile storage acceptance',
                   'Required remote CI, supported services/runtimes, security review and worker soak/load acceptance',
                   'Real shared/VPS/AWS/Azure hosting acceptance and final Composer package publication',
               ]}
@@ -125,7 +129,7 @@ def main():
         started = time.monotonic()
         try:
             with (target / (name + '.log')).open('wb') as log:
-                completed = subprocess.run(command, cwd=ROOT, env={**env, **overrides}, stdout=log, stderr=subprocess.STDOUT, timeout=600)
+                completed = subprocess.run(command, cwd=ROOT, env={**env, **overrides}, stdout=log, stderr=subprocess.STDOUT, timeout=max(600,args.soak_seconds+60) if name=='worker-endurance' else 600)
             entry = {'name': name, 'exit_code': completed.returncode}
         except (OSError, subprocess.TimeoutExpired) as error:
             entry = {'name': name, 'exit_code': -1, 'error_type': type(error).__name__}

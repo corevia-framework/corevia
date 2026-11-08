@@ -26,6 +26,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--recipes', required=True)
     parser.add_argument('--output-root', required=True)
+    parser.add_argument('--application', help='Optional disposable source copy inside Corevia acceptance sources/storage only')
     args = parser.parse_args()
     root = Path(args.output_root).resolve(strict=True)
     # The staging host also runs unrelated live sites. Refuse all other paths.
@@ -41,6 +42,10 @@ def main():
         raise SystemExit('Actual nginx and PHP-FPM are required; missing binaries are not a pass.')
     os.umask(0o077)
     fixture = Path(tempfile.mkdtemp(prefix='v4-hosting-', dir=root))
+    application = Path(args.application).resolve(strict=True) if args.application else None
+    if application is not None and not (application.is_relative_to(allowed / 'sources') or application.is_relative_to(local_storage)):
+        raise ValueError('Full-app checks require a disposable Corevia acceptance copy.')
+    application_hashes = {p.relative_to(application).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(application.rglob('*')) if p.is_file() and p.relative_to(application).parts[0] not in {'storage','.git'}} if application else {}
     public = fixture / 'app/public'
     public.mkdir(parents=True)
     (public / 'assets').mkdir()
@@ -49,6 +54,8 @@ def main():
     for name in ['other.php', 'other.PHP', '.env']:
         (public / name).write_text('PRIVATE_FIXTURE_MUST_NOT_BE_SERVED', encoding='utf-8')
     (fixture / 'app/.env').write_text('PRIVATE_FIXTURE_MUST_NOT_BE_SERVED', encoding='utf-8')
+    if application is not None:
+        public = application / 'public'
     fpm_port = port()
     user = pwd.getpwuid(os.getuid()).pw_name
     config = fixture / 'php-fpm.conf'
@@ -58,6 +65,7 @@ def main():
     pool = pool.replace('listen.owner = www-data', 'listen.owner = ' + user).replace('listen.group = www-data', 'listen.group = ' + group)
     pool = pool.replace('listen = /run/php/corevia.sock', f'listen = 127.0.0.1:{fpm_port}')
     pool = pool.replace('/srv/corevia/shared/storage', str(fixture))
+    pool = pool.replace('env[APP_ENV] = production', 'env[APP_ENV] = testing')
     config.write_text(f'[global]\npid = {fixture}/fpm.pid\nerror_log = {fixture}/fpm-error.log\ndaemonize = no\n' + pool + '\nphp_admin_value[cgi.fix_pathinfo] = 0\n', encoding='utf-8')
     subprocess.run([fpm, '-t', '-y', str(config)], check=True, capture_output=True)
     children = []
@@ -74,7 +82,7 @@ def main():
             template = template.replace('include fastcgi_params;', 'include /etc/nginx/fastcgi_params;')
             template = template.replace('unix:/run/php/corevia.sock', f'127.0.0.1:{fpm_port}').replace('127.0.0.1:9000', f'127.0.0.1:{fpm_port}')
             nginx_config = fixture / (target + '.conf')
-            nginx_config.write_text(f'pid {fixture}/{target}.pid;\nerror_log {fixture}/{target}-error.log;\nevents {{ worker_connections 64; }}\nhttp {{ client_body_temp_path {fixture}/body-{target}; fastcgi_temp_path {fixture}/fastcgi-{target};\n' + template + '\n}\n', encoding='utf-8')
+            nginx_config.write_text(f'pid {fixture}/{target}.pid;\nerror_log {fixture}/{target}-error.log;\nevents {{ worker_connections 64; }}\nhttp {{ include /etc/nginx/mime.types; default_type application/octet-stream; client_body_temp_path {fixture}/body-{target}; fastcgi_temp_path {fixture}/fastcgi-{target};\n' + template + '\n}\n', encoding='utf-8')
             subprocess.run([nginx, '-t', '-p', str(fixture), '-c', str(nginx_config)], check=True, capture_output=True)
             log = (fixture / (target + '.log')).open('wb'); handles.append(log)
             child = subprocess.Popen([nginx, '-p', str(fixture), '-c', str(nginx_config), '-g', 'daemon off;'], stdout=log, stderr=log, start_new_session=True)
@@ -101,9 +109,16 @@ def main():
             else:
                 raise AssertionError('Private server startup timed out.')
             status, body = request('/nested/page?key=fixture')
-            assert status == 200 and json.loads(body) == {'path': '/nested/page?key=fixture', 'https': 'on'}
+            if application is None:
+                assert status == 200 and json.loads(body) == {'path': '/nested/page?key=fixture', 'https': 'on'}
+            else:
+                assert request('/')[0] == 200 and b'Corevia' in request('/')[1]
+                assert request('/hello/VPS')[0] == 200
+                assert request('/unknown-fixture-page')[0] == 404
             assert request('/assets/app.css')[0] == 200
-            for path in ['/.env', '/other.php', '/other.PHP', '/other.php/path', '/config/secrets.php', '/%2e%2e/.env']:
+            with urllib.request.urlopen(origin + '/assets/app.css', timeout=3) as asset:
+                assert asset.headers.get_content_type() == 'text/css'
+            for path in (['/.env', '/config/secrets.php', '/%2e%2e/.env'] if application else ['/.env', '/other.php', '/other.PHP', '/other.php/path', '/config/secrets.php', '/%2e%2e/.env']):
                 status, body = request(path)
                 assert status in {400, 404} and b'PRIVATE_FIXTURE' not in body, path
             report['checks'].append(target + ': actual routing/static/private-file/FPM checks passed')
@@ -121,9 +136,12 @@ def main():
         report['checks'].append('VPS FPM template exercised; systemd unit/timer syntax checked without installation/start')
         subprocess.run(['sh', '-n', str(recipes / 'azure/startup.sh')], check=True, capture_output=True)
         report['checks'].append('Azure startup shell syntax only; script was not executed')
+        report['application_checked'] = application is not None
         report['source_hashes'] = source_hashes
         report['source_unchanged'] = source_hashes == {str(p.relative_to(recipes)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(recipes.rglob('*')) if p.is_file()}
-        report['passed'] = report['source_unchanged']
+        report['application_source_hashes'] = application_hashes
+        report['application_source_unchanged'] = application is None or application_hashes == {p.relative_to(application).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(application.rglob('*')) if p.is_file() and p.relative_to(application).parts[0] not in {'storage','.git'}}
+        report['passed'] = report['source_unchanged'] and report['application_source_unchanged']
     finally:
         for child in reversed(children):
             if child.poll() is None:
@@ -136,7 +154,7 @@ def main():
             handle.close()
         report['owned_processes_stopped'] = all(child.poll() is not None for child in children)
         (fixture / 'report.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
-    print(json.dumps({'fixture': str(fixture), **report}))
+    print(json.dumps({'fixture': str(fixture), **{k:v for k,v in report.items() if k not in {'source_hashes','application_source_hashes'}}}))
 
 
 if __name__ == '__main__':

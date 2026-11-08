@@ -100,7 +100,7 @@ final readonly class AccountLifecycle
         }catch(\Throwable $error){
             if($this->store->userById($id)===null){throw $error;}
             $status=$error instanceof DataRetentionHold?'held':'failed';
-            $this->progress($id,$operation,$owner,static function(array &$job)use($status,$error):void{$job['status']=$status;$job['error_class']=$error::class;$job['owner']='';$job['lease']=0;});
+            $this->progress($id,$operation,$owner,static function(array &$job)use($status,$error):void{$job['status']=$status;$job['error_class']=\Corevia\Core\ExceptionIdentity::name($error);$job['owner']='';$job['lease']=0;});
             return ['status'=>$status,'error_code'=>$error instanceof DataRetentionHold?'RETENTION_HOLD':'ADAPTER_OR_AUDIT_FAILED'];
         }
     }

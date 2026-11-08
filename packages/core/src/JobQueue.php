@@ -45,7 +45,7 @@ final class JobQueue
                 try {
                     $result=$app->scope('job',fn():FlowResult=>$app->run($job['flow'],$job['input'],'job:'.$job['id']),['job_id'=>$job['id']]);
                     $job['run_id']=$result->run['run_id']; $job['status']=$result->status();
-                } catch (\Throwable $error) { $job['status']='failed'; $job['error']=['code'=>'JOB_FAILED','exception'=>$error::class]; }
+                } catch (\Throwable $error) { $job['status']='failed'; $job['error']=['code'=>'JOB_FAILED','exception'=>ExceptionIdentity::name($error)]; }
                 $job['finished_at']=gmdate('c'); $this->write($file,$job); return true;
             } finally { flock($file,LOCK_UN); fclose($file); }
         }

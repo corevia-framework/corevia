@@ -22,7 +22,7 @@ final readonly class AccountRecovery
         if(!$this->store->issueAccountToken($user['id'],$purpose,hash('sha256',$token),$expires,$user['auth_version']??0,$now,$user['email'])){return;}
         $path=$purpose==='reset'?'/reset-password':'/verify-email';
         $this->delivery->deliver(new AccountMessage($user['email'],$purpose,$expires,$this->auth->origin.$path.'#token='.$token));}
-        catch(\Throwable $error){try{$this->logger?->log('error','Account delivery failed',['purpose'=>$purpose,'exception_class'=>$error::class]);}catch(\Throwable){}/* Generic client reply avoids exposing account existence or transport details. */}
+        catch(\Throwable $error){try{$this->logger?->log('error','Account delivery failed',['purpose'=>$purpose,'exception_class'=>\Corevia\Core\ExceptionIdentity::name($error)]);}catch(\Throwable){}/* Generic client reply avoids exposing account existence or transport details. */}
     }
     public function afterRegistration(AuthContext $context):void{if($context->user!==null){$user=$this->store->userById($context->user['id']);if($user!==null){$this->send($user,'verify');}}}
     public function requestReset(Request $request):void

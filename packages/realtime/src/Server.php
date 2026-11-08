@@ -112,7 +112,7 @@ final class Server implements Broadcaster
                                 $this->deliver($event['message']);
                             }
                         }
-                    } catch (\Throwable $error) { $this->logger->log('warning', 'Pub/sub delivery failed', ['exception' => $error::class]); }
+                    } catch (\Throwable $error) { $this->logger->log('warning', 'Pub/sub delivery failed', ['exception' => \Corevia\Core\ExceptionIdentity::name($error)]); }
                 }
             }
         } finally {
@@ -220,7 +220,7 @@ final class Server implements Broadcaster
                 }
             }
         } catch (\Throwable $exception) {
-            $this->logger->log('warning', 'Realtime client rejected', ['exception' => $exception::class]);
+            $this->logger->log('warning', 'Realtime client rejected', ['exception' => \Corevia\Core\ExceptionIdentity::name($exception)]);
             if (isset($this->clients[$id]) && $this->clients[$id]['ready']) {
                 $this->clients[$id]['out'] .= Frame::encode(pack('n', 1008), 8);
                 $this->clients[$id]['closing'] = true;

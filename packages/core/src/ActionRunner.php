@@ -21,10 +21,10 @@ final class ActionRunner
             $output = $action->handle($state, $context);
             $result = $output instanceof ActionResult ? $output : ActionResult::success($output);
         } catch (\Throwable $exception) {
-            $context->logger->log('error', 'Unexpected action failure', ['module' => $context->module, 'flow' => $context->flow, 'action' => $class, 'run_id' => $context->runId, 'trace_id' => $context->traceId, 'exception' => $exception::class]);
+            $context->logger->log('error', 'Unexpected action failure', ['module' => $context->module, 'flow' => $context->flow, 'action' => $class, 'run_id' => $context->runId, 'trace_id' => $context->traceId, 'exception' => ExceptionIdentity::name($exception)]);
             $retryable = false;
             foreach ($retryableExceptions as $allowed) { if ($exception instanceof $allowed) { $retryable = true; break; } }
-            $result = ActionResult::failure('ACTION_EXCEPTION', 'Action execution failed.', $retryable, ['exception_class' => $exception::class]);
+            $result = ActionResult::failure('ACTION_EXCEPTION', 'Action execution failed.', $retryable, ['exception_class' => ExceptionIdentity::name($exception)]);
         }
         $context->logger->log($result->ok ? 'info' : 'warning', 'Action executed', ['module' => $context->module, 'flow' => $context->flow, 'action' => $class, 'run_id' => $context->runId, 'trace_id' => $context->traceId, 'request_id' => $context->requestId, 'duration_ms' => (hrtime(true) - $start) / 1e6, 'error_code' => $result->error?->code]);
         return $result;
