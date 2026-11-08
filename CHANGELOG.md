@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add V4 contract-validated AI JSON output, immutable knowledge revisions, active-revision-filtered SQL/Qdrant retrieval, bounded evaluations and one-use permissioned tools with human session confirmation. Refresh the optional shared AI page with multilingual/RTL themes, streaming/cancellation and accessible feedback; keep external models, databases and tool isolation optional and explicitly configured.
+
 - Add opt-in bounded PHP/Python telemetry, OTLP traces/delta metrics, private operations routes and development inspection. Propagate cooperative work budgets/trace context over CVP/2 HTTP/process calls and shared jobs; reject outbound redirects and bound slow response reads. Add durable outbox attempt history, fixed signed webhook delivery, shared SQL replay reservations and controlled stable-ID redelivery.
 
 - Add bounded V4 SQL scheduling with named cron/timezone/DST semantics, atomic seven-day dispatch reservations, overlap skipping, scoped cleanup and explicit dead-job inspection/retry. Add shared circuit breakers, fenced recovery probes, retry quotas, jitter and deadline-aware retry execution. Extend disposable service contracts across V4 identity, scheduler, resilience, outbox and connected-client storage.

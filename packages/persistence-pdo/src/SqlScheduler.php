@@ -2,7 +2,7 @@
 declare(strict_types=1);
 namespace Corevia\Persistence;
 
-use Corevia\Core\{Deadline,ScheduleEntry,ScopeManager,WorkContext};
+use Corevia\Core\{Deadline,ExceptionIdentity,ScheduleEntry,ScopeManager,WorkContext};
 
 /** A dedicated scheduler queue; same named scope must use the same definitions on every host. */
 final readonly class SqlScheduler
@@ -63,7 +63,7 @@ final readonly class SqlScheduler
             return ['status'=>$ack?'completed':'lost_ownership','job_id'=>$claim->id];
         } catch (\Throwable $error) {
             $ack=$this->queue->fail($claim,$this->queue->clock());
-            return ['status'=>$ack?'failed':'lost_ownership','job_id'=>$claim->id,'error_class'=>$error::class];
+            return ['status'=>$ack?'failed':'lost_ownership','job_id'=>$claim->id,'error_class'=>ExceptionIdentity::name($error)];
         } finally {
             $this->queue->release($lease,$this->queue->clock());
         }

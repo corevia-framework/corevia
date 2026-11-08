@@ -32,6 +32,7 @@ def main():
     parser.add_argument('--output', required=True, help='New private directory under repository storage/')
     parser.add_argument('--browser', action='store_true')
     parser.add_argument('--auth-ui', action='store_true', help='Rebuild/verify assets and test all auth stacks, locales, themes and storage modes')
+    parser.add_argument('--ai-ui', action='store_true', help='Test the common AI page across all UI stacks with multilingual accessibility, streaming and cancellation fixtures')
     parser.add_argument('--passkeys', action='store_true', help='Install/audit locked optional test dependencies and run real WebAuthn virtual-authenticator tests')
     parser.add_argument('--services', action='store_true', help='Explicit disposable SQL service tests; never reads application credentials')
     args = parser.parse_args()
@@ -87,6 +88,9 @@ def main():
         checks.append(('auth-assets', ['node', 'tools/build-auth-starters.mjs', '--check'], {}))
         for name, sql, crypto, accessibility in [('auth-json-accessibility', '0', '0', '1'), ('auth-json-identity', '0', '1', '0'), ('auth-sql-identity', '1', '1', '0')]:
             checks.append((name, ['node', 'tests/v3/auth-browser.mjs'], {'COREVIA_AUTH_STACK': '', 'COREVIA_AUTH_SQL': sql, 'COREVIA_AUTH_CRYPTO': crypto, 'COREVIA_AUTH_A11Y': accessibility}))
+    if args.ai_ui:
+        for stack in ['bootstrap','tailwind','react']:
+            checks.append(('ai-ui-' + stack, ['node', 'tests/v3/ai-browser.mjs'], {'COREVIA_AI_STACK': stack, 'COREVIA_AI_A11Y': '1'}))
     if args.passkeys:
         optional = ROOT / 'tests/v4/passkey-dependencies'
         for name, command in [('passkey-dependencies', ['install', '--no-interaction', '--no-scripts', '--no-plugins', '--prefer-dist']),

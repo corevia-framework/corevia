@@ -4,11 +4,12 @@ namespace Corevia\Protocol;
 use Corevia\Core\{ActionResult,WorkContext};
 
 /** One trusted local executable per call; JSON on stdin/stdout, no shell interpolation. */
-final readonly class ProcessTransport
+final readonly class ProcessTransport implements \Corevia\Core\ActionTransport
 {
-    public function __construct(private array $command, private int $timeoutMs = 5000, private Protocol $protocol = new Protocol())
+    public function __construct(private array $command, private int $timeoutMs = 5000, private Protocol $protocol = new Protocol(),private ?array $environment=null)
     {
         if ($command === [] || $timeoutMs < 1 || $timeoutMs > 300000) { throw new \InvalidArgumentException('Command and bounded deadline required.'); }
+        foreach($environment??[] as $name=>$value){if(!is_string($name)||!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/D',$name)||!is_string($value)||str_contains($value,"\0")){throw new \InvalidArgumentException('Invalid child environment allowlist.');}}
         foreach ($command as $arg) { if (!is_string($arg) || str_contains($arg, "\0")) { throw new \InvalidArgumentException('Invalid process argument.'); } }
     }
     public function call(string $target, array $payload): ActionResult
@@ -21,7 +22,7 @@ final readonly class ProcessTransport
         try {
             file_put_contents($directory . '/input', $this->protocol->encode($request) . "\n");
             $work?->check();
-            $process = proc_open($this->command, [['file', $directory . '/input', 'r'], ['file', $directory . '/output', 'w'], ['file', $directory . '/error', 'w']], $pipes, null, null, ['bypass_shell' => true, 'create_no_window' => true]);
+            $process = proc_open($this->command, [['file', $directory . '/input', 'r'], ['file', $directory . '/output', 'w'], ['file', $directory . '/error', 'w']], $pipes, null, $this->environment, ['bypass_shell' => true, 'create_no_window' => true]);
             if (!is_resource($process)) { return ActionResult::failure('PROCESS_UNAVAILABLE', 'Worker could not start.', true); }
             $start = hrtime(true);
             do {

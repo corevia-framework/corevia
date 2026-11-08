@@ -62,4 +62,6 @@ try {
 $logger=new class implements \Corevia\Core\Logger { public function log(string $level,string $message,array $context=[]):void {} };
 $queries=new \Corevia\Persistence\QueryDiagnostics($logger,'fixture',capacity:1);$queries->record('SELECT one',1.0);$queries->record('SELECT two',1.0);check(count($queries->snapshot())===1&&$queries->droppedPatterns()===1);
 
+$anonymousTelemetry=new Telemetry('fixture',['private.failure'=>'internal']);$anonymous=new class('private message') extends \RuntimeException {};rejects(fn()=>$anonymousTelemetry->span('private.failure',static fn()=>throw $anonymous));$anonymousSpan=$anonymousTelemetry->snapshot()['spans'][0];check($anonymousSpan['errorType']==='Throwable'&&!str_contains(json_encode($anonymousSpan),__FILE__));
+
 echo "PASS bounded redacted spans/metrics, nested trace/budget/Fiber cleanup, OTLP envelopes, streaming contexts, private health and production inspector denial\n";

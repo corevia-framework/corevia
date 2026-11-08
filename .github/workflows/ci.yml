@@ -99,6 +99,10 @@ jobs:
       - run: php tests/v4/observability.php
       - run: php tests/v4/webhooks.php
       - run: php tests/v4/reliability.php
+      - run: php tests/v4/ai-platform.php
+      - run: php tests/v4/knowledge.php
+      - run: php tests/v4/tools.php
+      - run: php tests/v4/human-tool-review.php
       - run: php tests/v4/connected.php
       - run: python tests/v4/concurrency.py
       - run: python tests/v4/compatibility.py
@@ -137,6 +141,18 @@ jobs:
       - run: node tests/v3/ai-browser.mjs
         env:
           PYTHON: python
+          COREVIA_AI_A11Y: '1'
+          COREVIA_AI_STACK: bootstrap
+      - run: node tests/v3/ai-browser.mjs
+        env:
+          PYTHON: python
+          COREVIA_AI_A11Y: '1'
+          COREVIA_AI_STACK: tailwind
+      - run: node tests/v3/ai-browser.mjs
+        env:
+          PYTHON: python
+          COREVIA_AI_A11Y: '1'
+          COREVIA_AI_STACK: react
       - run: node tests/v4/workspace-browser.mjs .
       - run: composer install --working-dir=tests/v4/passkey-dependencies --no-interaction --no-scripts --no-plugins --prefer-dist
       - run: composer validate --working-dir=tests/v4/passkey-dependencies --strict

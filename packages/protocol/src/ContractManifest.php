@@ -4,7 +4,7 @@ namespace Corevia\Protocol;
 use Corevia\Core\CanonicalJson;
 
 /** Versioned application contracts using an explicitly supported JSON Schema subset. */
-final readonly class ContractManifest
+final readonly class ContractManifest implements \Corevia\Core\ActionContract
 {
     private function __construct(private array $data) {}
     public static function load(string $path): self
@@ -95,6 +95,14 @@ final readonly class ContractManifest
         return CanonicalJson::encode($data);
     }
     public function fingerprint(): string { return hash('sha256', $this->json()); }
+    public function inputSchema(string $action):array { return $this->actionSchema($action,'input'); }
+    public function outputSchema(string $action):array { return $this->actionSchema($action,'output'); }
+    private function actionSchema(string $action,string $part):array
+    {
+        $wire=json_decode($this->json(),false,64,JSON_THROW_ON_ERROR);
+        $schema=$wire->actions->{$action}->{$part}??throw new ContractViolation('Unknown action.');
+        return ['$defs'=>$wire->{'$defs'},...(array)$schema];
+    }
     public function actions(): array { return array_keys($this->data['actions']); }
     public function requirements(string $action): array { return ($this->data['actions'][$action] ?? throw new ContractViolation('Unknown action.'))['auth'] ?? []; }
     public function assertInput(string $action, mixed $value): void { $this->validate(($this->data['actions'][$action] ?? throw new ContractViolation('Unknown action.'))['input'], $value); }

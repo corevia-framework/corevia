@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace Corevia\Persistence;
-use Corevia\Core\EventOutbox;
+use Corevia\Core\{EventOutbox,ExceptionIdentity};
 
 /** One database transaction for application writes and events; delivery is at least once. */
 final readonly class SqlOutbox implements EventOutbox
@@ -54,7 +54,7 @@ final readonly class SqlOutbox implements EventOutbox
             if(!$claimed){continue;}
             $started=hrtime(true);$failure=null;
             try{\Corevia\Core\WorkContext::run(new \Corevia\Core\Deadline(($leaseSeconds-1)*1000),fn()=>$send(['event_id'=>$row['id'],'topic'=>$row['topic'],'data'=>json_decode($row['payload'],true,32,JSON_THROW_ON_ERROR),'attempt'=>$attempt]));}
-            catch(\Throwable $error){$failure=$error::class;}
+            catch(\Throwable $error){$failure=ExceptionIdentity::name($error);}
             $finished=$now+(int)floor(max(0,hrtime(true)-$started)/1e9);
             $this->db->transaction(function()use($row,$owner,$attempt,$finished,$maxAttempts,$failure):void{
                 $next=$failure===null?'done':($attempt>=$maxAttempts?'dead':'pending');

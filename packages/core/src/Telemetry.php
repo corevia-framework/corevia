@@ -37,7 +37,7 @@ final class Telemetry
                 if (count($this->spans)>=$this->capacity) { $this->dropped++; }
                 else { $this->spans[]=['traceId'=>$context->traceId,'spanId'=>$context->spanId,'parentSpanId'=>$parent?->spanId,
                     'name'=>$operation,'kind'=>$this->operations[$operation],'startTimeUnixNano'=>(string)$start,'endTimeUnixNano'=>(string)($start+$elapsed),
-                    'errorType'=>$error===null?null:$error::class]; }
+                    'errorType'=>$error===null?null:ExceptionIdentity::name($error)]; }
             }
         }
     }
