@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 from .scopes import ExecutionScope, execution_scope
 from .work_context import Deadline, WorkContext, WorkBudgetError, work_context, parse_traceparent, child_traceparent
+from .cancellation import CancellationRegistry, CancellationError, validate_control
 
 class _NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, request, fp, code, message, headers, new_url):
@@ -36,6 +37,11 @@ def validate_envelope(value):
     if not isinstance(meta, dict) or (meta.get("trace_id") is not None and (not isinstance(meta["trace_id"], str) or len(meta["trace_id"]) > 128)):
         raise CoreviaError("INVALID_META", "Invalid metadata.")
     if value["cvp"] == "2.0":
+        if 'cancel_capability' in meta:
+            try:
+                validate_control(value['id'], meta['cancel_capability'])
+            except ValueError:
+                raise CoreviaError('INVALID_META', 'Invalid cancellation metadata.')
         for key in ("trace_id", "parent_trace_id"):
             if meta.get(key) is not None and (not isinstance(meta[key], str) or not 0 < len(meta[key]) <= 128):
                 raise CoreviaError("INVALID_META", "Invalid trace metadata.")
@@ -76,7 +82,7 @@ def response(request_id, result=None, error=None, trace_id=None, version="1.0", 
 
 
 class Worker:
-    def __init__(self, url="http://127.0.0.1:8090", token=None, authorize=None, timeout=5.0, max_bytes=65536, telemetry=None):
+    def __init__(self, url="http://127.0.0.1:8090", token=None, authorize=None, timeout=5.0, max_bytes=65536, telemetry=None, cancellation=None):
         parsed = urlparse(url)
         if parsed.scheme != "http" or not parsed.hostname or timeout <= 0:
             raise ValueError("Worker requires an HTTP bind URL and positive timeout; terminate TLS at a proxy.")
@@ -86,6 +92,9 @@ class Worker:
         self.token, self.authorize = token, authorize
         self.timeout, self.max_bytes = timeout, max_bytes
         self.actions = {}
+        if cancellation is not None and (not isinstance(cancellation, CancellationRegistry) or (not token and authorize is None)):
+            raise ValueError('Cancellation requires an explicit registry and worker authorization.')
+        self.cancellation = cancellation
         self.telemetry = telemetry
         self.server = None
         self.scope_hooks = []
@@ -121,6 +130,7 @@ class Worker:
     def dispatch(self, envelope, authorization=None):
         validate_envelope(envelope)
         result = None
+        active = None
         try:
             timeout_ms = min(300000, max(1, int(self.timeout * 1000)), envelope.get('meta', {}).get('timeout_ms', 5000)) if envelope['cvp'] == '2.0' else min(300000, max(1, int(self.timeout * 1000)))
             if envelope['cvp'] == '2.0' and 'deadline_unix_ms' in envelope.get('meta', {}):
@@ -129,7 +139,15 @@ class Worker:
                     raise WorkBudgetError('DEADLINE_EXCEEDED')
             incoming = envelope.get('meta', {}).get('traceparent') if envelope['cvp'] == '2.0' else None
             traceparent = (incoming if self.telemetry is not None else child_traceparent(incoming)) if incoming else None
-            with (work_context(Deadline(timeout_ms), traceparent) if envelope['cvp'] == '2.0' else nullcontext()), execution_scope('python') as scope, (self.telemetry.span('python.action') if self.telemetry is not None else nullcontext()):
+            deadline = Deadline(timeout_ms)
+            capability = envelope.get('meta', {}).get('cancel_capability')
+            if capability is not None:
+                if envelope['cvp'] != '2.0' or self.cancellation is None:
+                    raise CancellationError('CANCELLATION_UNAVAILABLE')
+                if not self._permitted(authorization, envelope.get('target')):
+                    return response(envelope['id'], error={'code':'UNAUTHORIZED','message':'Unauthorized.','retryable':False}, version=envelope['cvp'])
+                active = self.cancellation.register(envelope['id'], capability, envelope['target'], deadline)
+            with (work_context(deadline, traceparent) if envelope['cvp'] == '2.0' else nullcontext()), execution_scope('python') as scope, (self.telemetry.span('python.action') if self.telemetry is not None else nullcontext()):
                 for hook in self.scope_hooks:
                     hook(scope)
                 result = self._dispatch(envelope, authorization)
@@ -138,6 +156,8 @@ class Worker:
                 return result
         except WorkBudgetError as error:
             return response(envelope['id'], error={'code': error.code, 'message': 'Worker budget ended.', 'retryable': False}, version=envelope['cvp'], trace_id=envelope.get('meta', {}).get('trace_id'))
+        except CancellationError as error:
+            return response(envelope['id'], error={'code':error.code,'message':'Cancellation registration unavailable.','retryable':False}, version=envelope['cvp'])
         except Exception as error:
             if result is not None and not result['ok']:
                 return result
@@ -147,17 +167,35 @@ class Worker:
                 pass
             code = 'SCOPE_CLEANUP_FAILED' if str(error) == 'SCOPE_CLEANUP_FAILED' else 'SCOPE_EXECUTION_FAILED'
             return response(envelope['id'], error={'code':code, 'message':'Worker scope failed.', 'retryable':False}, version=envelope['cvp'], trace_id=envelope.get('meta', {}).get('trace_id'), parent_trace_id=envelope.get('meta', {}).get('parent_trace_id'))
+        finally:
+            if active is not None:
+                self.cancellation.release(envelope['id'], active)
+
+    def _permitted(self, authorization, target):
+        try:
+            return bool(self.authorize(authorization, target)) if self.authorize else (self.token is None or hmac.compare_digest(authorization or '', 'Bearer ' + self.token))
+        except Exception:
+            logging.getLogger('corevia').error('Worker authorization failed.')
+            return False
+
+    def cancel(self, value, authorization=None):
+        if self.cancellation is None:
+            raise CoreviaError('NOT_FOUND', 'Endpoint not found.')
+        if not self._permitted(authorization, 'corevia.cancel'):
+            raise CoreviaError('UNAUTHORIZED', 'Unauthorized.')
+        if not isinstance(value, dict) or set(value) != {'request_id', 'capability'}:
+            raise ValueError('Invalid cancellation control.')
+        validate_control(value['request_id'], value['capability'])
+        self.cancellation.signal(value['request_id'], value['capability'], lambda target:self._permitted(authorization, target))
+        # Do not disclose whether a matching live call exists, is authorized or has stopped.
+        return {'accepted': True}
 
     def _dispatch(self, envelope, authorization=None):
         validate_envelope(envelope)
         trace = envelope.get("meta", {}).get("trace_id")
         target = envelope.get("target")
         reply = partial(response, version=envelope["cvp"], parent_trace_id=envelope.get("meta", {}).get("parent_trace_id"))
-        try:
-            permitted = self.authorize(authorization, target) if self.authorize else (self.token is None or hmac.compare_digest(authorization or "", "Bearer " + self.token))
-        except Exception as error:
-            logging.getLogger("corevia").error("Authorization failed exception=%s", type(error).__name__)
-            permitted = False
+        permitted = self._permitted(authorization, target)
         if not permitted:
             return reply(envelope["id"], error={"code": "UNAUTHORIZED", "message": "Unauthorized.", "retryable": False}, trace_id=trace)
         if envelope.get("type") != "action.call" or target not in self.actions:
@@ -188,6 +226,9 @@ class Worker:
                 self.connection.settimeout(worker.timeout)
 
             def do_POST(self):
+                if self.path == '/cvp/cancel' and worker.cancellation is not None:
+                    self.cancel_call()
+                    return
                 request_id, trace, version = "invalid", None, "1.0"
                 try:
                     if self.path != "/cvp":
@@ -217,6 +258,27 @@ class Worker:
                 self.end_headers()
                 self.wfile.write(wire)
 
+            def cancel_call(self):
+                try:
+                    length = int(self.headers.get('Content-Length', '0'))
+                    if self.headers.get('Transfer-Encoding') or not 0 < length <= 1024:
+                        raise ValueError('Invalid control size.')
+                    raw = self.rfile.read(length)
+                    if len(raw) != length:
+                        raise ValueError('Incomplete control.')
+                    value = worker.cancel(json.loads(raw), self.headers.get('Authorization'))
+                    status = 202
+                except (ValueError, CoreviaError, socket.timeout, RecursionError) as error:
+                    status = 401 if getattr(error, 'code', None) == 'UNAUTHORIZED' else 400
+                    value = {'accepted': False}
+                wire = json.dumps(value).encode()
+                self.send_response(status)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Cache-Control', 'no-store')
+                self.send_header('Content-Length', str(len(wire)))
+                self.end_headers()
+                self.wfile.write(wire)
+
             def log_message(self, format, *args):
                 logging.getLogger("corevia.http").info("HTTP status %s", args[1] if len(args) > 1 else "unknown")
 
@@ -232,6 +294,8 @@ class Worker:
             failed = True
             raise
         finally:
+            if self.cancellation is not None:
+                self.cancellation.close()
             self.server.server_close()
             failures = []
             for hook in reversed(self.shutdown_hooks):
@@ -248,6 +312,8 @@ class Worker:
                     raise RuntimeError('WORKER_SHUTDOWN_FAILED')
 
     def stop(self):
+        if self.cancellation is not None:
+            self.cancellation.close()
         if self.server:
             self.server.shutdown()
 

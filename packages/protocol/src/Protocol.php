@@ -46,6 +46,7 @@ final class Protocol
             throw new \InvalidArgumentException('INVALID_META');
         }
         if ($value['cvp'] === self::V2) {
+            if(array_key_exists('cancel_capability',$value['meta']??[])&&(!is_string($value['meta']['cancel_capability'])||!preg_match('/^[0-9a-f]{64}$/D',$value['meta']['cancel_capability']))){throw new \InvalidArgumentException('INVALID_META');}
             foreach (['trace_id', 'parent_trace_id'] as $key) {
                 if (isset($value['meta'][$key]) && (!is_string($value['meta'][$key]) || $value['meta'][$key] === '' || strlen($value['meta'][$key]) > 128)) { throw new \InvalidArgumentException('INVALID_META'); }
             }

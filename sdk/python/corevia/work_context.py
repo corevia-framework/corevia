@@ -4,6 +4,7 @@ import math
 import re
 import time
 import uuid
+import threading
 from contextlib import contextmanager
 
 _current = contextvars.ContextVar('corevia_work', default=None)
@@ -21,13 +22,13 @@ class Deadline:
             raise ValueError('Deadline must be 1ms..1h.')
         self._clock = clock
         self._end = clock() + milliseconds * 1000000
-        self._cancelled = False
+        self._cancelled = threading.Event()
 
     def cancel(self):
-        self._cancelled = True
+        self._cancelled.set()
 
     def check(self):
-        if self._cancelled:
+        if self._cancelled.is_set():
             raise WorkBudgetError('WORK_CANCELLED')
         if self._clock() >= self._end:
             raise WorkBudgetError('DEADLINE_EXCEEDED')

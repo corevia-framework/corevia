@@ -121,6 +121,9 @@ final class Router
             if (($envelope['type'] ?? '') !== 'action.call' || !in_array($envelope['target'], $allowlist, true) || !$authorize($request, $envelope['target'], $contract?->requirements($envelope['target']) ?? [])) {
                 return new Response(Protocol::response($envelope['id'], ActionResult::failure('FORBIDDEN', 'Action call is not authorized.'), $trace, $envelope['cvp']), 403);
             }
+            if(array_key_exists('cancel_capability',$envelope['meta']??[])){
+                return new Response(Protocol::response($envelope['id'],ActionResult::failure('CANCELLATION_UNAVAILABLE','This gateway does not provide a live cancellation registry.',false),$trace,$envelope['cvp']),422);
+            }
             if ($contract !== null) {
                 try { $shape = json_decode($request->body, false, 64, JSON_THROW_ON_ERROR); $contract->assertInput($envelope['target'], $shape->payload); }
                 catch (ContractViolation) { return new Response(Protocol::response($envelope['id'], ActionResult::failure('CONTRACT_INPUT_INVALID', 'Action input does not match its contract.'), $trace, $envelope['cvp']), 400); }

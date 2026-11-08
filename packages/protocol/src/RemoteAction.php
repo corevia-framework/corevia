@@ -18,10 +18,15 @@ final class RemoteAction
         if (!in_array(strtolower($host), ['localhost','127.0.0.1','::1','[::1]'], true) && $token === null && $sign === null) { throw new \InvalidArgumentException('Remote endpoints require a bearer token or signing policy.'); }
     }
 
-    public function call(string $name, array $payload, ?string $traceId = null, ?string $requestId = null, ?string $parentTraceId = null): ActionResult
+    public function call(string $name, array $payload, ?string $traceId = null, ?string $requestId = null, ?string $parentTraceId = null, ?string $cancelCapability = null): ActionResult
     {
         $work=WorkContext::current();$work?->check();$timeout=$work===null?$this->timeout:min($this->timeout,$work->remainingMilliseconds()/1000);
         $request = Protocol::request('action.call', $name, $payload, $requestId, $traceId, $this->version, $parentTraceId, max(1, (int) ($timeout * 1000)));
+        if($cancelCapability!==null){
+            $host=trim(parse_url($this->url,PHP_URL_HOST)??'','[]');
+            if($requestId===null||strlen($requestId)>128||preg_match('/[\x00-\x1f\x7f]/',$requestId)||$this->version!==Protocol::V2||!preg_match('/^[0-9a-f]{64}$/D',$cancelCapability)||(parse_url($this->url,PHP_URL_SCHEME)!=='https'&&!in_array($host,['127.0.0.1','::1'],true))){throw new \InvalidArgumentException('Cancellation requires CVP/2, a fresh capability and HTTPS or literal loopback.');}
+            $request['meta']['cancel_capability']=$cancelCapability;
+        }
         $wire = $this->protocol->encode($request);
         $headers = "Content-Type: application/json\r\nConnection: close\r\n";
         if($work?->trace!==null){$headers.='traceparent: '.$work->trace->header()."\r\n";}

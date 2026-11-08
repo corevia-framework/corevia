@@ -9,3 +9,6 @@ __all__ += ["Deadline", "WorkContext", "WorkBudgetError", "work_context"]
 
 from .telemetry import Telemetry
 __all__ += ["Telemetry"]
+
+from .cancellation import CancellationRegistry
+__all__ += ["CancellationRegistry"]
