@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add bounded V4 SQL scheduling with named cron/timezone/DST semantics, atomic seven-day dispatch reservations, overlap skipping, scoped cleanup and explicit dead-job inspection/retry. Add shared circuit breakers, fenced recovery probes, retry quotas, jitter and deadline-aware retry execution. Extend disposable service contracts across V4 identity, scheduler, resilience, outbox and connected-client storage.
+
 - Add local V4 identity capabilities: scoped machine credentials, provisioned organization OIDC assurance, chained audit/checkpoints, resumable application-data erasure and optional WebAuthn verification. Refresh all auth starters with multilingual RTL layouts, themes and native React account management. Source-bound local acceptance passes all 21 configured checks; real services/devices/providers, manual review and remaining operations/AI/release gates are still open.
 
 - Begin local V4 daily-development APIs: checksummed application SQL migrations, prepared joins/pagination, seeders/repositories, explicit HTTP/auth/mail/job/AI test helpers, nested validation, versioned API envelopes/OpenAPI, scoped bearer credentials, private files and localization primitives. Refresh the database-free welcome/workspace with responsive navigation and persistent themes.

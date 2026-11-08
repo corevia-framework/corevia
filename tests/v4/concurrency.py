@@ -25,9 +25,14 @@ def run(number):
 
 with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
     results = list(pool.map(run, range(8)))
+assert len({row['dispatch'] for row in results}) == 1, results
+assert sum(row['claimed'] for row in results) == 1, results
+assert sum(row['probe'] for row in results) == 1, results
+assert sum(row['retries'] for row in results) == 10, results
+assert sum(row['overlap'] for row in results) == 1, results
 assert sum(row['reserved'] for row in results) == 10, results
 assert sum(row['mutation'] for row in results) == 1, results
 assert sum(row['sent'] for row in results) == 12, results
 deliveries = (directory / 'deliveries.txt').read_text().splitlines()
 assert len(deliveries) == len(set(deliveries)) == 12
-print('PASS 8-process races: budget cannot overspend; one optimistic writer; unique active outbox claims')
+print('PASS 8-process races: budget cannot overspend; one optimistic writer; unique active outbox claims; deduplicated dispatch and single overlap lease; one circuit probe and bounded shared retries')

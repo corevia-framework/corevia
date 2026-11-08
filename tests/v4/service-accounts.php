@@ -27,3 +27,8 @@ function contract($store):void
 $directory=sys_get_temp_dir().'/corevia-v4-machines-'.bin2hex(random_bytes(6));mkdir($directory);
 try{contract(new JsonAuthStore($directory.'/auth.json'));$sql=new SqlAuthStore(new SqlConnection(new \PDO('sqlite::memory:')));$sql->migrate();contract($sql);echo "PASS JSON/SQLite machine identity scope/tenant/quota, digest-only credentials, rotation/revocation/expiry, delegation and cookie separation\n";}
 finally{\CoreviaTests\Fixtures::remove($directory,'corevia-v4-machines-');}
+
+if(getenv('COREVIA_DB_TESTS')==='1'){
+    require_once dirname(__DIR__).'/support/IdentityServices.php';
+    \CoreviaTests\IdentityServices::run(static function($store,string $label):void{contract($store);echo 'PASS '.$label." machine identity contract\n";});
+}

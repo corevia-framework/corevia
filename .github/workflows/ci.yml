@@ -206,10 +206,7 @@ jobs:
       - run: php tests/v3/distributed.php
         env:
           COREVIA_DB_TESTS: '1'
-      - run: php tests/v4/data.php
-        env:
-          COREVIA_DB_TESTS: '1'
-      - run: php tests/v4/catalog.php
+      - run: php tests/v4/service-contracts.php
         env:
           COREVIA_DB_TESTS: '1'
   container:

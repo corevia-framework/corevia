@@ -50,3 +50,8 @@ if(!function_exists('openssl_encrypt')){echo "SKIP organization exchange fixture
 $directory=sys_get_temp_dir().'/corevia-v4-sso-'.bin2hex(random_bytes(6));mkdir($directory);
 try{contract(new JsonAuthStore($directory.'/auth.json'),'JSON');$sql=new SqlAuthStore(new SqlConnection(new \PDO('sqlite::memory:')));$sql->migrate();contract($sql,'SQLite');}
 finally{\CoreviaTests\Fixtures::remove($directory,'corevia-v4-sso-');}
+
+if(getenv('COREVIA_DB_TESTS')==='1'){
+    require_once dirname(__DIR__).'/support/IdentityServices.php';
+    \CoreviaTests\IdentityServices::run(static function($store,string $label):void{contract($store,$label);});
+}

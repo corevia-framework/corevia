@@ -79,7 +79,7 @@ def main():
             ('workspace-browser', ['node', 'tests/v4/workspace-browser.mjs', str(browser_app)], {}),
         ])
     if args.services:
-        for suite in ['data', 'catalog']:
+        for suite in ['service-contracts']:
             checks.append(('services-' + suite, [php, 'tests/v4/' + suite + '.php'], {'COREVIA_DB_TESTS': '1'}))
     if args.auth_ui:
         checks.append(('auth-assets', ['node', 'tools/build-auth-starters.mjs', '--check'], {}))
@@ -96,7 +96,7 @@ def main():
                            'node': subprocess.run(['node', '--version'], capture_output=True, text=True, check=True).stdout.strip()},
               'unmet_release_gates': [
                   'Phase D full application identity/audit/data-lifecycle integration, accessibility/manual review and real provider/service/device acceptance',
-                  'Phase E scheduler, inspection/trace export, cross-runtime resilience and delivery acceptance',
+                  'Phase E trace/metric export, cross-runtime resilience, full delivery operations and hosting acceptance',
                   'Phase F ingestion/vector-provider acceptance, tool isolation/evaluations and mobile SDK workflows',
                   'Required remote CI, supported services/runtimes, security review and worker soak/load acceptance',
                   'Real shared/VPS/AWS/Azure hosting acceptance and final Composer package publication',

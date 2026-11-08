@@ -4,7 +4,7 @@ Status: maintainer-approved scope. Workstreams are planned or in progress; none 
 
 Implementation has started locally: see [progress and prototype instructions](progress.md) and the [compatibility baseline](baseline.md). A workstream remains incomplete until its exit evidence is satisfied.
 
-Current phase status (2026-11-08): Phase A baseline/design is complete; Phase B is complete for local delivery. Phases C-G have started; C has local development/reference coverage and D-F have tested initial primitives, while G has local evidence tooling. Their remaining exit requirements are tracked explicitly in progress.md. The maintainer explicitly scheduled package publication for the final V4 release in Phase G. See the [design record](phase-a-design.md) and [delivery evidence/publication boundary](phase-b-delivery.md). This does not mark all cross-phase workstreams or release acceptance complete.
+Current phase status (2026-11-08): Phase A baseline/design is complete; Phase B is complete for local delivery. Phases C-G have started; C has local and real SQL development/reference coverage, D has identity/storage/browser coverage, and E-F have tested operations/connected-storage increments, while G has local evidence tooling. Their remaining exit requirements are tracked explicitly in progress.md. The maintainer explicitly scheduled package publication for the final V4 release in Phase G. See the [design record](phase-a-design.md) and [delivery evidence/publication boundary](phase-b-delivery.md). This does not mark all cross-phase workstreams or release acceptance complete.
 
 ## Product direction
 
@@ -55,7 +55,7 @@ Each phase can contain several pull requests. A phase is complete only when its 
 
 ## Frontend redesign acceptance
 
-Item 20 is in progress: the default welcome/workspace foundations are refreshed with V4 responsive navigation and themes. Auth/account/recovery and optional AI views still need equivalent workflows through each stack's native components. Coordinate accessibility, translation and RTL work with item 17 rather than treating a visual refresh as accessibility acceptance.
+Item 20 is in progress: the default welcome/workspace foundations are refreshed with V4 responsive navigation and themes. Auth/account/recovery now have multilingual/RTL native workflows across the three stacks with automated browser/accessibility coverage; manual accessibility review and the optional AI view remain open. Coordinate accessibility, translation and RTL work with item 17 rather than treating a visual refresh as accessibility acceptance.
 
 - Cover welcome/onboarding, navigation, auth/recovery/account screens and a useful dashboard shell. Display only real application data; represent unconfigured capabilities with clear empty states.
 - Define reusable typography, spacing, colors, forms, buttons and feedback states, including light/dark themes and persisted non-sensitive theme preferences.

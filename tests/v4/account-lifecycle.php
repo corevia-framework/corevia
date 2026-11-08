@@ -62,3 +62,8 @@ function contract(IdentityStore $store,string $label):void
 $directory=sys_get_temp_dir().'/corevia-v4-lifecycle-'.bin2hex(random_bytes(6));mkdir($directory);
 try{contract(new JsonAuthStore($directory.'/auth.json'),'JSON');$sql=new SqlAuthStore(new SqlConnection(new \PDO('sqlite::memory:')));$sql->migrate();contract($sql,'SQLite');}
 finally{\CoreviaTests\Fixtures::remove($directory,'corevia-v4-lifecycle-');}
+
+if(getenv('COREVIA_DB_TESTS')==='1'){
+    require_once dirname(__DIR__).'/support/IdentityServices.php';
+    \CoreviaTests\IdentityServices::run(static function($store,string $label):void{contract($store,$label);});
+}

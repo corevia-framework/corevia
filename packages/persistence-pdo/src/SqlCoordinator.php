@@ -8,7 +8,7 @@ final readonly class SqlCoordinator implements WorkQueue
     public function __construct(private SqlConnection $db,private string $prefix='cv_work',private int $attempts=6,private int $ttl=86400)
     {
         if(!in_array($db->driver(),['sqlite','mysql','pgsql'],true)||!preg_match('/^[a-z][a-z0-9_]{0,39}$/D',$prefix)||$attempts<1||$attempts>10||$ttl<60||$ttl>604800){throw new \InvalidArgumentException('Invalid SQL coordination settings.');}
-        if($db->driver()==='mysql'){$rows=$db->select('SELECT ENGINE AS engine FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN (:mutex,:jobs,:leases)',['mutex'=>$prefix.'_mutex','jobs'=>$prefix.'_jobs','leases'=>$prefix.'_leases']);foreach($rows as $row){if(strtoupper($row['engine']??'')!=='INNODB'){throw new \LogicException('Coordination tables must use InnoDB.');}}}
+        if($db->driver()==='mysql'){$rows=$db->select('SELECT ENGINE AS engine FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN (:mutex,:jobs,:leases,:dedupe)',['mutex'=>$prefix.'_mutex','jobs'=>$prefix.'_jobs','leases'=>$prefix.'_leases','dedupe'=>$prefix.'_dedupe']);foreach($rows as $row){if(strtoupper($row['engine']??'')!=='INNODB'){throw new \LogicException('Coordination tables must use InnoDB.');}}}
     }
     private function table(string $name):string{return $this->db->quoteIdentifier($this->prefix.'_'.$name);}
     private function available():void{if($this->db->inTransaction()){throw new \LogicException('Coordination owns its transaction; use a dedicated connection.');}}
@@ -20,6 +20,8 @@ final readonly class SqlCoordinator implements WorkQueue
         $this->db->execute('INSERT '.($mysql?'IGNORE ':'').'INTO '.$this->table('mutex').' (id,version) VALUES (1,0)'.($mysql?'':' ON CONFLICT (id) DO NOTHING'));
         $this->db->execute('CREATE TABLE IF NOT EXISTS '.$this->table('jobs').' (id VARCHAR(32) PRIMARY KEY,task VARCHAR(128) NOT NULL,input '.$text.' NOT NULL,result '.$text.' NULL,status VARCHAR(16) NOT NULL,ready BIGINT NOT NULL,expires BIGINT NOT NULL,lease BIGINT NOT NULL,owner VARCHAR(32) NOT NULL,attempt INTEGER NOT NULL'.($mysql?', INDEX (status,ready), INDEX (expires)':'').')'.$tail);
         $this->db->execute('CREATE TABLE IF NOT EXISTS '.$this->table('leases').' (resource VARCHAR(64) PRIMARY KEY,owner VARCHAR(32) NOT NULL,fence BIGINT NOT NULL,expires BIGINT NOT NULL)'.$tail);
+        $this->db->execute('CREATE TABLE IF NOT EXISTS '.$this->table('dedupe').' (event_key VARCHAR(64) PRIMARY KEY,job_id VARCHAR(32) NOT NULL,digest VARCHAR(64) NOT NULL,expires BIGINT NOT NULL'.($mysql?', INDEX (expires)':'').')'.$tail);
+        if(!$mysql){$this->db->execute('CREATE INDEX IF NOT EXISTS '.$this->db->quoteIdentifier($this->prefix.'_dedupe_expiry').' ON '.$this->table('dedupe').' (expires)');}
         if(!$mysql){$this->db->execute('CREATE INDEX IF NOT EXISTS '.$this->db->quoteIdentifier($this->prefix.'_ready_idx').' ON '.$this->table('jobs').' (status,ready)');$this->db->execute('CREATE INDEX IF NOT EXISTS '.$this->db->quoteIdentifier($this->prefix.'_expiry_idx').' ON '.$this->table('jobs').' (expires)');}
     }
     private function locked(callable $work):mixed{$this->available();return $this->db->transaction(function()use($work):mixed{if($this->db->execute('UPDATE '.$this->table('mutex').' SET version=CASE WHEN version=0 THEN 1 ELSE 0 END WHERE id=1')->rowCount()!==1){throw new \RuntimeException('Run coordination:migrate.');}return $work();});}
@@ -28,6 +30,33 @@ final readonly class SqlCoordinator implements WorkQueue
     public function dispatch(string $task,array $input,bool $idempotent,int $now):string
     {
         if(!$idempotent||!preg_match('/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/D',$task)){throw new \InvalidArgumentException('Shared queue tasks must be named and explicitly idempotent.');}$json=$this->json($input);$id=bin2hex(random_bytes(16));return $this->locked(function()use($task,$json,$now,$id):string{$this->db->execute('INSERT INTO '.$this->table('jobs').' (id,task,input,result,status,ready,expires,lease,owner,attempt) VALUES (:id,:task,:input,NULL,:status,:ready,:expires,0,:owner,0)',['id'=>$id,'task'=>$task,'input'=>$json,'status'=>'pending','ready'=>$now,'expires'=>$now+$this->ttl,'owner'=>'']);return $id;});
+    }
+    /** Atomically retain a dispatch key for seven days, including completed/expired jobs. */
+    public function dispatchOnce(string $key,string $task,array $input,bool $idempotent,int $now):string
+    {
+        if($key===''||strlen($key)>512||$now<0||!$idempotent||!preg_match('/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/D',$task)){throw new \InvalidArgumentException('Invalid deduplicated dispatch.');}
+        $json=$this->json($input);$digest=hash('sha256',$task."\0".$json);$event=hash('sha256',$key);
+        return $this->locked(function()use($event,$digest,$task,$json,$now):string{
+            $this->db->execute('DELETE FROM '.$this->table('dedupe').' WHERE expires<=:now',['now'=>$now]);
+            $row=$this->db->select('SELECT * FROM '.$this->table('dedupe').' WHERE event_key=:key',['key'=>$event])[0]??null;
+            if($row!==null){if(!hash_equals($row['digest'],$digest)){throw new \LogicException('Dispatch key reused with changed task or payload.');}return $row['job_id'];}
+            $id=bin2hex(random_bytes(16));
+            $this->db->execute('INSERT INTO '.$this->table('jobs').' (id,task,input,result,status,ready,expires,lease,owner,attempt) VALUES (:id,:task,:input,NULL,:status,:ready,:expires,0,:owner,0)',['id'=>$id,'task'=>$task,'input'=>$json,'status'=>'pending','ready'=>$now,'expires'=>$now+$this->ttl,'owner'=>'']);
+            $this->db->execute('INSERT INTO '.$this->table('dedupe').' (event_key,job_id,digest,expires) VALUES (:key,:id,:digest,:expires)',['key'=>$event,'id'=>$id,'digest'=>$digest,'expires'=>$now+604800]);
+            return $id;
+        });
+    }
+    /** Metadata only; payloads/results and owner tokens are deliberately excluded. */
+    public function inspect(string $status='dead',int $limit=50):array
+    {
+        $this->available();if(!in_array($status,['pending','running','done','dead'],true)||$limit<1||$limit>100){throw new \InvalidArgumentException('Invalid job inspection.');}
+        return $this->db->select('SELECT id,task,status,ready,expires,lease,attempt FROM '.$this->table('jobs').' WHERE status=:status ORDER BY ready,id LIMIT '.$limit,['status'=>$status]);
+    }
+    /** Explicit operator action; same job/effect ID, bounded lifetime, dead jobs only. */
+    public function retryDead(string $id,int $now):bool
+    {
+        if(!preg_match('/^[a-f0-9]{32}$/D',$id)){throw new \InvalidArgumentException('Invalid job identifier.');}
+        return $this->locked(fn():bool=>$this->db->execute('UPDATE '.$this->table('jobs').' SET status=:next,ready=:ready,attempt=0,lease=0,owner=:empty WHERE id=:id AND status=:dead AND expires>:now',['next'=>'pending','ready'=>$now,'empty'=>'','id'=>$id,'dead'=>'dead','now'=>$now])->rowCount()===1);
     }
     public function claim(int $now,int $seconds=60):?JobClaim
     {
@@ -45,6 +74,10 @@ final readonly class SqlCoordinator implements WorkQueue
     {
         $this->seconds($seconds);if($resource===''||strlen($resource)>512){throw new \InvalidArgumentException('Invalid lease resource.');}$key=hash('sha256',$resource);
         return $this->locked(function()use($key,$now,$seconds):?CoordinationLease{$row=$this->db->select('SELECT * FROM '.$this->table('leases').' WHERE resource=:key',['key'=>$key])[0]??null;if($row!==null&&(int)$row['expires']>$now){return null;}$owner=bin2hex(random_bytes(16));$fence=(int)($row['fence']??0)+1;if($row===null){$this->db->execute('INSERT INTO '.$this->table('leases').' (resource,owner,fence,expires) VALUES (:key,:owner,:fence,:expires)',['key'=>$key,'owner'=>$owner,'fence'=>$fence,'expires'=>$now+$seconds]);}else{$this->db->execute('UPDATE '.$this->table('leases').' SET owner=:owner,fence=:fence,expires=:expires WHERE resource=:key',['owner'=>$owner,'fence'=>$fence,'expires'=>$now+$seconds,'key'=>$key]);}return new CoordinationLease($key,$fence,$owner);});
+    }
+    public function renewLease(CoordinationLease $lease,int $now,int $seconds=60):bool
+    {
+        $this->seconds($seconds);return $this->locked(fn():bool=>$this->db->execute('UPDATE '.$this->table('leases').' SET expires=:expires WHERE resource=:key AND owner=:owner AND fence=:fence AND expires>:now',['expires'=>$now+$seconds,'key'=>$lease->key,'owner'=>$lease->owner(),'fence'=>$lease->fence,'now'=>$now])->rowCount()===1);
     }
     public function release(CoordinationLease $lease,int $now):bool{return $this->locked(fn():bool=>$this->db->execute('UPDATE '.$this->table('leases').' SET expires=0,owner=:empty WHERE resource=:key AND owner=:owner AND fence=:fence AND expires>:now',['empty'=>'','key'=>$lease->key,'owner'=>$lease->owner(),'fence'=>$lease->fence,'now'=>$now])->rowCount()===1);}
 }
