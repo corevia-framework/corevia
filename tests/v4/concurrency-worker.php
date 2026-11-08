@@ -5,7 +5,7 @@ use Corevia\Core\TenantScope;
 use Corevia\Persistence\{SqlConnection,SqlCoordinator,SqlOutbox,SqlResilience,SqlSyncStore,SqlUsageBudget,SqlRevisionCatalog,SqlToolApprovals};
 $directory=realpath($argv[2]??'');$storage=realpath(dirname(__DIR__,2).'/storage');
 if($directory===false||dirname($directory)!==$storage||!str_starts_with(basename($directory),'v4-concurrency-')){throw new LogicException('Use an isolated concurrency fixture directory.');}
-$pdo=new PDO('sqlite:'.$directory.'/test.sqlite');$pdo->exec('PRAGMA busy_timeout=10000');$db=new SqlConnection($pdo);
+$pdo=new PDO('sqlite:'.$directory.'/test.sqlite');$pdo->exec('PRAGMA busy_timeout=30000');$db=new SqlConnection($pdo);
 $scope=new TenantScope('alpha','fixture',fn()=>true,['ai.tools.request','ai.tools.execute','ai.documents.read','ai.documents.write']);$budget=new SqlUsageBudget($db,100);$sync=new SqlSyncStore($db,str_repeat('s',32));$outbox=new SqlOutbox($db);$queue=new SqlCoordinator($db);
 if(($argv[1]??'')==='prepare'){
     // Provision only this private fixture for the documented local multi-worker SQLite mode.
@@ -31,9 +31,10 @@ for($i=0;$i<20;$i++){
 }
 $mutation=0;try{$sync->mutate($scope,'same',0,['writer'=>$argv[3]??'unknown']);$mutation=1;}
 catch(RuntimeException $error){if($error->getMessage()!=='SYNC_REVISION_CONFLICT'){throw $error;}}
+$receipt=$sync->mutateOnce($scope,str_repeat('c',32),'deduplicated',0,['shared'=>true]);
 $sent=0;
 while($outbox->relay(static function($event)use($directory,&$sent):void{
     $file=fopen($directory.'/deliveries.txt','ab');if($file===false||!flock($file,LOCK_EX)){throw new RuntimeException('Fixture log unavailable.');}
     try{if(fwrite($file,$event['event_id']."\n")!==33){throw new RuntimeException('Fixture write failed.');}$sent++;}finally{flock($file,LOCK_UN);fclose($file);}
 },1000)){}
-echo json_encode(['reserved'=>$reserved,'mutation'=>$mutation,'sent'=>$sent,'dispatch'=>$dispatch,'claimed'=>$claimed,'overlap'=>$overlap,'probe'=>$probe,'retries'=>$retries,'activated'=>$activated,'tool_consumed'=>$toolConsumed],JSON_THROW_ON_ERROR)."\n";
+echo json_encode(['reserved'=>$reserved,'mutation'=>$mutation,'sent'=>$sent,'dispatch'=>$dispatch,'claimed'=>$claimed,'overlap'=>$overlap,'probe'=>$probe,'retries'=>$retries,'activated'=>$activated,'tool_consumed'=>$toolConsumed,'receipt_revision'=>$receipt['revision'],'receipt_sequence'=>$receipt['sequence']],JSON_THROW_ON_ERROR)."\n";

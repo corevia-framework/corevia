@@ -26,7 +26,7 @@ A relay uses a dedicated connection and calls `relay($sender, $now, leaseSeconds
 
 `php tests/v4/reliability.php` checks rollback, stable retry IDs, claim expiry/recovery, webhook tampering/expiry/replay/rotation and deadline/cancellation behavior. `python tests/v4/concurrency.py` races eight independent SQLite clients for active outbox claims. This demonstrates local ownership semantics, not exactly-once external delivery.
 
-Still open: application inspector and production trace/metric export; full webhook delivery/history/redelivery; cross-runtime deadlines/cancellation; VPS/AWS/Azure adapter validation and bounded cron acceptance. No live service, existing site or outbound email was used by this increment.
+The later increments below implement private inspection/export, delivery history/redelivery and cooperative cross-runtime budgets. Still open: live authenticated remote cancellation, actual collector/outage drills, hosting presets/acceptance and worker soak/load. No live service, existing site or outbound email was used by this increment.
 
 ## Scheduler and recovery increment
 

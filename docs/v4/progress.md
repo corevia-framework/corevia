@@ -1,8 +1,8 @@
 # V4 implementation progress
 
-Updated 2026-11-08 (Asia/Karachi). Work is local on `develop/v4`. No V4 push, registry publication, tag, release or deployment is included in this increment.
+Updated 2026-11-09 (Asia/Karachi). Work is local on `develop/v4`. No V4 push, registry publication, tag, release or deployment is included in this increment.
 
-Work has started across the next five phases (C-G). The database-free welcome/workspace has V4 responsive navigation, themes and an honest empty state. All three auth kits now have responsive V4 layouts, themes and English/Urdu/Arabic presentation with RTL support; native React account management passes its SQLite/MFA/provider/accessibility browser checks. The optional AI view remains open. Existing generated application files are preserved.
+Work has started across the next five phases (C-G). The database-free welcome/workspace has V4 responsive navigation, themes and an honest empty state. All three auth kits now have responsive V4 layouts, themes and English/Urdu/Arabic presentation with RTL support; native React account management passes its SQLite/MFA/provider/accessibility browser checks. The common AI view now passes multilingual/theme/streaming/cancellation checks in all three starter installations. Existing generated application files are preserved.
 
 ## Phase A: baseline/design complete
 
@@ -23,12 +23,12 @@ The [Phase B delivery guide](phase-b-delivery.md) documents working feature comp
 
 ## Phases C-G: current delivery status
 
-| Phase | Implemented in this increment | Still required for phase completion |
+| Phase | Implemented so far | Still required for phase completion |
 | --- | --- | --- |
 | C | Checksummed application migrations; joins/pagination; seeders/repositories; public testing toolkit; nested validation; API envelopes/OpenAPI, scoped bearer credentials and idempotency; private files/localization; V4 welcome/workspace; JSON/SQLite catalog reference | Actual MySQL/PostgreSQL contracts now pass; required remote CI and final regression remain. |
 | D | Tenant-scoped adapters/jobs; scoped machine credentials; provisioned organization OIDC policy and MFA-bound assurance; HMAC audit chains/checkpoints/retention/holds; account exports and resumable erasure; optional real WebAuthn verifier with atomic ownership/CAS; multilingual/RTL auth screens | Audit/application integration review, real provider/device checks and manual accessibility/security review. |
-| E | Transactional SQL outbox; webhook signature/replay contract; monotonic deadlines; bounded SQL cron with DST/dedup/overlap rules; job metadata/retry; shared retry quotas and generation-fenced circuit breakers | Inspector/traces/metrics, full webhook operations/history, cross-runtime deadline/cancellation propagation, hosting adapters and failure acceptance. |
-| F | Atomic tenant usage reservations and budgeted provider wrapper; signed actor/tenant-bound resumable change feeds with optimistic revisions and tombstones | Ingestion/vector-provider/structured-output/evaluation/tool execution work, Dart/React Native offline UX and SDK workflows, AI frontend and real-provider acceptance. |
+| E | SQL scheduling/retry/circuit quotas; private inspector/health/metrics; optional OTLP export; PHP/Python work budgets/traces; durable webhook history, signed delivery/replay and controlled redelivery | Live authenticated remote cancellation, actual collector/outage drills, hosting presets/acceptance and worker soak/load. |
+| F | Tenant budgets; immutable knowledge revisions and active filtering; real Qdrant index contract; structured output/evaluations; one-use permissioned tools/human review; refreshed AI UI; SQL retry receipts; JS/Dart offline queues/transports and native UI page examples | Actual model/provider and OS-isolated-tool validation; native device/storage/background acceptance; sustained vector/mobile workload and security review. |
 | G | Source-bound private acceptance runner, clean-package browser checks, expanded CI configuration and eight-process SQLite races | Complete D-F, real-service/provider/runtime/hosting/security/soak/load gates, remote CI and final publication. |
 
 See [Phase C developer guide](phase-c-development.md), [D tenant boundaries](phase-d-tenants.md), [E operations](phase-e-operations.md), [F connected clients](phase-f-connected.md), and [G acceptance tooling](phase-g-acceptance.md). These are working increments, not five completed phases. No V4 push, provider login, mail delivery or production-site access is included.
@@ -102,3 +102,11 @@ This increment passed all 15 source-bound local checks with unchanged source (`s
 Local contracts and eight-process WAL activation/approval races pass. An official SHA-256-verified Qdrant v1.20.0 private staging process passed initial generic index provisioning/query/tenant/update/delete contracts, then stopped. Revised ingestion/Qdrant integration, full SQL and final source/browser acceptance for this increment are still being run. No real paid model, OAuth provider, live site, public deployment or email is exercised. Mobile/offline SDK workflows and final provider/OS/cloud/security/soak acceptance remain open.
 
 The AI increment passed all 18 source-bound local checks with unchanged source (`storage/v4-ai-platform-acceptance-20261108/report.json`), including all three AI starter browser/accessibility modes. The complete actual SQL/MongoDB suite and Qdrant v1.20.0 revision-lifecycle contract both passed with source unchanged at fingerprint `f254671bce602327311e5d99b252efbbd4cc9fd37c83d8de4bdaadaae7d55ae4`; private receipts are `storage/v4-ai-services-20261108/database-report.json` and `vector-report.json`. All owned service processes stopped. A subsequent small hardening change sanitizes anonymous PHP exception identities (which can include source paths), and the decorative AI icon uses an encoding-independent HTML entity; focused checks cover the hardening. No remote publication is included.
+
+## Offline/mobile increment
+
+[Offline synchronization](offline-sync.md) adds atomic SQL retry receipts and opt-in scope-checked API routes, JS/TypeScript/Dart bounded queues, native HTTP transports and host-app React Native/Flutter page examples. Native loopback acceptance verifies two-process JS lost-ack restart, Dart/JS feed and serialized snapshot interoperation, deletion, explicit conflicts and current-token/tenant separation. SDK unit/analysis checks pass. Eight-process local SQLite WAL races now include one shared sync receipt; the enlarged workload exceeded the previous 10-second lock wait, then passed with a documented 30-second busy timeout/90-second process cap and measured worker durations of 6?13 seconds. Assertions/workload were retained.
+
+Full source-bound distribution/mobile regression and actual MySQL/PostgreSQL tests for this increment are pending. Native device/background/storage-plugin, real hosting/cloud/model/collector, external security and sustained-load acceptance remain open; examples and fixtures do not certify them. V4 remains local.
+
+The offline increment passed all 18 source-bound local checks with unchanged source (`storage/v4-offline-sync-acceptance-20261108/report.json`). The complete real MySQL/PostgreSQL/MongoDB service suite passed with unchanged source at fingerprint `426070192c59418b1f247cf597ac04e421ea68aea3aa69ad2fb10b39fc11ce9e`; private receipt: `storage/v4-offline-services-20261109/report.json`. All owned service processes stopped. A subsequent focused hardening change makes both SDKs report corrupt offline JSON with a fixed code rather than a parser message that could include private data; unit/native HTTP checks pass after that change. No push/publication is included.

@@ -32,6 +32,7 @@ def main():
     parser.add_argument('--output', required=True, help='New private directory under repository storage/')
     parser.add_argument('--browser', action='store_true')
     parser.add_argument('--auth-ui', action='store_true', help='Rebuild/verify assets and test all auth stacks, locales, themes and storage modes')
+    parser.add_argument('--mobile', action='store_true', help='Require Dart analysis/unit tests and actual JS/Dart/PHP offline HTTP acceptance')
     parser.add_argument('--ai-ui', action='store_true', help='Test the common AI page across all UI stacks with multilingual accessibility, streaming and cancellation fixtures')
     parser.add_argument('--passkeys', action='store_true', help='Install/audit locked optional test dependencies and run real WebAuthn virtual-authenticator tests')
     parser.add_argument('--services', action='store_true', help='Explicit disposable SQL service tests; never reads application credentials')
@@ -73,6 +74,18 @@ def main():
         ('javascript-sdk', ['node', '--test', *[p.relative_to(ROOT).as_posix() for p in sorted((ROOT / 'sdk/js/test').glob('*.test.js'))]], {}),
         ('python-sdk', [sys.executable, '-m', 'unittest', 'discover', '-s', 'sdk/python/tests'], {'PYTHONPATH': 'sdk/python'}),
     ]
+    if args.mobile:
+        dart = os.environ.get('COREVIA_DART') or shutil.which('dart')
+        cached = ROOT / 'storage/dart-tools/dart-sdk/bin' / ('dart.exe' if os.name == 'nt' else 'dart')
+        if not dart and cached.is_file():
+            dart = str(cached)
+        if not dart:
+            raise RuntimeError('Mobile acceptance requires a Dart SDK; a missing runtime is not a pass.')
+        checks.extend([
+            ('dart-analysis', [dart, 'analyze', 'sdk/dart'], {}),
+            ('dart-offline-queue', [dart, 'run', 'sdk/dart/test/sync.dart'], {}),
+            ('native-sync-http', [sys.executable, 'tests/v4/sync-http.py'], {'COREVIA_DART': dart}),
+        ])
     if args.browser:
         browser_package = target / 'browser-distribution'
         browser_app = browser_package / 'application'

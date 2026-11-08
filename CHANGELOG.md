@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add optional V4 idempotent sync API mutations with actor/tenant-bound atomic receipts, bounded JS/Dart offline queues and current-auth transports. Preserve queued edits across lost acknowledgments/auth loss, require explicit conflict resolution and share queue formats across SDKs. Add native HTTP acceptance and host-app Flutter/React Native page examples; native device/storage acceptance remains separate.
+
 - Add V4 contract-validated AI JSON output, immutable knowledge revisions, active-revision-filtered SQL/Qdrant retrieval, bounded evaluations and one-use permissioned tools with human session confirmation. Refresh the optional shared AI page with multilingual/RTL themes, streaming/cancellation and accessible feedback; keep external models, databases and tool isolation optional and explicitly configured.
 
 - Add opt-in bounded PHP/Python telemetry, OTLP traces/delta metrics, private operations routes and development inspection. Propagate cooperative work budgets/trace context over CVP/2 HTTP/process calls and shared jobs; reject outbound redirects and bound slow response reads. Add durable outbox attempt history, fixed signed webhook delivery, shared SQL replay reservations and controlled stable-ID redelivery.

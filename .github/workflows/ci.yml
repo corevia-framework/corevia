@@ -103,6 +103,7 @@ jobs:
       - run: php tests/v4/knowledge.php
       - run: php tests/v4/tools.php
       - run: php tests/v4/human-tool-review.php
+      - run: php tests/v4/sync.php
       - run: php tests/v4/connected.php
       - run: python tests/v4/concurrency.py
       - run: python tests/v4/compatibility.py
@@ -165,6 +166,17 @@ jobs:
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: stable
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_sqlite
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
       - run: dart analyze
         working-directory: sdk/dart
       - run: dart analyze contracts/generated/dart
@@ -174,6 +186,9 @@ jobs:
         working-directory: sdk/dart
       - run: dart run test/io.dart
         working-directory: sdk/dart
+      - run: dart run test/sync.dart
+        working-directory: sdk/dart
+      - run: python tests/v4/sync-http.py
   databases:
     runs-on: ubuntu-latest
     services:

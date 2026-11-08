@@ -33,6 +33,6 @@ if(getenv('COREVIA_DB_TESTS')==='1'){
     foreach(\CoreviaTests\Services::drivers() as $driver){
         $db=SqlConnection::connect(\CoreviaTests\Services::sql($driver));$prefix='cv_v4connect_'.bin2hex(random_bytes(5));
         try{contract($db,$prefix);echo "PASS $driver usage/sync contract\n";}
-        finally{foreach(['budget_buckets','budget_mutex','sync_events','sync_records','sync_mutex'] as $table){$db->execute('DROP TABLE IF EXISTS '.$db->quoteIdentifier($prefix.'_'.$table));}}
+        finally{foreach(['budget_buckets','budget_mutex','sync_events','sync_records','sync_mutex','sync_operations'] as $table){$db->execute('DROP TABLE IF EXISTS '.$db->quoteIdentifier($prefix.'_'.$table));}}
     }
 }
