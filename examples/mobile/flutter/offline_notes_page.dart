@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:corevia/sync.dart';
 
 /// Inject a partitioned durable queue and current-auth transport from the host application.
+/// Re-key/dispose the page when changing authenticated account or tenant.
 class OfflineNotesPage extends StatefulWidget {
   final OfflineSync queue;
   final SyncTransport transport;
@@ -19,7 +20,14 @@ class _OfflineNotesPageState extends State<OfflineNotesPage> {
   @override
   void dispose() { title.dispose();super.dispose(); }
   Future<void> refresh() async {
-    try { final value = await widget.queue.snapshot();if (mounted) setState(() => snapshot = value); }
+    try {
+      final value = await widget.queue.snapshot();
+      if (!mounted) return;
+      final drafts = (value['pending'] as List).where((item) => item['id'] == 'welcome-note').toList();
+      final saved = drafts.isNotEmpty ? drafts.first['data'] : value['records']['welcome-note']?['data'];
+      if (title.text.isEmpty && saved is Map && saved['title'] is String) title.text = saved['title'];
+      setState(() => snapshot = value);
+    }
     catch (_) { if (mounted) setState(() => status = 'Saved data is unavailable on this device.'); }
   }
   void message(String value) { if (mounted) setState(() => status = value); }
@@ -34,9 +42,9 @@ class _OfflineNotesPageState extends State<OfflineNotesPage> {
     final pending = edits.isEmpty ? null : edits.first;
     final record = snapshot?['records']['welcome-note'];
     return Scaffold(appBar: AppBar(title: const Text('My offline note')),body: ListView(padding: const EdgeInsets.all(24),children: [
-      TextField(controller: title,maxLength: 120,enabled: !busy && pending == null,decoration: const InputDecoration(labelText: 'Note title',border: OutlineInputBorder())),
-      FilledButton(onPressed: busy || pending != null ? null : () => action(() async { if (title.text.trim().isEmpty) return;await widget.queue.enqueue('welcome-note',record?['revision'] ?? 0,{'title': title.text});message('Saved on this device. Sync when you are ready.'); }),child: const Text('Save offline')),
-      OutlinedButton(onPressed: busy ? null : () => action(() async {
+      TextField(controller: title,maxLength: 120,enabled: snapshot != null && !busy && pending == null,decoration: const InputDecoration(labelText: 'Note title',border: OutlineInputBorder())),
+      FilledButton(onPressed: snapshot == null || busy || pending != null ? null : () => action(() async { if (title.text.trim().isEmpty) return;await widget.queue.enqueue('welcome-note',record?['revision'] ?? 0,{'title': title.text});message('Saved on this device. Sync when you are ready.'); }),child: const Text('Save offline')),
+      OutlinedButton(onPressed: snapshot == null || busy ? null : () => action(() async {
         final pulled = await widget.queue.pull(widget.transport);
         if (pulled['status'] == 'reset_required') { message('Choose Reload server data. Your offline edits will be kept.');return; }
         final result = await widget.queue.flush(widget.transport);

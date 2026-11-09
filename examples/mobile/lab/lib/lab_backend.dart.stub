@@ -1,0 +1,56 @@
+import 'dart:convert';
+import 'dart:math';
+import 'package:corevia/sync.dart';
+
+/// Explicit in-app server simulation. It never contacts production or authenticates a real user.
+class LabBackend implements SyncTransport {
+  final SyncStateStore store;
+  bool offline = false, loseNextAcknowledgment = false;
+  LabBackend(this.store);
+  Future<Map<String, dynamic>> _state() async {
+    final saved = await store.read();
+    return {'version': saved.version, 'value': saved.payload == null ? <String, dynamic>{'sequence': 0, 'records': <String,dynamic>{}, 'feed': <dynamic>[], 'receipts': <String,dynamic>{}} : jsonDecode(saved.payload!)};
+  }
+  @override
+  Future<Map<String, dynamic>> mutate(Map<String, dynamic> mutation) async {
+    if (offline) throw SyncError('SYNC_UNAVAILABLE');
+    for (var retry = 0; retry < 8; retry++) {
+      final row = await _state(), state = row['value'] as Map<String,dynamic>;
+      final receipts = state['receipts'] as Map<String,dynamic>, operation = mutation['operation_id'] as String;
+      final oldReceipt = receipts[operation];
+      if (oldReceipt != null) {
+        if (oldReceipt['request'] != jsonEncode(mutation)) throw SyncError('SYNC_OPERATION_CONFLICT');
+        return Map<String,dynamic>.from(oldReceipt['ack'] as Map);
+      }
+      if (receipts.length >= 256) throw StateError('LAB_FULL_USE_NEW_FIXTURE');
+      final record = state['records'][mutation['id']];
+      if ((record?['revision'] ?? 0) != mutation['expected_revision']) throw SyncError('SYNC_REVISION_CONFLICT');
+      final revision = (mutation['expected_revision'] as int) + 1, sequence = (state['sequence'] as int) + 1;
+      final item = {'id':mutation['id'],'revision':revision,'sequence':sequence,'deleted':mutation['data'] == null,'data':mutation['data']};
+      final ack = {'operation_id':operation,'id':item['id'],'revision':revision,'sequence':sequence,'deleted':item['deleted']};
+      state['records'][item['id']] = item;state['sequence'] = sequence;(state['feed'] as List).add(item);
+      receipts[operation] = {'request':jsonEncode(mutation),'ack':ack};
+      if (!await store.compareExchange(row['version'] as int,jsonEncode(state))) continue;
+      if (loseNextAcknowledgment) { loseNextAcknowledgment = false;throw SyncError('SYNC_UNAVAILABLE'); }
+      return ack;
+    }
+    throw SyncError('SYNC_STORE_BUSY');
+  }
+  @override
+  Future<Map<String, dynamic>> changes(String? cursor) async {
+    if (offline) throw SyncError('SYNC_UNAVAILABLE');
+    final after = cursor == null ? 0 : int.tryParse(cursor);
+    final state = (await _state())['value'] as Map<String,dynamic>;
+    if (after == null || after < 0 || after > state['sequence']) throw SyncError('SYNC_CURSOR_REQUIRES_RESET');
+    final items = (state['feed'] as List).where((item) => item['sequence'] > after).take(100).toList();
+    final last = items.isEmpty ? after : items.last['sequence'] as int;
+    return {'changes':items,'cursor':'$last','has_more':last < state['sequence']};
+  }
+  Future<void> simulateServerEdit({bool delete = false}) async {
+    final state = (await _state())['value'] as Map<String,dynamic>;
+    final id = List.generate(16, (_) => Random.secure().nextInt(256).toRadixString(16).padLeft(2,'0')).join();
+    final wasOffline = offline;
+    try { offline = false;await mutate({'operation_id':id,'id':'welcome-note','expected_revision':state['records']['welcome-note']?['revision'] ?? 0,'data':delete ? null : {'title':'Simulated server edit'}}); }
+    finally { offline = wasOffline; }
+  }
+}

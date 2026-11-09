@@ -1,0 +1,43 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'package:corevia/sync.dart';
+
+/// Synthetic device-lab data only. One Dart isolate owns each store path.
+/// Not encrypted, not a production multi-isolate/database adapter or power-loss guarantee.
+class LabFileStore implements SyncStateStore {
+  final File file;
+  static final Map<String, Future<void>> _tails = {};
+  LabFileStore(this.file);
+  Future<T> _locked<T>(Future<T> Function() work) async {
+    final key = file.absolute.path;
+    final previous = _tails[key] ?? Future<void>.value();
+    final release = Completer<void>();
+    _tails[key] = release.future;
+    await previous;
+    try { return await work(); }
+    finally { release.complete();if (identical(_tails[key], release.future)) _tails.remove(key); }
+  }
+  Future<SyncStoredState> _read() async {
+    if (!await file.exists()) return SyncStoredState(0, null);
+    if (await file.length() > 5242880) throw StateError('LAB_STORAGE_BOUNDS');
+    dynamic value;
+    try { value = jsonDecode(await file.readAsString()); }
+    catch (_) { throw StateError('LAB_STORAGE_INVALID'); }
+    if (value is! Map || value['version'] is! int || value['version'] < 0 || value['version'] >= 9007199254740991 || value['payload'] != null && value['payload'] is! String) throw StateError('LAB_STORAGE_INVALID');
+    return SyncStoredState(value['version'] as int, value['payload'] as String?);
+  }
+  @override
+  Future<SyncStoredState> read() => _locked(_read);
+  @override
+  Future<bool> compareExchange(int version, String payload) => _locked(() async {
+    if (utf8.encode(payload).length > 2097152) throw StateError('LAB_STORAGE_BOUNDS');
+    final before = await _read();
+    if (before.version != version) return false;
+    await file.parent.create(recursive: true);
+    final temporary = File('${file.path}.next');
+    await temporary.writeAsString(jsonEncode({'version': version + 1, 'payload': payload}), flush: true);
+    await temporary.rename(file.path);
+    return true;
+  });
+}

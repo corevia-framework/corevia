@@ -49,6 +49,10 @@ See [Ollama's compatibility reference](https://docs.ollama.com/api/openai-compat
 | Android emulator on the development machine or CI | No personal phone needed | Repeatable native integration tests against the selected image; hardware/OEM differences remain |
 | Optional hosted device lab | Build artifacts and an authorized account/service required | Selected real devices; costs, artifact upload and access need operator review |
 
+A [disposable Flutter Android lab](mobile-device-lab.md) now supplies a generator,
+file-backed synthetic server, offline note UI and optional device acceptance
+runner. It can be installed as an ordinary app for independent offline practice.
+
 A useful routine is emulator automation for changes, an installable test APK for
 independent use, and physical-phone checks before a release. Native integration
 requires an actual Flutter or React Native host app with a durable CAS adapter;

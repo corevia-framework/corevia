@@ -1,0 +1,59 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:corevia/sync.dart';
+import 'lab_storage.dart';
+import 'lab_backend.dart';
+import 'note_page.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final root = await const MethodChannel('dev.corevia.lab/files').invokeMethod<String>('supportDirectory');
+  if (root == null) throw StateError('Android lab storage is unavailable.');
+  final directory=Directory('$root/corevia-lab-v1');
+  await directory.create(recursive:true);
+  await File('${directory.path}/launch.json').writeAsString(jsonEncode({'standalone':true,'launch_id':'${DateTime.now().microsecondsSinceEpoch}'}),flush:true);
+  runApp(LabApp(directory: directory));
+}
+class LabApp extends StatefulWidget {
+  final Directory directory;
+  final SyncStateStore Function(String path)? storeFactory;
+  const LabApp({super.key, required this.directory, this.storeFactory});
+  @override
+  State<LabApp> createState() => _LabAppState();
+}
+class _LabAppState extends State<LabApp> {
+  late OfflineSync queue;
+  late LabBackend backend;
+  int generation = 0;
+  String notice = 'Synthetic device lab. The server is simulated inside this app.';
+  @override
+  void initState() { super.initState();open(); }
+  void open() {
+    SyncStateStore store(String name) { final path='${widget.directory.path}/$name';return widget.storeFactory?.call(path) ?? LabFileStore(File(path)); }
+    queue = OfflineSync(store: store('client.json'), binding:'device-lab:alice');
+    backend = LabBackend(store('simulated-server.json'));
+  }
+  Future<void> serverEdit(bool delete) async {
+    try { await backend.simulateServerEdit(delete:delete);if (mounted) setState(() => notice = delete ? 'Simulated server deleted the note.' : 'Simulated server changed the note.'); }
+    catch (_) { if (mounted) setState(() => notice = 'Lab data is unavailable or full.'); }
+  }
+  @override
+  Widget build(BuildContext context) => MaterialApp(title:'Corevia device lab',theme:ThemeData(colorSchemeSeed:const Color(0xff166b5b),useMaterial3:true),home:Scaffold(
+    appBar:AppBar(title:const Text('Corevia device lab')),
+    body:Column(children:[
+      Padding(padding:const EdgeInsets.all(12),child:Column(children:[
+        Text(notice,key:const Key('lab-notice')),
+        SwitchListTile(title:const Text('Simulate offline'),value:backend.offline,onChanged:(value)=>setState(()=>backend.offline=value)),
+        Wrap(spacing:8,children:[
+          TextButton(onPressed:()=>serverEdit(false),child:const Text('Simulate server edit')),
+          TextButton(onPressed:()=>serverEdit(true),child:const Text('Simulate server deletion')),
+          TextButton(onPressed:()=>setState(() { backend.loseNextAcknowledgment=true;notice='The next server acknowledgment will be lost once.'; }),child:const Text('Lose next acknowledgment')),
+          TextButton(onPressed:()=>setState(() { open();generation++;notice='Reopened private lab files. Offline edits were kept.'; }),child:const Text('Reopen saved state')),
+        ]),
+      ])),
+      Expanded(child:OfflineNotesPage(key:ValueKey(generation),queue:queue,transport:backend)),
+    ]),
+  ));
+}

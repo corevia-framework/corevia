@@ -89,4 +89,10 @@ Limits are 100 pending operations, 5000 cached identities, 16 KiB per record, 2 
 
 Run `php tests/v4/sync.php`, `node --test sdk/js/test/sync.test.js`, `dart run sdk/dart/test/sync.dart` and `python tests/v4/sync-http.py`. The last command requires PHP PDO SQLite, Node and a Dart SDK (`COREVIA_DART` or PATH); absence is an error, not a pass. It creates only an ignored `storage/sync-http-*` fixture and uses fake bearer credentials. Two separate JS processes simulate durable restart/lost acknowledgment, and native Dart then consumes the same actual PHP feed, including deletion. No real account, email, external API or live database is used. The file adapters in that fixture have a single sequential owner; they are not production multi-owner CAS implementations.
 
+The optional [Android device lab](mobile-device-lab.md) generates a separate
+Flutter host for build/widget/file/device checks. Its standalone synthetic server
+runs inside the phone; the integration suite separately exercises real Corevia
+HTTPS synchronization through a private temporary backend. Inspect each run's
+actual receipt before claiming native acceptance.
+
 The SQL service suite includes actual MySQL/PostgreSQL receipt/API contracts. Eight-process SQLite WAL tests assert one shared retry receipt along with existing worker/approval/revision invariants. The expanded stress workload used a 30-second busy timeout and a 90-second process cap after exceeding the original 10-second wait; the retained passing run's workers took about 6–13 seconds on this machine. This is a correctness fixture, not a throughput/superiority benchmark. Device/native-runtime, sustained load and cloud/CI acceptance remain separate release gates.

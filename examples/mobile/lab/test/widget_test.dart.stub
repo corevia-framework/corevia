@@ -1,0 +1,20 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:corevia_mobile_lab/main.dart';
+import 'package:corevia/sync.dart';
+void main() {
+  testWidgets('Offline draft survives reopening the injected store', (tester) async {
+    final stores=<String,MemorySyncStore>{};
+      await tester.pumpWidget(LabApp(directory:Directory('synthetic-no-io'),storeFactory:(path)=>stores.putIfAbsent(path,MemorySyncStore.new)));await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField),'Device draft');
+      await tester.tap(find.text('Save offline'));await tester.pumpAndSettle();
+      expect(find.text('1 edits waiting to sync'),findsOneWidget);
+      await tester.tap(find.text('Reopen saved state'));await tester.pumpAndSettle();
+      expect(find.text('1 edits waiting to sync'),findsOneWidget);
+      expect(tester.widget<TextField>(find.byType(TextField)).controller!.text,'Device draft');
+      await tester.tap(find.text('Sync now'));await tester.pumpAndSettle();
+      expect(find.text('0 edits waiting to sync'),findsOneWidget);
+      await tester.pumpWidget(const SizedBox());await tester.pumpAndSettle();
+  });
+}
