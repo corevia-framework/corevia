@@ -82,3 +82,7 @@ Item 20 is in progress: the default welcome/workspace foundations are refreshed 
 - Source/version-bound validation results and no unresolved release-blocking finding.
 
 The V4 launch must state which modules and external integrations were actually validated. The current V3 OAuth/Docker deferrals do not automatically transfer into a V4 acceptance claim. Independent security review should be pursued for identity, tenant isolation and tool execution; record its actual scope and disposition without claiming certification.
+
+## Maintainer scope clarification: model validation
+
+On 2026-11-09, the maintainer delegated application-specific model/provider testing to framework users and authorized local installed-model checks. Corevia supplies optional, source/model-bound interoperability fixtures; it does not gate V4 on paid model credentials or certify arbitrary model accuracy/safety. Framework streaming, contract validation, budgets, permissioned tools, usage isolation and selected vector-adapter checks remain required. Mobile/native, identity-provider, hosting, security and release gates are unchanged. See [local models and mobile testing](local-models-and-mobile.md).

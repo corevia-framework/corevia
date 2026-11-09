@@ -82,3 +82,5 @@ native mobile environments. No previous real SMTP delivery authorizes another
 email; use dedicated accounts and explicitly approved recipients/messages for any
 new real delivery check. Real OAuth sign-in stays in the account owner's browser.
 Do not paste secrets into chat or publish acceptance files.
+
+Maintainer update (2026-11-09): application-specific model quality and external AI-provider acceptance are delegated to framework users, with [installed local-model interoperability fixtures](local-models-and-mobile.md) supplied as a reference. They no longer require maintainer paid-model credentials before V4 release. This does not waive framework authorization, budget, contract, data-isolation, native-mobile or identity-provider checks. The private Android pairing toolkit is prepared; device/app acceptance is still pending.

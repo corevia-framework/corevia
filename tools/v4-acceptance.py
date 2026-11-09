@@ -121,7 +121,7 @@ def main():
               'unmet_release_gates': [
                   'Phase D full application identity/audit/data-lifecycle integration, accessibility/manual review and real provider/service/device acceptance',
                   'Phase E authenticated collector/TLS/persistence, full hosting and sustained workload acceptance',
-                  'Phase F real model/provider evaluations, OS tool isolation and native-device/durable mobile storage acceptance',
+                  'Phase F OS tool isolation, native-device/durable mobile storage and sustained workload acceptance (application-specific model evaluations are user-run)',
                   'Required remote CI, supported services/runtimes, security review and worker soak/load acceptance',
                   'Real shared/VPS/AWS/Azure hosting acceptance and final Composer package publication',
               ]}
