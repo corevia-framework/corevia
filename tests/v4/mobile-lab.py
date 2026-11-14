@@ -16,6 +16,7 @@ import subprocess
 import threading
 import time
 import uuid
+import xml.etree.ElementTree as ET
 
 ROOT=Path(__file__).resolve().parents[2]
 PACKAGE='dev.corevia.lab.corevia_mobile_lab'
@@ -79,6 +80,27 @@ def tls_frontend(port,certificate,key):
     server=Server(('127.0.0.1',0),Handler)
     thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
     return server,thread
+
+
+def standalone_ui(device):
+    """Check fixture-owned semantics; retain no full hierarchy or other app names."""
+    for attempt in range(3):
+        activities=device('shell','dumpsys','activity','activities')
+        if not re.search(r'mResumedActivity:.*'+re.escape(PACKAGE)+r'/',activities):
+            raise RuntimeError('Keep Corevia Lab in the foreground for its standalone UI check.')
+        # Some OEM dump commands do not stream XML from /dev/tty or proc fd 1.
+        # Use a unique lab-only temporary file and remove it before parsing.
+        temporary='/data/local/tmp/corevia-lab-ui-'+uuid.uuid4().hex+'.xml'
+        device('shell','test','!','-e',temporary)
+        try:
+            device('shell','uiautomator','dump',temporary,timeout=20)
+            hierarchy=device('shell','cat',temporary)
+        finally:device('shell','rm','-f',temporary)
+        tree=ET.fromstring(hierarchy)
+        labels=' '.join(node.get('text','')+' '+node.get('content-desc','')for node in tree.iter('node')if node.get('package')==PACKAGE)
+        if 'Corevia device lab'in labels and 'Simulate offline'in labels:return
+        time.sleep(1)
+    raise RuntimeError('Standalone lab UI labels were not visible; device UI acceptance remains incomplete.')
 
 
 def main():
@@ -199,10 +221,15 @@ def main():
             owner.write_text(json.dumps({'package':PACKAGE,'device':args.device,'fixture_project':str(project)},indent=2)+'\n',encoding='utf-8')
             ca=base64.b64encode(certificate.read_bytes()).decode('ascii')
             renderer=['--no-enable-impeller']if report['android_renderer']=='legacy-opengl'else[]
-            output=run('device-contract',[flutter,'test','integration_test/device_test.dart','-d',args.device,*renderer,'--dart-define=COREVIA_SYNC_URL=https://127.0.0.1:'+str(tls_port),'--dart-define=COREVIA_TEST_CA='+ca],timeout=600)
+            # Flutter test otherwise uninstalls the fixture (including its data)
+            # before the standalone APK can exercise real process persistence.
+            output=run('device-contract',[flutter,'test','integration_test/device_test.dart','--no-uninstall','-d',args.device,*renderer,'--dart-define=COREVIA_SYNC_URL=https://127.0.0.1:'+str(tls_port),'--dart-define=COREVIA_TEST_CA='+ca],timeout=600)
             match=re.search(r'COREVIA_RESTART_PROBE_ID=(restart-[0-9]+)',output)
             if not match:raise RuntimeError('No native restart probe was produced.')
             probe=match[1]
+            seeded=json.loads(device('shell','run-as',PACKAGE,'cat','files/corevia-lab-v1/client.json'))
+            if not any(item['id']==probe for item in json.loads(seeded['payload'])['pending']):raise RuntimeError('Seeded device probe is missing before standalone installation.')
+            report['seeded_probe_verified_before_update']=True
             # Integration-test APKs are not the standalone lab. Rebuild the ordinary entrypoint.
             run('build-standalone',[flutter,'build','apk','--debug','--target=lib/main.dart','--target-platform='+target,'--no-pub'])
             run('install-standalone',[adb,'-P',str(args.adb_port),'-s',args.device,'install','-r',apk],timeout=180)
@@ -215,7 +242,7 @@ def main():
                 device('shell','am','force-stop',PACKAGE)
                 old_marker=device('shell','run-as',PACKAGE,'cat','files/corevia-lab-v1/launch.json',allow_failure=True)
                 if old_marker.strip():previous_launch=json.loads(old_marker).get('launch_id')
-                device('shell','am','start','-W','-n',PACKAGE+'/.MainActivity')
+                device('shell','am','start','-W','-n',PACKAGE+'/.MainActivity',timeout=60)
                 for attempt in range(100):
                     # A process ID does not mean Dart has finished starting.
                     # Wait for this entrypoint's fresh, flushed launch marker.
@@ -235,6 +262,8 @@ def main():
             report['process_restart_probe_retained']=True
             report['standalone_relaunched_without_backend']=True
             report['native_tls_and_untrusted_ca_wrong_host_rejection']=True
+            standalone_ui(device)
+            report['native_ui_labels_visible']=True
             report['apk_sha256']=hashlib.sha256(apk.read_bytes()).hexdigest()
             report['android_version']=device('shell','getprop','ro.build.version.release').strip()
         report['source_unchanged']=all(hashlib.sha256((ROOT/name).read_bytes()).hexdigest()==digest for name,digest in manifest['source_hashes'].items()) and hashlib.sha256(Path(__file__).read_bytes()).hexdigest()==driver_hash and backend_sources()==report['backend_source_hashes'] and hashlib.sha256((ROOT/'tools/v4-mobile-lab.py').read_bytes()).hexdigest()==manifest['generator_sha256']

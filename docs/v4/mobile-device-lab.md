@@ -57,10 +57,13 @@ development password `android`; never use this key to sign a production release.
 Pair an authorized Android device or start an emulator. Then run:
 
 Keep the phone unlocked with **Corevia Lab** visible throughout automated device
-tests. Flutter's live test binding waits for app frames; switching to another app
-can leave a test waiting even when the phone and ADB connection are healthy. The
-integration-test entrypoint may show a blank screen. This requirement applies to
-the automated suite, not ordinary use of the installed standalone example.
+tests, especially the final standalone UI check. Filesystem, HTTPS and native
+channel contracts run as ordinary on-device tests so they do not wait for an
+unrelated widget test frame. Their results are also recorded in the integration
+binding's native result map, including failures. The integration-test entrypoint
+may show a blank screen; the runner separately installs and checks the ordinary
+app. This requirement applies to automation, not ordinary use of the installed
+standalone example.
 
 ```sh
 python tests/v4/mobile-lab.py --project=storage/android-lab-new --flutter=/path/to/flutter --android-sdk=/path/to/android-sdk --device=ADB_SERIAL --adb-port=5037
@@ -83,12 +86,23 @@ The device mode:
    actual HTTPS synchronization, fresh tokens and tenant/auth separation against
    Corevia. It rejects the untrusted test certificate and a wrong hostname before
    using the explicit test CA for the correct host.
-5. Seeds a synthetic queued edit, installs the ordinary standalone entrypoint,
+5. Seeds and verifies a synthetic queued edit. The integration launch uses
+   `--no-uninstall` so Flutter does not delete the fixture's private state during
+   test teardown. It installs the ordinary standalone entrypoint as an update,
    removes the reverse mapping and stops the PC backend, then force-stops and
    relaunches only the lab app twice. It verifies the queued probe and a fresh
    standalone launch marker in that app's own private files.
 6. Records its actual results, source/driver hashes, APK digest and cleanup state
    under the generated project's `acceptance/` directory.
+
+After restart, the runner checks that Corevia Lab is in the foreground and that
+its own title/control labels appear in Android's UI hierarchy. It uses a unique
+Corevia-only temporary file in the phone's ADB temporary directory and removes it
+immediately after reading; OEM dump tools do not always stream XML through stdout.
+It retains neither the full hierarchy nor other applications' activity names.
+This is a basic native rendering check, not manual accessibility or screen-reader
+certification. See the [recorded Android 11 OpenGL acceptance](progress.md#android-phone-acceptance-2026-11-15)
+for its actual scope and explicitly split evidence.
 
 The test CA is trusted only in the integration-test process. It is not installed
 in the phone's system trust store. The private CA key stays on the build machine.

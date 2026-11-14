@@ -3,16 +3,28 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:integration_test/common.dart';
 import 'package:corevia/sync.dart';
 import 'package:corevia/sync_io.dart';
 import '../test/storage_contract.dart' as files;
 import '../lib/lab_storage.dart';
 
 void main() {
-  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  testWidgets('Device filesystem persistence and conflict contracts', (_) async { await files.main(); });
+  final binding=IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  // These IO/channel contracts do not exercise widgets. Avoid making them wait
+  // for a rendered test frame; the host separately checks the standalone UI.
+  void contract(String name,Future<void> Function() body,{bool skip=false}) {
+    test(name,()async {
+      try { await body();binding.results[name]='success'; }
+      catch (error,stack) {
+        binding.results[name]=Failure(name,'Native IO contract failed.');
+        Error.throwWithStackTrace(error,stack);
+      }
+    },skip:skip,timeout:const Timeout(Duration(seconds:60)));
+  }
+  contract('Device filesystem persistence and conflict contracts', () async { await files.main(); });
   const origin = String.fromEnvironment('COREVIA_SYNC_URL');
-  testWidgets('Native HTTP Corevia sync and tenant/auth boundaries', (_) async {
+  contract('Native HTTP Corevia sync and tenant/auth boundaries', () async {
     final base = Uri.parse(origin);
     expect(base.scheme,'https');expect(base.host,'127.0.0.1');
     const ca=String.fromEnvironment('COREVIA_TEST_CA');
@@ -39,7 +51,7 @@ void main() {
     token='alpha-test';expect((await queue.flush(transport))['processed'],1);await queue.pull(transport);
     expect((await queue.snapshot())['records'][id]['deleted'],true);
   },skip:origin.isEmpty);
-  testWidgets('Seed a private process-restart probe', (_) async {
+  contract('Seed a private process-restart probe', () async {
     final root=await const MethodChannel('dev.corevia.lab/files').invokeMethod<String>('supportDirectory');
     expect(root,isNotNull);
     final queue=OfflineSync(store:LabFileStore(File('$root/corevia-lab-v1/client.json')),binding:'device-lab:alice');
