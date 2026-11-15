@@ -1,11 +1,10 @@
 # V4 release validation and remaining environments
 
-V4 is still an unpublished development branch. Passing fixtures is evidence for
-their stated scope; it does not certify every hosting provider, identity provider,
-mobile device or production workload. V3's optional OAuth/Docker deferrals do not
-automatically apply to V4. Keep the stable version and release metadata unchanged
-until the selected V4 release gates have passed or the maintainer explicitly
-changes the advertised scope.
+V4.0 is prepared for the [documented release scope](release.md). Passing fixtures
+is evidence for that scope, not certification of every host/provider/device.
+The maintainer authorized documenting unavailable targets as explicit deferrals;
+see [consumer self-tests](optional-validation.md) and the [20-workstream review](final-review.md).
+Required local and exact-commit CI checks remain mandatory.
 
 ## Repeatable build-machine checks
 
@@ -75,7 +74,7 @@ logs, binaries and reports in ignored acceptance storage.
 | AI providers/tools | Intended model and embeddings/dimensions, representative labeled retrieval/evaluation cases, structured errors, usage/cancellation/uncertain billing; actual sandbox review before any untrusted code | SQL/Qdrant/contract/process fixtures pass; no paid inference or untrusted-code sandbox certified |
 | Native mobile | Real Android/iOS Flutter and React Native host builds, approved durable atomic CAS storage, device restart/offline/conflict/revocation/tombstones, accessibility and any selected background policy | Physical Android 11 OpenGL lab passes filesystem, HTTPS/auth-loss/tenant, two standalone restarts without the PC backend and basic visible-UI checks. Evidence is split across the retained full-run failure and focused UI completion. Default renderer, React Native/iOS, production adapters and manual/background acceptance remain unverified. See [recorded scope](progress.md#android-phone-acceptance-2026-11-15). |
 | Security/accessibility/support | Independent scoped review, actual assistive technology/keyboard and device checks, vulnerability disposition, intended workload/load/RSS/native-I/O results and final supported runtime matrix | Automated browser/Axe/runtime contracts and internal hardening are evidence, not independent certification |
-| GitHub/public packages | Required CI on the exact intended commit, final version/changelog/upgrade review, release artifacts and package checksums, Composer publication and final main/tag/release | Kept local until the maintainer's release conditions are met |
+| GitHub/public packages | Required CI on the exact intended commit, final version/changelog/upgrade review, release artifacts and package checksums, Composer publication and final main/tag/release | Candidate tests and exact-commit CI required before main/tag/release; registry registration is not claimed |
 
 The VPS laptop can provide more Linux acceptance without creating AWS/Azure or
 native mobile environments. No previous real SMTP delivery authorizes another

@@ -66,6 +66,7 @@ def main():
         ('composer-validate', composer_command + ['validate', '--strict'], {}),
         ('php-lint', composer_command + ['lint'], {}),
         ('php-regression', composer_command + ['test'], {}),
+        ('v4-release-gates', [php, 'tests/v4/release.php'], {}),
         ('sqlite-concurrency', [sys.executable, 'tests/v4/concurrency.py'], {}),
         ('live-remote-cancellation', [sys.executable, 'tests/v4/cancel-http.py'], {}),
         ('cross-runtime-budgets', [sys.executable, 'tests/v4/cross-runtime.py'], {}),
@@ -96,7 +97,7 @@ def main():
         browser_app = browser_package / 'application'
         checks.extend([
             ('workspace-package', [sys.executable, 'tools/v4-package.py', '--output=' + str(browser_package)], {}),
-            ('workspace-install', composer_command + ['--working-dir=' + str(browser_app), 'install', '--no-interaction', '--no-scripts', '--no-plugins'], {'COMPOSER_ROOT_VERSION': 'dev-v4'}),
+            ('workspace-install', composer_command + ['--working-dir=' + str(browser_app), 'install', '--no-interaction', '--no-scripts', '--no-plugins'], {'COMPOSER_ROOT_VERSION': '4.0.0'}),
             ('workspace-browser', ['node', 'tests/v4/workspace-browser.mjs', str(browser_app)], {}),
         ])
     if args.services:
@@ -118,13 +119,8 @@ def main():
     report = {'format': 1, 'source': baseline, 'checks': [], 'release_ready': False,
               'runtimes': {'python': sys.version.split()[0], 'php': subprocess.run([php, '-r', 'echo PHP_VERSION;'], capture_output=True, text=True, check=True).stdout,
                            'node': subprocess.run(['node', '--version'], capture_output=True, text=True, check=True).stdout.strip()},
-              'unmet_release_gates': [
-                  'Phase D full application identity/audit/data-lifecycle integration, accessibility/manual review and real provider/service/device acceptance',
-                  'Phase E authenticated collector/TLS/persistence, full hosting and sustained workload acceptance',
-                  'Phase F OS tool isolation, native-device/durable mobile storage and sustained workload acceptance (application-specific model evaluations are user-run)',
-                  'Required remote CI, supported services/runtimes, security review and worker soak/load acceptance',
-                  'Real shared/VPS/AWS/Azure hosting acceptance and final Composer package publication',
-              ]}
+              'unmet_release_gates': ['Required GitHub CI on the actual release commit; release:check combines separate local/CI evidence'],
+              'deferred_target_checks': json.loads((ROOT/'docs/v4/acceptance.json').read_text(encoding='utf-8'))['deferred_checks']}
     for name, command, overrides in checks:
         started = time.monotonic()
         try:

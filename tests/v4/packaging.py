@@ -24,7 +24,7 @@ if not php or not composer_executable:
     raise SystemExit('PHP and Composer are required.')
 phar = Path(composer_executable).parent / 'composer.phar'
 composer = [php, str(phar)] if phar.exists() else [composer_executable]
-environment = dict(os.environ, COMPOSER_ROOT_VERSION='dev-v4')
+environment = dict(os.environ, COMPOSER_ROOT_VERSION=packaging.VERSION)
 for key in list(environment):
     if key.startswith(('APP_', 'AUTH_', 'AI_', 'COREVIA_', 'MODEL_')):
         environment.pop(key)

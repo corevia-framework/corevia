@@ -1,5 +1,7 @@
 # Phase B delivery and publication boundary
 
+Release update: this file records the development increment. The current V4.0 disposition is in the [final scope review](final-review.md), [release notes](release.md) and [deferred-target guide](optional-validation.md). Earlier pending statements are historical, not a claim that unverified targets later passed.
+
 Updated 2026-11-08 (Asia/Karachi). Local engineering acceptance covers composition, dependency checks, staged upgrades and upload artifacts. The maintainer explicitly scheduled public package publication for the final V4 release. Phase B is complete for local delivery; publication is retained as a Phase G release task. No V4 code, release or package has been uploaded by these commands.
 
 ## One-command application composition

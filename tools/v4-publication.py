@@ -1,4 +1,4 @@
-"""Prepare a static Composer development repository. Writes local artifacts only; never uploads."""
+"""Prepare a static Composer release repository. Writes local artifacts only; never uploads."""
 import argparse
 import hashlib
 import importlib.util
@@ -36,13 +36,13 @@ def prepare(distribution, output, base_url):
             manifest['repositories']=[{'type':'composer','url':base_url.rstrip('/')}]
             files['composer.json']=package.canonical(manifest)
         data=package.archive(files);filename=stem+'.zip';artifacts[filename]=data
-        packages[name]={'dev-v4':{**manifest,'version':'dev-v4','dist':{'type':'zip','url':base_url.rstrip('/')+'/'+filename,'shasum':hashlib.sha1(data).hexdigest()}}}
+        packages[name]={package.VERSION:{**manifest,'version':package.VERSION,'dist':{'type':'zip','url':base_url.rstrip('/')+'/'+filename,'shasum':hashlib.sha1(data).hexdigest()}}}
     index={'packages':packages}
     destination.mkdir(parents=True,exist_ok=False)
     for name,data in artifacts.items():(destination/name).write_bytes(data)
     (destination/'packages.json').write_bytes(package.canonical(index))
     (destination/'checksums.sha256.json').write_bytes(package.canonical({name:hashlib.sha256(data).hexdigest() for name,data in artifacts.items()}))
-    return {'prepared':True,'uploaded':False,'registry_registered':False,'version':'dev-v4','packages':list(packages)}
+    return {'prepared':True,'uploaded':False,'registry_registered':False,'version':package.VERSION,'packages':list(packages)}
 
 
 if __name__=='__main__':

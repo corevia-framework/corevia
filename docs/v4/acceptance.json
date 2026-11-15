@@ -1,0 +1,106 @@
+{
+  "format": 1,
+  "target": "4.0.0",
+  "reviews": {
+    "scope_review": true,
+    "security_boundary_review": true,
+    "upgrade_review": true,
+    "support_matrix": true
+  },
+  "required_checks": [
+    "composer-validate",
+    "php-lint",
+    "php-regression",
+    "sqlite-concurrency",
+    "live-remote-cancellation",
+    "cross-runtime-budgets",
+    "outbound-http-budgets",
+    "architecture",
+    "v3-api-compatibility",
+    "v3-backup-restoration",
+    "distribution-upgrades",
+    "javascript-sdk",
+    "python-sdk",
+    "workspace-browser",
+    "auth-assets",
+    "auth-json-accessibility",
+    "auth-json-identity",
+    "auth-sql-identity",
+    "ai-ui-bootstrap",
+    "ai-ui-tailwind",
+    "ai-ui-react",
+    "passkey-browser",
+    "dart-analysis",
+    "dart-offline-queue",
+    "native-sync-http",
+    "worker-endurance",
+    "v4-release-gates"
+  ],
+  "deferred_checks": {
+    "shared_hosting": {
+      "status": "deferred",
+      "reason": "No disposable commercial shared-hosting account; local Apache layout and private VPS fixtures do not certify that provider.",
+      "guide": "docs/v4/optional-validation.md"
+    },
+    "aws": {
+      "status": "deferred",
+      "reason": "No authorized disposable AWS deployment; recipes are supplied, not provider-certified.",
+      "guide": "docs/v4/optional-validation.md"
+    },
+    "azure": {
+      "status": "deferred",
+      "reason": "No authorized disposable Azure deployment; recipes require target validation.",
+      "guide": "docs/v4/optional-validation.md"
+    },
+    "docker_image": {
+      "status": "deferred",
+      "reason": "No local Docker daemon; optional CI/manual image validation remains separate from source installation.",
+      "guide": "docs/v4/optional-validation.md"
+    },
+    "real_oidc": {
+      "status": "deferred",
+      "reason": "No dedicated real identity-provider account/callback credentials; provider-neutral fixtures do not establish live-provider acceptance.",
+      "guide": "docs/v4/optional-validation.md"
+    },
+    "physical_passkeys": {
+      "status": "deferred",
+      "reason": "Virtual WebAuthn verification is tested; physical security-key/platform authenticator ceremonies remain unverified.",
+      "guide": "docs/v4/optional-validation.md"
+    },
+    "other_mobile": {
+      "status": "deferred",
+      "reason": "Only the Android 11 arm64 OpenGL synthetic lab was accepted; React Native, iOS, default rendering, production storage and background policies require their own targets.",
+      "guide": "docs/v4/optional-validation.md"
+    },
+    "manual_accessibility": {
+      "status": "deferred",
+      "reason": "Automated browser/Axe/keyboard checks are available; no claim of completed assistive-technology or independent human accessibility audit.",
+      "guide": "docs/v4/optional-validation.md"
+    },
+    "independent_security": {
+      "status": "deferred",
+      "reason": "Internal hardening and negative tests are not an independent security audit or compliance certification.",
+      "guide": "docs/v4/optional-validation.md"
+    },
+    "long_workloads": {
+      "status": "deferred",
+      "reason": "Bounded lifecycle/crash fixtures do not certify multi-hour application-specific load, physical-host failover or operational SLOs.",
+      "guide": "docs/v4/optional-validation.md"
+    },
+    "model_quality": {
+      "status": "deferred",
+      "reason": "Maintainer assigned model/provider quality evaluation to application authors; installed-model interoperability does not certify output quality.",
+      "guide": "docs/v4/optional-validation.md"
+    },
+    "os_tool_sandbox": {
+      "status": "deferred",
+      "reason": "Tool callbacks/processes are for trusted code. An OS sandbox for arbitrary untrusted code is not provided or advertised.",
+      "guide": "docs/v4/optional-validation.md"
+    },
+    "packagist": {
+      "status": "deferred",
+      "reason": "GitHub source and static Composer ZIP distribution are supported; Packagist registration and npm/PyPI/pub.dev publication are not claimed.",
+      "guide": "docs/v4/optional-validation.md"
+    }
+  }
+}

@@ -1,5 +1,7 @@
 # Phase E: reliable delivery increment
 
+Release update: this file records the development increment. The current V4.0 disposition is in the [final scope review](final-review.md), [release notes](release.md) and [deferred-target guide](optional-validation.md). Earlier pending statements are historical, not a claim that unverified targets later passed.
+
 Phase E is in progress. This increment adds an explicit SQL outbox, webhook signature codec and cooperative deadline. It does not complete full operations/cloud acceptance.
 
 ## Commit application changes and events together

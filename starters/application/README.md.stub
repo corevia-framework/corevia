@@ -1,10 +1,10 @@
-# Corevia detached application preview
+# Corevia 4.0 application
 
-This experimental application keeps your code in `app/`, `routes/`, `resources/`
+This application keeps your code in `app/`, `routes/`, `resources/`
 and `config/`. Framework dependencies live in `vendor/corevia-framework/runtime`.
-The runtime package is a local V4 prototype, not a published registry release.
+Use the versioned runtime ZIP or explicit Composer repository supplied with the release. Public registry registration is not implied.
 
-Install dependencies using the sibling `runtime/` directory from this preview:
+Install dependencies using the sibling `runtime/` directory from this distribution:
 
 ```sh
 composer install --no-interaction --no-scripts --no-plugins
@@ -21,7 +21,8 @@ php corevia starter:auth --stack=bootstrap
 ```
 
 Serve only `public/`. Build dependencies off-server before uploading to a host
-without Composer. This first preview does not yet supply a shared-host upload
-layout, cloud adapters, a package registry release or a V3-to-V4 upgrade tool.
+without Composer. Use `hosting:prepare` and the release documentation for target
+recipes and `app:upgrade --dry-run` for staged replacements. Cloud/shared-provider
+acceptance is explicitly unverified; validate the chosen host before deployment.
 Never expose the project root, vendor/, storage/ or configuration as public files.
 No optional AI/provider credentials are enabled automatically.

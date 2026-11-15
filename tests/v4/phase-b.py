@@ -167,7 +167,7 @@ publication=importlib.util.module_from_spec(spec);spec.loader.exec_module(public
 prepared=base/'publication'
 assert publication.prepare(base/'one',prepared,'https://example.invalid/corevia-v4')['uploaded'] is False
 index=json.loads((prepared/'packages.json').read_text())
-runtime_package=index['packages']['corevia-framework/runtime']['dev-v4']
+runtime_package=index['packages']['corevia-framework/runtime'][context['packaging'].VERSION]
 local_repository=base/'local-repository';local_repository.mkdir()
 consumer=base/'registry-consumer';consumer.mkdir()
 class RepositoryHandler(http.server.SimpleHTTPRequestHandler):
@@ -175,13 +175,13 @@ class RepositoryHandler(http.server.SimpleHTTPRequestHandler):
 repository=http.server.ThreadingHTTPServer(('127.0.0.1',0),functools.partial(RepositoryHandler,directory=str(local_repository)))
 repository_origin='http://127.0.0.1:'+str(repository.server_address[1])
 for name,filename in [('runtime','runtime.zip'),('application','application.zip')]:
-    index['packages']['corevia-framework/'+name]['dev-v4']['dist']['url']=repository_origin+'/'+filename
+    index['packages']['corevia-framework/'+name][context['packaging'].VERSION]['dist']['url']=repository_origin+'/'+filename
     import shutil
     shutil.copyfile(prepared/filename,local_repository/filename)
 (local_repository/'packages.json').write_text(json.dumps(index),encoding='utf-8')
 worker=threading.Thread(target=repository.serve_forever,daemon=True);worker.start()
 try:
-    (consumer/'composer.json').write_text(json.dumps({'name':'fixture/registry-consumer','require':{'corevia-framework/runtime':'dev-v4'},
+    (consumer/'composer.json').write_text(json.dumps({'name':'fixture/registry-consumer','require':{'corevia-framework/runtime':context['packaging'].VERSION},
         'repositories':{'fixture':{'type':'composer','url':repository_origin},'packagist.org':False},
         'config':{'secure-http':False}}),encoding='utf-8')
     run(context['composer']+['install','--no-interaction','--no-scripts','--no-plugins'],consumer)

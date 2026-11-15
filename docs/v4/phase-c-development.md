@@ -1,5 +1,7 @@
 # Phase C development APIs
 
+Release update: this file records the development increment. The current V4.0 disposition is in the [final scope review](final-review.md), [release notes](release.md) and [deferred-target guide](optional-validation.md). Earlier pending statements are historical, not a claim that unverified targets later passed.
+
 Local implementation, still using the V3 compatibility baseline. The public release remains gated by the V4 acceptance plan.
 
 ## Application data

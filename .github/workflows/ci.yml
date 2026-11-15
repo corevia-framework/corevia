@@ -52,6 +52,8 @@ jobs:
       - run: php -n tests/v3/operations.php
       - run: php -n tests/v3/services.php
       - run: php -n tests/v3/release.php
+      - run: php tests/v4/release.php
+      - run: python tests/v4/mobile-proxy.py --output=storage/ci-mobile-proxy
       - run: node tests/v3/smtp.mjs
       - run: node tests/v3/http-client.mjs
       - run: node tests/v3/ai-sdk.mjs

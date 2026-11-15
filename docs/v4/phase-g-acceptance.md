@@ -1,5 +1,7 @@
 # Phase G: local acceptance tooling
 
+Release update: this file records the development increment. The current V4.0 disposition is in the [final scope review](final-review.md), [release notes](release.md) and [deferred-target guide](optional-validation.md). Earlier pending statements are historical, not a claim that unverified targets later passed.
+
 Phase G has started with an evidence runner. Release acceptance and publication remain incomplete.
 
 Stage intended framework changes first: distribution packaging reads the Git index. Then run from the checkout:

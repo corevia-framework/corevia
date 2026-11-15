@@ -26,7 +26,7 @@ final class ApplicationInstaller
                 self::write($absolute,$relative,file_get_contents($file->getPathname()));
             }
             $composer=json_decode(file_get_contents($absolute.'/composer.json'),true,64,JSON_THROW_ON_ERROR);
-            $composer['repositories']=[['type'=>'path','url'=>str_replace('\\','/',$runtime),'options'=>['symlink'=>false,'versions'=>['corevia-framework/runtime'=>'dev-v4']]]];
+            $composer['repositories']=[['type'=>'path','url'=>str_replace('\\','/',$runtime),'options'=>['symlink'=>false,'versions'=>['corevia-framework/runtime'=>\Corevia\Core\Version::VERSION]]]];
             if($database!=='json'){$composer['require']['ext-'.($database==='mongodb'?'mongodb':'pdo_'.$database)]='*';}
             file_put_contents($absolute.'/composer.json',json_encode($composer,JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES)."\n");
             $settings=$absolute.'/config/settings/database.php';
@@ -60,7 +60,7 @@ final class ApplicationInstaller
         foreach(explode(PATH_SEPARATOR,getenv('PATH')?:'') as $directory){foreach(['composer.phar','composer'] as $name){$candidate=rtrim($directory,'/\\').'/'.$name;if(is_file($candidate)&&is_readable($candidate)){$executable=$candidate;break 2;}}}
         if($executable===null){throw new \RuntimeException('Composer is required on the build machine.');}
         if(!is_dir($root.'/storage')){mkdir($root.'/storage',0700,true);}
-        $environment=getenv();$environment['COMPOSER_ROOT_VERSION']='dev-v4';
+        $environment=getenv();$environment['COMPOSER_ROOT_VERSION']=\Corevia\Core\Version::VERSION;
         $log=$root.'/storage/composer-install.log';
         $arguments=$updateRuntime?['update','corevia-framework/runtime','--with-dependencies']:['install'];
         $process=proc_open([PHP_BINARY,$executable,...$arguments,'--no-interaction','--no-progress','--no-scripts','--no-plugins'],[0=>['pipe','r'],1=>['file',$log,'ab'],2=>['file',$log,'ab']],$pipes,$root,$environment,['bypass_shell'=>true]);

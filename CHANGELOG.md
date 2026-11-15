@@ -1,6 +1,15 @@
 # Changelog
 
-## Unreleased
+## 4.0.0 - 15 November 2026
+
+- Add versioned runtime/application ZIPs, feature composition, non-destructive staged upgrades and explicit extension compatibility.
+- Add migration/query/testing APIs, tenant-bound data, scoped credentials, audit/data lifecycle, scheduler/outbox/resilience and bounded observability.
+- Refresh the web/auth/AI starters; add optional structured AI/retrieval/tool contracts and bounded JS/Dart offline synchronization.
+- Validate Android 11 OpenGL HTTPS/auth-loss/tenant isolation, real-file contracts and standalone restarts; document the exact limits of this synthetic native lab.
+- Add the Corevia logo and a public release support/deferred-validation matrix. See `docs/v4/release.md` for supported scope and `docs/v4/optional-validation.md` for checks that were not performed.
+
+## Development history (V3/V4)
+
 
 - Add optional V4 idempotent sync API mutations with actor/tenant-bound atomic receipts, bounded JS/Dart offline queues and current-auth transports. Preserve queued edits across lost acknowledgments/auth loss, require explicit conflict resolution and share queue formats across SDKs. Add native HTTP acceptance and host-app Flutter/React Native page examples; native device/storage acceptance remains separate.
 

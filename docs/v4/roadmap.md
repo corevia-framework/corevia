@@ -1,10 +1,8 @@
 # Corevia V4 roadmap
 
-Status: maintainer-approved scope. Workstreams are planned or in progress; none is accepted as complete by this document. V3 remains the implementation baseline. This roadmap does not publish a V4 version or authorize deployment changes.
+Status (15 November 2026): V4.0 release scope has been reconciled in the [20-workstream final review](final-review.md). A-F implementations are delivered for that stated scope; G covers final candidate tests, exact-commit CI and publication. Unavailable targets are explicitly deferred in [optional validation](optional-validation.md), not accepted as passing. This preserves the larger roadmap as future target-specific work rather than claiming every environment is certified.
 
-Implementation has started locally: see [progress and prototype instructions](progress.md) and the [compatibility baseline](baseline.md). A workstream remains incomplete until its exit evidence is satisfied.
-
-Current phase status (2026-11-08): Phase A baseline/design is complete; Phase B is complete for local delivery. Phases C-G have started; C has local and real SQL development/reference coverage, D has identity/storage/browser coverage, and E-F have tested operations/connected-storage increments, while G has local evidence tooling. Their remaining exit requirements are tracked explicitly in progress.md. The maintainer explicitly scheduled package publication for the final V4 release in Phase G. See the [design record](phase-a-design.md) and [delivery evidence/publication boundary](phase-b-delivery.md). This does not mark all cross-phase workstreams or release acceptance complete.
+The maintainer authorized completing release preparation and publishing the documented scope. See [release notes](release.md), [upgrade instructions](upgrade.md) and [release validation](release-validation.md). Package registries, untrusted-code sandboxing and unverified providers/devices are not advertised as completed capabilities.
 
 ## Product direction
 
@@ -55,7 +53,7 @@ Each phase can contain several pull requests. A phase is complete only when its 
 
 ## Frontend redesign acceptance
 
-Item 20 is in progress: the default welcome/workspace foundations are refreshed with V4 responsive navigation and themes. Auth/account/recovery now have multilingual/RTL native workflows across the three stacks with automated browser/accessibility coverage; manual accessibility review and the optional AI view remain open. Coordinate accessibility, translation and RTL work with item 17 rather than treating a visual refresh as accessibility acceptance.
+Item 20 release scope: the default welcome/workspace foundations are refreshed with V4 responsive navigation and themes. Auth/account/recovery now have multilingual/RTL native workflows across the three stacks with automated browser/accessibility coverage; the optional AI view has automated streaming/cancellation/accessibility coverage, while manual assistive-technology review remains deferred. Coordinate accessibility, translation and RTL work with item 17 rather than treating a visual refresh as accessibility acceptance.
 
 - Cover welcome/onboarding, navigation, auth/recovery/account screens and a useful dashboard shell. Display only real application data; represent unconfigured capabilities with clear empty states.
 - Define reusable typography, spacing, colors, forms, buttons and feedback states, including light/dark themes and persisted non-sensitive theme preferences.

@@ -1,5 +1,7 @@
 # Phase D: tenant isolation increment
 
+Release update: this file records the development increment. The current V4.0 disposition is in the [final scope review](final-review.md), [release notes](release.md) and [deferred-target guide](optional-validation.md). Earlier pending statements are historical, not a claim that unverified targets later passed.
+
 Phase D is in progress. Tenant-bound data/IO helpers are now accompanied by the [identity, audit and account-data APIs](identity-and-data.md) and refreshed multilingual starters. External service/provider/device, manual accessibility/security and final source-bound acceptance remain open.
 
 ## Resolve authority on the server

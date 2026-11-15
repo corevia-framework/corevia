@@ -1,5 +1,7 @@
 # Phase F: budgets and synchronization increment
 
+Release update: this file records the development increment. The current V4.0 disposition is in the [final scope review](final-review.md), [release notes](release.md) and [deferred-target guide](optional-validation.md). Earlier pending statements are historical, not a claim that unverified targets later passed.
+
 Phase F is in progress. These optional SQL-backed primitives work with local fixtures; no model/vector-provider, mobile-platform or AI frontend acceptance is claimed.
 
 ## Tenant usage reservations

@@ -1,4 +1,4 @@
-"""Build experimental runtime/application artifacts from the Git index, without executing PHP or hooks."""
+"""Build versioned runtime/application artifacts from the Git index, without executing PHP or hooks."""
 import argparse
 import hashlib
 import io
@@ -10,7 +10,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 GIT = ['git', '-c', 'safe.directory=' + ROOT.as_posix()]
 RUNTIME_NAME = 'corevia-framework/runtime'
-VERSION = 'dev-v4'
+VERSION = '4.0.0'
 
 
 def canonical(value):
@@ -68,7 +68,7 @@ def assemble():
                if name.startswith(('packages/', 'starters/'))
                or name in {'LICENSE', 'sdk/js/index.js', 'sdk/js/ai.js'}}
     runtime['composer.json'] = canonical({
-        'name': RUNTIME_NAME, 'description': 'Corevia runtime and optional starter resources; V4 packaging preview',
+        'name': RUNTIME_NAME, 'description': 'Corevia runtime and optional starter resources; V4 distribution',
         'type': 'library', 'license': 'MIT', 'require': manifest['require'],
         'suggest': manifest.get('suggest', {}), 'autoload': {'psr-4': prefixes},
         'bin': ['bin/corevia-new'],
@@ -84,7 +84,7 @@ def assemble():
                                   'tests.php': 'tests/run.php'}.items():
         application[destination] = source['starters/application/' + template + '.stub']
     application['composer.json'] = canonical({
-        'name': 'corevia-app/application', 'description': 'Application skeleton for the Corevia V4 packaging preview',
+        'name': 'corevia-app/application', 'description': 'Application skeleton for the Corevia V4 distribution',
         'type': 'project', 'license': 'MIT',
         'require': {'php': '>=8.2', 'ext-json': '*', RUNTIME_NAME: VERSION},
         'autoload': {'psr-4': {'App\\': 'app/'}},
@@ -149,7 +149,7 @@ def build(directory, dry_run=False):
     inventories = {name: {path: hashlib.sha256(data).hexdigest() for path, data in sorted(files.items())}
                    for name, files in filesets.items()}
     fingerprint = hashlib.sha256(canonical(inventories)).hexdigest()
-    result = {'format': 1, 'status': 'experimental', 'source': 'git-index',
+    result = {'format': 1, 'status': 'prepared', 'source': 'git-index',
               'package': RUNTIME_NAME, 'package_version': VERSION, 'fingerprint': fingerprint,
               'files': inventories}
     if dry_run:

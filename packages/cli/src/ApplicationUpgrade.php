@@ -52,10 +52,10 @@ final class ApplicationUpgrade
             $library=json_decode(file_get_contents($runtime.'/composer.json'),true,64,JSON_THROW_ON_ERROR);
             foreach(array_keys($library['autoload']['psr-4']) as $prefix){unset($composer['autoload']['psr-4'][$prefix]);}
             unset($composer['require']['corevia-framework/core'],$composer['require']['corevia-framework/corevia']);
-            $composer['require']['corevia-framework/runtime']='dev-v4';
+            $composer['require']['corevia-framework/runtime']=\Corevia\Core\Version::VERSION;
             $repositories=$composer['repositories']??[];
             foreach($repositories as $key=>$repository){if(is_array($repository)&&isset($repository['options']['versions']['corevia-framework/runtime'])){unset($repositories[$key]);}}
-            $composer['repositories']=['corevia-runtime'=>['type'=>'path','url'=>str_replace('\\','/',$runtime),'options'=>['symlink'=>false,'versions'=>['corevia-framework/runtime'=>'dev-v4']]]]+$repositories;
+            $composer['repositories']=['corevia-runtime'=>['type'=>'path','url'=>str_replace('\\','/',$runtime),'options'=>['symlink'=>false,'versions'=>['corevia-framework/runtime'=>\Corevia\Core\Version::VERSION]]]]+$repositories;
             $composer['config']['allow-plugins']=false;
             file_put_contents($target.'/composer.json',json_encode($composer,JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES)."\n");
             // Carry forward unrelated locked dependencies; update only the selected runtime and its closure.
