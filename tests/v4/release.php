@@ -12,6 +12,7 @@ gateGit($root,['init','-q']);gateGit($root,['add','.']);gateGit($root,['-c','use
 $commit=gateGit($root,['rev-parse','HEAD']);$evidence=['local_passed'=>true,'source_unchanged'=>true,'source'=>['sha256'=>V4ReleaseReadiness::fingerprint($root)],'checks'=>[['name'=>'fixture','exit_code'=>0]]];
 $save('storage/v4-verification.json',$evidence);$ci=['commit'=>$commit,'conclusion'=>'success','run_ids'=>[123]];$save('storage/v4-ci-verification.json',$ci);
 gate(ReleaseReadiness::report($root)['ready']);
+$save('storage/v4-ci-verification.json',[...$ci,'run_ids'=>['123']]);gate(ReleaseReadiness::report($root)['ready']);$save('storage/v4-ci-verification.json',$ci);
 // Application-owned untracked output is not framework release source.
 file_put_contents($root.'/user-app.txt','application-owned');gate(ReleaseReadiness::report($root)['ready']);
 foreach([

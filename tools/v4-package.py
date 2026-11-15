@@ -86,7 +86,7 @@ def assemble():
     application['composer.json'] = canonical({
         'name': 'corevia-app/application', 'description': 'Application skeleton for the Corevia V4 distribution',
         'type': 'project', 'license': 'MIT',
-        'require': {'php': '>=8.2', 'ext-json': '*', RUNTIME_NAME: VERSION},
+        'require': {'php': '>=8.2', 'ext-json': '*', RUNTIME_NAME: '^'+VERSION},
         'autoload': {'psr-4': {'App\\': 'app/'}},
         'repositories': [{'type': 'path', 'url': '../runtime',
                           'options': {'symlink': False, 'versions': {RUNTIME_NAME: VERSION}}}],

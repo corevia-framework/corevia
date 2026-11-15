@@ -11,6 +11,7 @@
     "composer-validate",
     "php-lint",
     "php-regression",
+    "v4-release-gates",
     "sqlite-concurrency",
     "live-remote-cancellation",
     "cross-runtime-budgets",
@@ -21,6 +22,12 @@
     "distribution-upgrades",
     "javascript-sdk",
     "python-sdk",
+    "worker-endurance",
+    "dart-analysis",
+    "dart-offline-queue",
+    "native-sync-http",
+    "workspace-package",
+    "workspace-install",
     "workspace-browser",
     "auth-assets",
     "auth-json-accessibility",
@@ -29,12 +36,10 @@
     "ai-ui-bootstrap",
     "ai-ui-tailwind",
     "ai-ui-react",
-    "passkey-browser",
-    "dart-analysis",
-    "dart-offline-queue",
-    "native-sync-http",
-    "worker-endurance",
-    "v4-release-gates"
+    "passkey-dependencies",
+    "passkey-metadata",
+    "passkey-advisories",
+    "passkey-browser"
   ],
   "deferred_checks": {
     "shared_hosting": {
@@ -100,6 +105,16 @@
     "packagist": {
       "status": "deferred",
       "reason": "GitHub source and static Composer ZIP distribution are supported; Packagist registration and npm/PyPI/pub.dev publication are not claimed.",
+      "guide": "docs/v4/optional-validation.md"
+    },
+    "collector_backend": {
+      "status": "deferred",
+      "reason": "Actual loopback Collector interoperability is recorded; authenticated TLS backends, persistence and long outages were not accepted on this release target.",
+      "guide": "docs/v4/optional-validation.md"
+    },
+    "real_smtp": {
+      "status": "deferred",
+      "reason": "SMTP protocol fixtures and historical V3 real delivery are recorded; no additional real message was authorized on the V4 candidate. Applications must validate their configured provider and recipient policy.",
       "guide": "docs/v4/optional-validation.md"
     }
   }

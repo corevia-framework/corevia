@@ -30,10 +30,12 @@ then `php corevia serve`. PHP with JSON is the only requirement for the basic si
 Composer packages/SDK names are not registered on Packagist, npm, PyPI or pub.dev.
 Use the source checkout or release ZIPs; do not assume a registry package exists.
 
-The release assets include runtime/application ZIPs, `packages.json` and SHA-256
-checksums. Extract runtime and application side by side; run Composer inside the
-application directory. The static repository is also usable as an explicit
-Composer repository. Build/install tooling never enables third-party hooks by default.
+For side-by-side installation, download `corevia-4.0.0-distribution.zip`, extract
+its runtime/application directories, and run Composer inside the application.
+The separate `runtime.zip`, `application.zip` and `packages.json` assets form an
+explicit static Composer repository; its application ZIP resolves dependencies
+through the release URL. SHA-256 checksums accompany the assets.
+Build/install tooling never enables third-party hooks by default.
 Check the asset inventory and [upgrade guide](upgrade.md) before replacing an app.
 
 Keep code/config/storage/vendor private; expose only `public/` or the generated

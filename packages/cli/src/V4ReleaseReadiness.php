@@ -5,7 +5,7 @@ namespace Corevia\Cli;
 /** Offline, operator-supplied evidence checks; never a security certification. */
 final class V4ReleaseReadiness
 {
-    private const DEFERRED = ['shared_hosting','aws','azure','docker_image','real_oidc','physical_passkeys','other_mobile','manual_accessibility','independent_security','long_workloads','model_quality','os_tool_sandbox','packagist'];
+    private const DEFERRED = ['shared_hosting','aws','azure','docker_image','real_oidc','physical_passkeys','other_mobile','manual_accessibility','independent_security','long_workloads','model_quality','os_tool_sandbox','packagist','collector_backend','real_smtp'];
 
     private static function git(string $root,array $arguments):string
     {
@@ -45,7 +45,7 @@ final class V4ReleaseReadiness
         foreach($plan['required_checks'] as $name){if(!is_string($name)||!isset($names[$name])){$valid=false;}}
         $fingerprint=self::fingerprint($root);$commit=trim(self::git($root,['rev-parse','HEAD']));
         $runIds=$ci['run_ids']??[];$validRuns=is_array($runIds)&&$runIds!==[];
-        foreach(is_array($runIds)?$runIds:[] as $id){if(!(is_int($id)&&$id>0)&&!(is_string($id)&&ctype_digit($id)&&(int)$id>0)){$validRuns=false;}}
+        foreach(is_array($runIds)?$runIds:[] as $id){if(!(is_int($id)&&$id>0)&&!(is_string($id)&&preg_match('/^[0-9]+$/D',$id)&&(int)$id>0)){$validRuns=false;}}
         $checks=[
             'local_suite'=>($evidence['local_passed']??null)===true&&($evidence['source_unchanged']??null)===true&&$valid,
             'evidence_matches_sources'=>is_string($evidence['source']['sha256']??null)&&hash_equals($fingerprint,$evidence['source']['sha256']),
