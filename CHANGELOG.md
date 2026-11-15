@@ -1,6 +1,28 @@
 # Changelog
 
-## Unreleased
+## 4.0.0 - 15 November 2026
+
+- Add versioned runtime/application ZIPs, feature composition, non-destructive staged upgrades and explicit extension compatibility.
+- Add migration/query/testing APIs, tenant-bound data, scoped credentials, audit/data lifecycle, scheduler/outbox/resilience and bounded observability.
+- Refresh the web/auth/AI starters; add optional structured AI/retrieval/tool contracts and bounded JS/Dart offline synchronization.
+- Validate Android 11 OpenGL HTTPS/auth-loss/tenant isolation, real-file contracts and standalone restarts; document the exact limits of this synthetic native lab.
+- Add the Corevia logo and a public release support/deferred-validation matrix. See `docs/v4/release.md` for supported scope and `docs/v4/optional-validation.md` for checks that were not performed.
+
+## Development history (V3/V4)
+
+
+- Add optional V4 idempotent sync API mutations with actor/tenant-bound atomic receipts, bounded JS/Dart offline queues and current-auth transports. Preserve queued edits across lost acknowledgments/auth loss, require explicit conflict resolution and share queue formats across SDKs. Add native HTTP acceptance and host-app Flutter/React Native page examples; native device/storage acceptance remains separate.
+
+- Add V4 contract-validated AI JSON output, immutable knowledge revisions, active-revision-filtered SQL/Qdrant retrieval, bounded evaluations and one-use permissioned tools with human session confirmation. Refresh the optional shared AI page with multilingual/RTL themes, streaming/cancellation and accessible feedback; keep external models, databases and tool isolation optional and explicitly configured.
+
+- Add opt-in bounded PHP/Python telemetry, OTLP traces/delta metrics, private operations routes and development inspection. Propagate cooperative work budgets/trace context over CVP/2 HTTP/process calls and shared jobs; reject outbound redirects and bound slow response reads. Add durable outbox attempt history, fixed signed webhook delivery, shared SQL replay reservations and controlled stable-ID redelivery.
+
+- Add bounded V4 SQL scheduling with named cron/timezone/DST semantics, atomic seven-day dispatch reservations, overlap skipping, scoped cleanup and explicit dead-job inspection/retry. Add shared circuit breakers, fenced recovery probes, retry quotas, jitter and deadline-aware retry execution. Extend disposable service contracts across V4 identity, scheduler, resilience, outbox and connected-client storage.
+
+- Add local V4 identity capabilities: scoped machine credentials, provisioned organization OIDC assurance, chained audit/checkpoints, resumable application-data erasure and optional WebAuthn verification. Refresh all auth starters with multilingual RTL layouts, themes and native React account management. Source-bound local acceptance passes all 21 configured checks; real services/devices/providers, manual review and remaining operations/AI/release gates are still open.
+
+- Begin local V4 daily-development APIs: checksummed application SQL migrations, prepared joins/pagination, seeders/repositories, explicit HTTP/auth/mail/job/AI test helpers, nested validation, versioned API envelopes/OpenAPI, scoped bearer credentials, private files and localization primitives. Refresh the database-free welcome/workspace with responsive navigation and persistent themes.
+- Add experimental V4 tenant-bound SQL/document/cache/file/retrieval adapters and signed job envelopes, SQL transactional outbox, webhook signature/replay contract, cooperative deadlines, conservative tenant usage budgets and resumable revision/tombstone synchronization. These increments are not completion of the full V4 identity/operations/AI roadmap. See `docs/v4/progress.md` for remaining gates and local acceptance commands.
 
 - Add local V3 SQL auth storage/migrations, credential-version session checks, atomic recovery/verification tokens, private preview delivery and a production delivery port. Add recovery/verification pages across all starters and verified-email middleware. MySQL/PostgreSQL service checks are configured in CI; local coverage includes JSON and SQLite.
 - Add the local V3 base auth milestone: safe one-command Bootstrap/Tailwind/React starters with offline assets, session/password services, private JSON storage, CSRF/origin checks, rotation/logout, attempt limits and browser coverage. SQL auth storage, recovery/verification and MFA remain separate phases.

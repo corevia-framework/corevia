@@ -1,0 +1,11 @@
+[Unit]
+Description=Run a bounded Corevia queue batch periodically
+
+[Timer]
+OnBootSec=30s
+OnUnitInactiveSec=10s
+AccuracySec=1s
+Unit=corevia-queue.service
+
+[Install]
+WantedBy=timers.target

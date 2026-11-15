@@ -1,0 +1,28 @@
+# Corevia 4.0 application
+
+This application keeps your code in `app/`, `routes/`, `resources/`
+and `config/`. Framework dependencies live in `vendor/corevia-framework/runtime`.
+Use the versioned runtime ZIP or explicit Composer repository supplied with the release. Public registry registration is not implied.
+
+Install dependencies using the sibling `runtime/` directory from this distribution:
+
+```sh
+composer install --no-interaction --no-scripts --no-plugins
+php corevia serve
+```
+
+Run the included application smoke check with `php corevia test`.
+
+Open http://127.0.0.1:8081. No database is required. Optionally install one auth kit:
+
+```sh
+php corevia starter:auth --stack=bootstrap
+# Alternatives: --stack=tailwind or --stack=react
+```
+
+Serve only `public/`. Build dependencies off-server before uploading to a host
+without Composer. Use `hosting:prepare` and the release documentation for target
+recipes and `app:upgrade --dry-run` for staged replacements. Cloud/shared-provider
+acceptance is explicitly unverified; validate the chosen host before deployment.
+Never expose the project root, vendor/, storage/ or configuration as public files.
+No optional AI/provider credentials are enabled automatically.

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace CoreviaV3Profiles;
 require dirname(__DIR__,2).'/autoload.php';
+require dirname(__DIR__).'/support/Fixtures.php';
 use Corevia\Core\{ApplicationArtifact,CanonicalJson,Corevia,Module,ModuleContext,ModuleDefinition,RuntimeProfile};
 use Corevia\Http\{Request,Router,View};
 function check(bool $value):void{if(!$value){throw new \RuntimeException('Profile assertion failed.');}}
@@ -48,4 +49,4 @@ try{
     $runtime=$bootstrap($root);try{check($runtime['app']->runtimeProfile()->name==='worker');}finally{$runtime['app']->shutdown();}
     putenv('COREVIA_PROFILE=realtime');rejects(fn()=>$bootstrap($root));
     echo "PASS database-free boot of every preset, API-only routes and artifact profile restoration/drift\n";
-}finally{foreach($previous as $name=>$value){putenv($value===false?$name:$name.'='.$value);}foreach(glob($directory.'/*') as $file){unlink($file);}rmdir($directory);}
+}finally{foreach($previous as $name=>$value){putenv($value===false?$name:$name.'='.$value);}\CoreviaTests\Fixtures::remove($directory,'corevia-v3-profile-');}

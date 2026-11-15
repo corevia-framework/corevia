@@ -1,0 +1,63 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:integration_test/integration_test.dart';
+import 'package:integration_test/common.dart';
+import 'package:corevia/sync.dart';
+import 'package:corevia/sync_io.dart';
+import '../test/storage_contract.dart' as files;
+import '../lib/lab_storage.dart';
+
+void main() {
+  final binding=IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  // These IO/channel contracts do not exercise widgets. Avoid making them wait
+  // for a rendered test frame; the host separately checks the standalone UI.
+  void contract(String name,Future<void> Function() body,{bool skip=false}) {
+    test(name,()async {
+      try { await body();binding.results[name]='success'; }
+      catch (error,stack) {
+        binding.results[name]=Failure(name,'Native IO contract failed.');
+        Error.throwWithStackTrace(error,stack);
+      }
+    },skip:skip,timeout:const Timeout(Duration(seconds:60)));
+  }
+  contract('Device filesystem persistence and conflict contracts', () async { await files.main(); });
+  const origin = String.fromEnvironment('COREVIA_SYNC_URL');
+  contract('Native HTTP Corevia sync and tenant/auth boundaries', () async {
+    final base = Uri.parse(origin);
+    expect(base.scheme,'https');expect(base.host,'127.0.0.1');
+    const ca=String.fromEnvironment('COREVIA_TEST_CA');
+    expect(ca,isNotEmpty);
+    final untrusted=IoSyncTransport(base:base,getToken:()async=>'alpha-test');
+    await expectLater(untrusted.changes(null),throwsA(isA<HandshakeException>()));
+    SecurityContext.defaultContext.setTrustedCertificatesBytes(base64Decode(ca));
+    final wrongHost=IoSyncTransport(base:base.replace(host:'localhost'),getToken:()async=>'alpha-test');
+    await expectLater(wrongHost.changes(null),throwsA(isA<HandshakeException>()));
+    var token='alpha-test';
+    final transport = IoSyncTransport(base:base,getToken:()async=>token);
+    expect((await transport.changes(null))['changes'],isA<List>());
+    final queue = OfflineSync(store:MemorySyncStore(),binding:'alpha:alice');
+    final id='phone-${DateTime.now().microsecondsSinceEpoch}';
+    await queue.enqueue(id,0,{'title':'Physical device fixture'});
+    expect((await queue.flush(transport))['processed'],1);await queue.pull(transport);
+    expect((await queue.snapshot())['records'][id]['revision'],1);
+    final beta = OfflineSync(store:MemorySyncStore(),binding:'beta:bob');
+    final betaTransport=IoSyncTransport(base:base,getToken:()async=>'beta-test');
+    await beta.pull(betaTransport);expect((await beta.snapshot())['records'][id],isNull);
+    token='invalid-test';await queue.enqueue(id,1,null);
+    expect((await queue.flush(transport))['status'],'auth_required');
+    expect((await queue.snapshot())['pending'].length,1);
+    token='alpha-test';expect((await queue.flush(transport))['processed'],1);await queue.pull(transport);
+    expect((await queue.snapshot())['records'][id]['deleted'],true);
+  },skip:origin.isEmpty);
+  contract('Seed a private process-restart probe', () async {
+    final root=await const MethodChannel('dev.corevia.lab/files').invokeMethod<String>('supportDirectory');
+    expect(root,isNotNull);
+    final queue=OfflineSync(store:LabFileStore(File('$root/corevia-lab-v1/client.json')),binding:'device-lab:alice');
+    final id='restart-${DateTime.now().microsecondsSinceEpoch}';
+    await queue.enqueue(id,0,{'title':'Synthetic process restart probe'});
+    // The host reads only this fixture's private file and records the matching ID, not note contents.
+    print('COREVIA_RESTART_PROBE_ID=$id');
+  });
+}

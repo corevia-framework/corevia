@@ -1,2 +1,4 @@
-<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Corevia workspace</title><link rel="stylesheet" href="/assets/auth.css"><script type="module" src="/assets/auth.js"></script></head><body class="bg-slate-950 text-slate-100"><div id="root"><p>Loading your workspace…</p></div><noscript>Enable JavaScript to use this React starter.</noscript></body></html>
+<?php $ui??=new \Corevia\Auth\AuthPresentation();$stack='react';$title=$ui->text(($page??'')==='account'?'Account settings':'Your workspace'); ?>
+<?= $__render('auth.header',compact('ui','title','stack')+['reactShell'=>true]) ?>
+<div id="root" data-auth-react><p role="status"><?= $e($ui->text('Loading your workspace…')) ?></p></div><noscript><?= $e($ui->text('Enable JavaScript to use this React starter.')) ?></noscript>
+<?= $__render('auth.footer',compact('ui')) ?>

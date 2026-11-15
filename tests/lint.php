@@ -3,12 +3,12 @@
 declare(strict_types=1);
 
 $source = new RecursiveDirectoryIterator(dirname(__DIR__), FilesystemIterator::SKIP_DOTS);
-$filtered = new RecursiveCallbackFilterIterator($source, static fn (SplFileInfo $file): bool => !$file->isDir() || !in_array($file->getFilename(), ['.git', 'storage', 'vendor', 'node_modules', '.dart_tool'], true));
+$filtered = new RecursiveCallbackFilterIterator($source, static fn (SplFileInfo $file): bool => !$file->isDir() || !in_array($file->getFilename(), ['.git', 'storage', 'vendor', 'node_modules', '.dart_tool', 'local-v3-acceptance'], true));
 $iterator = new RecursiveIteratorIterator($filtered);
 $failed = false;
 $count = 0;
 foreach ($iterator as $file) {
-    if (($file->getExtension() === 'php' || $file->getFilename() === 'corevia') && !str_contains($file->getPathname(), DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR)) {
+    if (($file->getExtension() === 'php' || $file->getFilename() === 'corevia' || str_ends_with($file->getFilename(), '.php.stub')) && !str_contains($file->getPathname(), DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR)) {
         exec(escapeshellarg(PHP_BINARY) . ' -l ' . escapeshellarg($file->getPathname()) . ' 2>&1', $output, $code);
         if ($code !== 0) {
             echo implode(PHP_EOL, $output) . PHP_EOL;

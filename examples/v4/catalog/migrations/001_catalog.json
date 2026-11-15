@@ -1,0 +1,9 @@
+{
+  "id": "001_catalog",
+  "up": {
+    "sqlite": ["CREATE TABLE catalog_items (id VARCHAR(32) PRIMARY KEY, owner_id VARCHAR(32) NOT NULL, title VARCHAR(200) NOT NULL)", "CREATE INDEX catalog_owner ON catalog_items (owner_id, id)"],
+    "mysql": ["CREATE TABLE catalog_items (id VARCHAR(32) PRIMARY KEY, owner_id VARCHAR(32) NOT NULL, title VARCHAR(200) NOT NULL, INDEX catalog_owner (owner_id, id)) ENGINE=InnoDB"],
+    "pgsql": ["CREATE TABLE catalog_items (id VARCHAR(32) PRIMARY KEY, owner_id VARCHAR(32) NOT NULL, title VARCHAR(200) NOT NULL)", "CREATE INDEX catalog_owner ON catalog_items (owner_id, id)"]
+  },
+  "down": {"sqlite": ["DROP TABLE catalog_items"], "mysql": ["DROP TABLE catalog_items"], "pgsql": ["DROP TABLE catalog_items"]}
+}

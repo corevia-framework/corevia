@@ -7,7 +7,8 @@
     "http": ["Core", "Http", "Protocol"],
     "persistence-pdo": ["Core", "Persistence"],
     "realtime": ["Core", "Realtime", "Protocol"],
-    "cli": ["Core", "Auth", "Ai", "Protocol", "Http", "Persistence", "Realtime", "Cli"]
+    "cli": ["Core", "Auth", "Ai", "Protocol", "Http", "Persistence", "Realtime", "Cli"],
+    "testing": ["Core", "Auth", "Ai", "Protocol", "Http", "Persistence", "Testing"]
   },
   "php_include_owners": ["packages/core/src/ConfigRepository.php", "packages/http/src/View.php", "packages/cli/src/Console.php"],
   "javascript_externals": ["react"],

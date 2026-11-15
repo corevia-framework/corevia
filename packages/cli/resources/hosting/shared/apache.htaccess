@@ -1,0 +1,11 @@
+# Copy into public_html only after confirming Apache AllowOverride/rewrite support.
+Options -Indexes
+DirectoryIndex index.php
+RewriteEngine On
+RewriteRule (^|/)\. - [F,L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [QSA,L]
+<FilesMatch "(?i)^(?!index\.php$).*\.(php|phtml|phar)$">
+    Require all denied
+</FilesMatch>

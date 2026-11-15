@@ -4,7 +4,7 @@ namespace Corevia\Auth;
 use Corevia\Persistence\SqlConnection;
 
 /** Portable SQL auth; a transaction mutex serializes security-sensitive mutations. */
-final class SqlAuthStore implements IdentityStore
+final class SqlAuthStore implements PasskeyStore
 {
     private bool $inside=false;
     private ?\Fiber $owner=null;
@@ -53,7 +53,7 @@ final class SqlAuthStore implements IdentityStore
     });}
     public function saveSession(string $digest,array $session,int $now):void{$this->locked(function()use($digest,$session):void{
         $version=$session['user_version']??0;
-        if($session['user_id']!==null){$user=$this->userById($session['user_id']);if($user===null || $user['auth_version']!==$version){throw new AuthFailure('SESSION_CHANGED','Sign in again.',401);}if(isset($this->state('user:'.$user['id'])['mfa']['secret']) && !($session['mfa_verified']??false)){throw new AuthFailure('MFA_REQUIRED','An authenticator or recovery code is required.',401);}}
+        if($session['user_id']!==null){$user=$this->userById($session['user_id']);if($user===null || $user['auth_version']!==$version){throw new AuthFailure('SESSION_CHANGED','Sign in again.',401);}if(isset($this->state('user:'.$user['id'])['lifecycle_deletion'])){throw new AuthFailure('ACCOUNT_UNAVAILABLE','Account access is unavailable.',403);}if(isset($this->state('user:'.$user['id'])['mfa']['secret']) && !($session['mfa_verified']??false)){throw new AuthFailure('MFA_REQUIRED','An authenticator or recovery code is required.',401);}}
         $this->deleteSession($digest);$this->db->execute('INSERT INTO '.$this->table('sessions').' (digest,user_id,csrf,user_version,expires) VALUES (:digest,:user,:csrf,:version,:expires)',['digest'=>$digest,'user'=>$session['user_id'],'csrf'=>$session['csrf'],'version'=>$version,'expires'=>$session['expires']]);
     },$now);}
     public function session(string $digest,int $now):?array{$this->available();$row=$this->db->select('SELECT user_id,csrf,user_version,expires FROM '.$this->table('sessions').' WHERE digest=:digest AND expires>:now',['digest'=>$digest,'now'=>$now])[0]??null;if($row!==null){$row['user_version']=(int)$row['user_version'];$row['expires']=(int)$row['expires'];}return $row;}
@@ -66,7 +66,7 @@ final class SqlAuthStore implements IdentityStore
     {
         if(!in_array($purpose,['reset','verify'],true)){throw new \InvalidArgumentException('Unknown account token purpose.');}
         return $this->locked(function()use($userId,$purpose,$digest,$expires,$userVersion,$expectedEmail):bool{
-            $user=$this->userById($userId);if($user===null || $user['auth_version']!==$userVersion || ($expectedEmail!==null && $user['email']!==$expectedEmail)){return false;}
+            $user=$this->userById($userId);if($user===null || isset($this->state('user:'.$userId)['lifecycle_deletion']) || $user['auth_version']!==$userVersion || ($expectedEmail!==null && $user['email']!==$expectedEmail)){return false;}
             $this->db->execute('DELETE FROM '.$this->table('tokens').' WHERE user_id=:user AND purpose=:purpose',['user'=>$userId,'purpose'=>$purpose]);
             $this->db->execute('INSERT INTO '.$this->table('tokens').' (digest,user_id,purpose,email,user_version,expires) VALUES (:digest,:user,:purpose,:email,:version,:expires)',['digest'=>$digest,'user'=>$userId,'purpose'=>$purpose,'email'=>$user['email'],'version'=>$userVersion,'expires'=>$expires]);return true;
         },$now);
@@ -97,5 +97,13 @@ final class SqlAuthStore implements IdentityStore
     public function changeProvider(string $id,int $version,string $provider,?string $subjectHash):array{return $this->locked(function()use($id,$version,$provider,$subjectHash):array{
         $user=$this->userById($id);$security=$this->state('user:'.$id);$hash=$subjectHash??($security['oauth'][$provider]??null);$binding=$hash===null?[]:$this->state('oid:'.$hash);ProviderChange::apply($user,$version,$provider,$subjectHash,$security,$binding);$this->writeState('user:'.$id,$security);if($hash!==null){$this->writeState('oid:'.$hash,$binding);}$this->db->execute('UPDATE '.$this->table('users').' SET auth_version=:version WHERE id=:id',['version'=>$user['auth_version'],'id'=>$id]);foreach(['sessions','tokens'] as $table){$this->db->execute('DELETE FROM '.$this->table($table).' WHERE user_id=:id',['id'=>$id]);}return $user;
     });}
-    public function authority(string $id,string $digest,int $now):?array{return $this->locked(function()use($id,$digest,$now):?array{$user=$this->userById($id);$session=$this->session($digest,$now);return $user!==null && ($session['user_id']??null)===$id && $user['auth_version']===($session['user_version']??0)?$this->state('user:'.$id):null;},$now);}
+    public function authority(string $id,string $digest,int $now):?array{return $this->locked(function()use($id,$digest,$now):?array{$user=$this->userById($id);$session=$this->session($digest,$now);return $user!==null && ($session['user_id']??null)===$id && $user['auth_version']===($session['user_version']??0)&&!isset($this->state('user:'.$id)['lifecycle_deletion'])?$this->state('user:'.$id):null;},$now);}
+    public function changePasskey(string $id,int $version,string $digest,?array $record,?string $expectedHash=null):array
+    {
+        return $this->locked(function()use($id,$version,$digest,$record,$expectedHash):array{
+            $user=$this->userById($id);$security=$this->state('user:'.$id);$binding=$this->state('pkey:'.$digest);$revoke=PasskeyRules::apply($user,$version,$digest,$record,$expectedHash,$security,$binding);
+            $this->writeState('user:'.$id,$security);$this->writeState('pkey:'.$digest,$binding);$this->db->execute('UPDATE '.$this->table('users').' SET auth_version=? WHERE id=?',[$user['auth_version'],$id]);
+            if($revoke){foreach(['sessions','tokens'] as $table){$this->db->execute('DELETE FROM '.$this->table($table).' WHERE user_id=?',[$id]);}}return $user;
+        });
+    }
 }

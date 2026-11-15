@@ -1,0 +1,16 @@
+<?php
+declare(strict_types=1);
+require dirname(__DIR__) . '/autoload.php';
+
+$bootstrap = require dirname(__DIR__) . '/config/runtime.php';
+$runtime = $bootstrap(dirname(__DIR__));
+try {
+    $path = $runtime['app']->runtimeProfile()?->name === 'api' ? '/health' : '/up';
+    $response = $runtime['router']->dispatch(new \Corevia\Http\Request('GET', $path));
+    if ($response->status !== 200 || ($response->body['status'] ?? null) !== 'ok') {
+        throw new RuntimeException('Application health route failed.');
+    }
+    echo "PASS application boots and serves its health route without a database\n";
+} finally {
+    $runtime['app']->shutdown();
+}

@@ -5,20 +5,24 @@ import {mkdtemp,mkdir,cp,copyFile,readFile,writeFile,readdir,rm} from 'node:fs/p
 import {createServer} from 'node:net';
 import {createHmac} from 'node:crypto';
 import {join,resolve} from 'node:path';
+import {inspectAuthPresentation,scanAuth} from '../v4/auth-accessibility.mjs';
 const require=createRequire(import.meta.url),{chromium}=require('../../tools/node_modules/playwright-core');
 const root=resolve('.'),php=process.env.PHP_BINARY??'php';
 const sql=process.env.COREVIA_AUTH_SQL==='1',crypto=sql||process.env.COREVIA_AUTH_CRYPTO==='1',phpFlags=crypto?[]:['-n'];
 function totp(secret){let bits='';for(const char of secret)bits+='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'.indexOf(char).toString(2).padStart(5,'0');const bytes=Buffer.from(bits.match(/.{8}/g).map(byte=>parseInt(byte,2))),counter=Buffer.alloc(8);counter.writeBigUInt64BE(BigInt(Math.floor(Date.now()/30000)));const hash=createHmac('sha1',bytes).update(counter).digest(),offset=hash[19]&15;return ((hash.readUInt32BE(offset)&0x7fffffff)%1000000).toString().padStart(6,'0');}
 const directory=await mkdtemp(join(root,'storage','auth-browser-'));
+const a11yOutput=process.env.COREVIA_AUTH_A11Y==='1'?await mkdtemp(join(root,'storage','v4-auth-accessibility-')):null;
 const browser=await chromium.launch({headless:true,...(process.env.COREVIA_BROWSER?{executablePath:process.env.COREVIA_BROWSER}:{})});
 const children=[];
+const selected=spawnSync('git',['-c',`safe.directory=${root.replaceAll('\\','/')}`,'ls-files','-z','--','packages','config','routes','resources','public','starters','autoload.php','corevia'],{cwd:root,windowsHide:true,encoding:'utf8'});assert.equal(selected.status,0,selected.stderr);
+const sourceFiles=selected.stdout.split('\0').filter(Boolean);
 function run(args,cwd){const result=spawnSync(php,[...phpFlags,...args],{cwd,windowsHide:true,encoding:'utf8',timeout:15000});assert.equal(result.status,0,result.stderr);return JSON.parse(result.stdout);}
 async function port(){const server=createServer();await new Promise(r=>server.listen(0,'127.0.0.1',r));const value=server.address().port;await new Promise(r=>server.close(r));return value;}
 try{
   for(const stack of (process.env.COREVIA_AUTH_STACK?[process.env.COREVIA_AUTH_STACK]:['bootstrap','tailwind','react'])){
     const project=join(directory,stack);await mkdir(project);
-    for(const name of ['packages','config','routes','resources','public','starters'])await cp(join(root,name),join(project,name),{recursive:true});
-    for(const name of ['autoload.php','corevia'])await copyFile(join(root,name),join(project,name));
+    // Copy framework source only, preserving the maintainer's untracked generated auth application.
+    for(const name of sourceFiles){const target=join(project,name);await mkdir(resolve(target,'..'),{recursive:true});await copyFile(join(root,name),target);}
     const plan=run(['corevia','starter:auth',`--stack=${stack}`,'--dry-run'],project);assert.equal(plan.dry_run,true);
     const installed=run(['corevia','starter:auth',`--stack=${stack}`],project);assert.equal(installed.installed,true);
     assert.equal(run(['corevia','starter:auth',`--stack=${stack}`,'--check'],project).checked,true);
@@ -32,12 +36,13 @@ try{
     const context=await browser.newContext(),page=await context.newPage(),external=[],errors=[];
     await context.route('**/*',route=>{const url=new URL(route.request().url());if(url.origin==='https://fixture-provider.example')return route.fulfill({contentType:'text/html',body:'<!doctype html><h1>In-memory provider fixture</h1>'});if(url.origin!==base){external.push(route.request().url());return route.abort();}return route.continue();});
     page.on('pageerror',error=>errors.push(error.message));
-    const password='example-password-123',email=stack+'@example.test',name='<script>Ada</script>';
+    if(a11yOutput)await inspectAuthPresentation(page,base,stack,a11yOutput);
+    const password='example-password-123',email=stack+'@example.test',name='<script>Ada$&</script>';
     await page.goto(base+'/register');await page.getByLabel('Your name').fill(name);await page.getByLabel('Email address').fill(email);await page.getByLabel('Password',{exact:true}).fill(password);await page.getByLabel('Confirm password').fill(password);
     await page.getByRole('button',{name:'Create account',exact:true}).click();try{await page.waitForURL('**/dashboard');}catch(error){console.error('Registration page:',await page.locator('body').innerText());console.error(output.slice(-2000));throw error;}
     await page.getByRole('heading',{name:'Welcome, '+name,exact:true}).waitFor();
     const card=await page.locator('main section').boundingBox();assert.ok(card.width>=280 && card.width<=600,'Auth stylesheet did not size the card.');
-    assert.match(await page.locator('h1').innerText(),/Welcome, <script>Ada<\/script>/);assert.equal(await page.locator('h1 script').count(),0);
+    assert.equal(await page.locator('h1').innerText(),'Welcome, '+name);assert.equal(await page.locator('h1 script').count(),0);
     const me=await context.request.get(base+'/auth/me');assert.equal(me.status(),200);const user=(await me.json()).user;assert.deepEqual(Object.keys(user).sort(),['email','id','name']);
     const session=await (await context.request.get(base+'/auth/session')).json();
     assert.equal((await context.request.post(base+'/auth/logout',{data:{}})).status(),419);
@@ -77,6 +82,7 @@ try{
     }
     // Shared account settings render in every kit, including the React starter.
     await page.getByRole('link',{name:'Account settings',exact:true}).click();await page.getByRole('heading',{name:'Account settings',exact:true}).waitFor();
+    if(a11yOutput){await page.locator('form[action="/auth/account/profile"]').waitFor();await scanAuth(page,stack+'-account-settings',a11yOutput);}
     async function submitForm(action,values,button){const form=page.locator(`form[action="${action}"]`);for(const [key,value]of Object.entries(values))await form.locator(`[name="${key}"]`).fill(value);let captured;const intercept=async route=>{const response=await route.fetch();captured={status:response.status(),body:await response.json()};await route.fulfill({response});};await page.route(base+action,intercept);try{const received=page.waitForResponse(response=>response.url()===base+action&&response.request().method()==='POST');await form.getByRole('button',{name:button,exact:true}).click();await received;await page.waitForLoadState('networkidle');assert.equal(captured.status,200,JSON.stringify(captured.body));return captured.body;}finally{await page.unroute(base+action,intercept);}}
     await submitForm('/auth/account/profile',{name:'Updated '+stack,current_password:'changed-password-456'},'Save name');assert.equal((await(await context.request.get(base+'/auth/me')).json()).user.name,'Updated '+stack);
     let codes=[];

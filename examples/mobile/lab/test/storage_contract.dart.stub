@@ -1,0 +1,30 @@
+import 'dart:io';
+import 'package:corevia/sync.dart';
+import '../lib/lab_storage.dart';
+import '../lib/lab_backend.dart';
+void check(bool ok) { if (!ok) throw StateError('Native lab storage contract failed.'); }
+Future<void> main() async {
+  final directory = await Directory.systemTemp.createTemp('corevia-lab-storage-');
+  try {
+    final path = '${directory.path}/client.json';
+    final first = LabFileStore(File(path)), other = LabFileStore(File(path));
+    final results = await Future.wait([first.compareExchange(0,'{}'),other.compareExchange(0,'{}')]);
+    check(results.where((value)=>value).length == 1);
+    final file = File('${directory.path}/offline.json');
+    final queue = OfflineSync(store:LabFileStore(file),binding:'lab:alice');
+    final operation = await queue.enqueue('welcome-note',0,{'title':'Kept after restart'});
+    final backend = LabBackend(LabFileStore(File('${directory.path}/server.json')))..loseNextAcknowledgment=true;
+    check((await queue.flush(backend))['status']=='offline');
+    final restarted = OfflineSync(store:LabFileStore(File(file.path)),binding:'lab:alice');
+    check((await restarted.snapshot())['pending'][0]['operation_id']==operation);
+    check((await restarted.flush(backend))['processed']==1);
+    check((await restarted.snapshot())['records']['welcome-note']['revision']==1);
+    await restarted.enqueue('welcome-note',1,{'title':'My draft'});await backend.simulateServerEdit();
+    check((await restarted.flush(backend))['status']=='conflict');await restarted.pull(backend);
+    final pending=(await restarted.snapshot())['pending'][0];
+    await restarted.resolveConflict(pending['operation_id'],action:'rebase',expectedRevision:2,value:pending['data']);
+    await restarted.flush(backend);await backend.simulateServerEdit(delete:true);await restarted.pull(backend);
+    check((await restarted.snapshot())['records']['welcome-note']['deleted']==true);
+    print('PASS real-file CAS race, restart, lost-ack receipt, conflict rebase and tombstone lab contracts');
+  } finally { await directory.delete(recursive:true); }
+}

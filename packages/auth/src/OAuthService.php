@@ -4,9 +4,10 @@ namespace Corevia\Auth;
 use Corevia\Http\Request;
 final readonly class OAuthService
 {
-    public function __construct(private IdentityStore $store,private SecretBox $box,private AuthService $auth,private array $providers)
+    public function __construct(private IdentityStore $store,private SecretBox $box,private AuthService $auth,private array $providers,private ?OAuthLoginPolicy $policy=null)
     {
         foreach($providers as $name=>$provider){if(!preg_match('/^[a-z][a-z0-9_-]{0,31}$/D',$name)||!$provider instanceof OAuthProvider){throw new \InvalidArgumentException('Register named OAuthProvider instances.');}}
+        $policy?->validateProviders($providers);
     }
     public function providers():array{return array_keys($this->providers);}
     private function provider(string $name):OAuthProvider{return $this->providers[$name]??throw new AuthFailure('OAUTH_PROVIDER','Provider is unavailable.',404);}
@@ -33,20 +34,27 @@ final readonly class OAuthService
         $subjectHash=hash('sha256',$name.'|'.$subject);$mapping='oid:'.$subjectHash;
         if($flow['user_id']!==null){
             if(($context->user['id']??null)!==$flow['user_id']){throw new AuthFailure('OAUTH_STATE','Sign in and link the provider again.',401);}
-            $user=$this->store->changeProvider($flow['user_id'],$flow['version'],$name,$subjectHash);return $this->auth->replaceSession($context,$user,true);
+            $candidate=$this->store->userById($flow['user_id'])??throw new AuthFailure('UNAUTHENTICATED','Sign in again.',401);$this->policy?->validate($name,$candidate,true);
+            $user=$this->store->changeProvider($flow['user_id'],$flow['version'],$name,$subjectHash);return $this->assure($name,$this->auth->replaceSession($context,$user,true));
         }
         $id=$this->store->state($mapping)['user_id']??null;$user=is_string($id)?$this->store->userById($id):null;
         if($user===null||($this->store->state('user:'.$id)['oauth'][$name]??null)!==$subjectHash){throw new AuthFailure('OAUTH_LINK_REQUIRED','Sign in with your password and link this provider from account settings first.',403);}
+        $this->policy?->validate($name,$user,false);
         // MFA accounts get no authenticated session until the additional factor is verified.
-        if(isset($this->store->state('user:'.$id)['mfa']['secret'])){$this->store->changeState('oauth-mfa:'.$context->digest,static function(array &$record)use($user):void{$record=['user_id'=>$user['id'],'version'=>$user['auth_version']??0,'expires'=>time()+300];});return null;}
-        return $this->auth->authenticate($context,$user);
+        if(isset($this->store->state('user:'.$id)['mfa']['secret'])){$this->store->changeState('oauth-mfa:'.$context->digest,static function(array &$record)use($user,$name):void{$record=['user_id'=>$user['id'],'version'=>$user['auth_version']??0,'provider'=>$name,'expires'=>time()+300];});return null;}
+        return $this->assure($name,$this->auth->authenticate($context,$user));
     }
     public function finishMfa(Request $request,AuthContext $context):AuthContext
     {
         $key='oauth-mfa:'.$context->digest;$lease=bin2hex(random_bytes(16));$pending=$this->store->changeState($key,static function(array &$record)use($lease):array{if(($record['expires']??0)<=time()||isset($record['busy'])){throw new AuthFailure('OAUTH_STATE','Start provider login again.',401);}$record['busy']=$lease;return $record;});
-        try{$user=$this->store->userById($pending['user_id']);if($user===null||$pending['version']!==($user['auth_version']??0)){throw new AuthFailure('OAUTH_STATE','Start provider login again.',401);}$fresh=$this->auth->authenticate($context,$user,$request->input()['code']??null);}
+        try{$user=$this->store->userById($pending['user_id']);if($user===null||$pending['version']!==($user['auth_version']??0)){throw new AuthFailure('OAUTH_STATE','Start provider login again.',401);}$provider=$pending['provider']??'';if($this->policy!==null&&$provider===''){throw new AuthFailure('OAUTH_STATE','Start provider login again.',401);}if($provider!==''){$this->provider($provider);}$this->policy?->validate($provider,$user,false);$fresh=$this->assure($provider,$this->auth->authenticate($context,$user,$request->input()['code']??null));}
         catch(\Throwable $error){$this->store->changeState($key,static function(array &$record)use($lease):void{if(($record['busy']??null)===$lease){unset($record['busy']);}});throw $error;}
         $this->store->changeState($key,static function(array &$record)use($lease):void{if(($record['busy']??null)===$lease){$record=[];}});return $fresh;
+    }
+    private function assure(string $provider,AuthContext $context):AuthContext
+    {
+        try{$this->policy?->authenticated($provider,$context);return $context;}
+        catch(\Throwable $error){$this->store->deleteSession($context->digest);throw $error;}
     }
     public function unlink(Request $request,AuthContext $context,string $name):void
     {

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace Corevia\Cli;
 use Corevia\Core\CanonicalJson;
+use Corevia\Core\FrameworkResources;
 
 /** Additive starter installation: never overwrite an application file. */
 final readonly class StarterInstaller
@@ -19,8 +20,9 @@ final readonly class StarterInstaller
         foreach(['package.json','package-lock.json'] as $name){$files['frontend/auth/'.$name]=file_get_contents($source.'/stacks/'.$stack.'/'.$name);}
         $files['frontend/auth/build.mjs']=file_get_contents($source.'/frontend/build.mjs');
         $files['frontend/auth/src/account.js']=file_get_contents($source.'/frontend/src/account.js');
+        foreach(['presentation.js','presentation.css'] as $name){$files['frontend/auth/src/'.$name]=file_get_contents($source.'/frontend/src/'.$name);}
         if($stack!=='bootstrap'){$files['frontend/auth/src/auth.css']=file_get_contents($source.'/frontend/src/auth.css');if($stack!=='react'){$files['frontend/auth/src/auth.css']=str_replace('@source "./app.jsx";','',$files['frontend/auth/src/auth.css']);}}
-        if($stack==='react'){$files['frontend/auth/src/app.jsx']=file_get_contents($source.'/frontend/src/app.jsx');}
+        if($stack==='react'){foreach(['app.jsx','settings.jsx'] as $name){$files['frontend/auth/src/'.$name]=file_get_contents($source.'/frontend/src/'.$name);}}
         $assets=json_decode(file_get_contents($source.'/assets/manifest.json'),true,64,JSON_THROW_ON_ERROR)['stacks'][$stack]['files']??throw new \RuntimeException('Missing asset manifest.');
         foreach($assets as $name=>$hash){if(basename($name)!==$name || !preg_match('/^[a-zA-Z0-9_.-]+$/D',$name)){throw new \RuntimeException('Invalid bundled asset name.');}$bytes=file_get_contents($source.'/assets/'.$stack.'/'.$name);if(!hash_equals($hash,hash('sha256',$bytes))){throw new \RuntimeException('Bundled auth asset integrity mismatch.');}$files['public/assets/'.$name]=$bytes;}
         if(!isset($files['public/assets/auth.css']) || ($stack==='react' && !isset($files['public/assets/auth.js']))){throw new \RuntimeException('Bundled starter assets are missing; rebuild them before distributing.');}
@@ -28,7 +30,7 @@ final readonly class StarterInstaller
     }
     public function install(string $stack,string $directory,bool $dryRun=false,bool $check=false):array
     {
-        $root=realpath($directory);if($root===false || !is_file($root.'/corevia') || !is_file($root.'/autoload.php') || !is_file($root.'/packages/auth/src/AuthService.php')){throw new \InvalidArgumentException('Install into an existing V3 Corevia app with the auth package.');}
+        $root=realpath($directory);if($root===false || !is_file($root.'/corevia') || !is_file($root.'/autoload.php') || !FrameworkResources::hasPackage($root,'auth')){throw new \InvalidArgumentException('Install into an existing Corevia app with the auth package.');}
         $files=$this->files($stack);$hashes=[];foreach($files as $name=>$content){$hashes[$name]=hash('sha256',$content);}
         $marker='.corevia-auth-starter.json';$files[$marker]=CanonicalJson::encode(['format'=>1,'stack'=>$stack,'files'=>$hashes])."\n";
         foreach($files as $name=>$content){$path=$root;foreach(explode('/',$name) as $part){$path.='/'.$part;if(is_link($path)){throw new \LogicException('Starter output may not follow symlinks.');}}}

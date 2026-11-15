@@ -16,12 +16,13 @@ final readonly class AccountRecovery
     public function isVerified(AuthContext $context):bool{return $context->user!==null && ($this->store->userById($context->user['id'])['email_verified_at']??null)!==null;}
     private function send(array $user,string $purpose):void
     {
+        if($this->store instanceof IdentityStore&&isset($this->store->state('user:'.$user['id'])['lifecycle_deletion'])){return;}
         try{
         $now=($this->clock)();$token=bin2hex(random_bytes(32));$expires=$now+($purpose==='reset'?1800:86400);
         if(!$this->store->issueAccountToken($user['id'],$purpose,hash('sha256',$token),$expires,$user['auth_version']??0,$now,$user['email'])){return;}
         $path=$purpose==='reset'?'/reset-password':'/verify-email';
         $this->delivery->deliver(new AccountMessage($user['email'],$purpose,$expires,$this->auth->origin.$path.'#token='.$token));}
-        catch(\Throwable $error){try{$this->logger?->log('error','Account delivery failed',['purpose'=>$purpose,'exception_class'=>$error::class]);}catch(\Throwable){}/* Generic client reply avoids exposing account existence or transport details. */}
+        catch(\Throwable $error){try{$this->logger?->log('error','Account delivery failed',['purpose'=>$purpose,'exception_class'=>\Corevia\Core\ExceptionIdentity::name($error)]);}catch(\Throwable){}/* Generic client reply avoids exposing account existence or transport details. */}
     }
     public function afterRegistration(AuthContext $context):void{if($context->user!==null){$user=$this->store->userById($context->user['id']);if($user!==null){$this->send($user,'verify');}}}
     public function requestReset(Request $request):void

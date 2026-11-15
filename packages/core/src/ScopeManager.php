@@ -29,7 +29,7 @@ final class ScopeManager
             try { $errors = $scope->close(); }
             finally { $this->replace($stack); $this->active--; }
             if ($errors !== []) {
-                try { $this->logger?->log('error', 'Execution cleanup failed', ['scope_id' => $scope->id, 'scope_kind' => $kind, 'duration_ms' => (hrtime(true) - $start) / 1e6, 'exception_classes' => array_map(static fn (\Throwable $error): string => $error::class, $errors)]); } catch (\Throwable) { /* Preserve execution/cleanup failures if logging is unavailable. */ }
+                try { $this->logger?->log('error', 'Execution cleanup failed', ['scope_id' => $scope->id, 'scope_kind' => $kind, 'duration_ms' => (hrtime(true) - $start) / 1e6, 'exception_classes' => array_map(static fn (\Throwable $error): string => ExceptionIdentity::name($error), $errors)]); } catch (\Throwable) { /* Preserve execution/cleanup failures if logging is unavailable. */ }
                 if ($failure === null) { throw new \RuntimeException('SCOPE_CLEANUP_FAILED'); }
             }
         }

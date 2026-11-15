@@ -1,19 +1,23 @@
-# Corevia 3.0
+<p align="center"><img src="docs/brand/corevia-logo.png" width="180" alt="Corevia logo"></p>
 
-Corevia 3.0 adds Bootstrap/Tailwind/React auth starters, MFA, account management, role/tenant authorization, shared SQL workers/mail, optional MongoDB auth, streaming AI/model adapters, runtime profiles and cross-runtime contracts to the existing modular PHP kernel. CVP/1 and CVP/2 remain supported. V1/V2 releases are preserved at `v1.0.0` and `v2.0.0`.
+# Corevia 4.0
 
-This is the V3 release-preparation branch; a stable V3 tag/release follows required GitHub CI acceptance. Start with [auth kits](docs/v3/auth-starters.md), [identity/mail/authorization](docs/v3/identity-mail-authorization.md), [runtime profiles](docs/v3/profiles.md) and the [AI/shared-worker guide](docs/v3/remaining-phases.md). See the completed [14-point/security/upgrade review](docs/v3/final-review.md) and [upgrade notes](docs/v3/upgrade.md). Live OAuth and Docker image validation are explicitly deferred and have [user self-tests](docs/v3/optional-validation.md).
+A modular PHP 8.2+ framework for web applications, APIs, durable workflows, multi-tenant services and optional Python/AI and mobile integrations. Start without a database, Node.js, Python, Redis or Docker; enable only the capabilities your application needs.
 
-A standalone PHP 8.2+ framework for modular actions, observable flows, isolated failures, events, WebSockets and CVP/1–2 interoperability. PHP core has no third-party runtime dependencies and does not require Node.js, Python, Redis or a broker.
+V4 adds application composition, staged upgrades, migrations and testing helpers, tenant-aware adapters, account/audit tools, scheduling and outbox delivery, bounded telemetry and AI/offline-client contracts. Bootstrap, Tailwind and React auth starters ship prebuilt assets.
+
+**Supported release scope and test limits:** read the [V4 release notes](docs/v4/release.md), [20-workstream review](docs/v4/final-review.md), [upgrade guide](docs/v4/upgrade.md) and [unverified integrations and self-tests](docs/v4/optional-validation.md). Unavailable environments are explicitly deferred, not reported as passed. AI tool callbacks/processes require trusted code; they are not an OS sandbox.
+
+The PHP core has no third-party runtime dependencies. CVP/1 and CVP/2 remain supported. V3 API compatibility and saved-state upgrade fixtures are retained; older tags remain available.
 
 ## Setup
 
 **Requirements:** PHP 8.2+ with JSON. The starter needs no database, Node.js, Python, Redis, or Docker.
 
-Download the [V3 branch ZIP](https://github.com/corevia-framework/corevia/archive/refs/heads/develop/v3.zip), extract it, and open a terminal in the extracted project directory. Or clone the V3 branch:
+Download the [V4 source ZIP](https://github.com/corevia-framework/corevia/archive/refs/tags/v4.0.0.zip), extract it, and open a terminal in the extracted project directory. Or clone the V4 release:
 
 ```sh
-git clone --branch develop/v3 https://github.com/corevia-framework/corevia.git myapp
+git clone --branch v4.0.0 https://github.com/corevia-framework/corevia.git myapp
 cd myapp
 composer install
 php corevia serve

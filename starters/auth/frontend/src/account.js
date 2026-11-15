@@ -1,14 +1,32 @@
-function capture(){const token=new URLSearchParams(location.hash.slice(1)).get('token')??'';if(location.hash)history.replaceState(null,'',location.pathname);for(const input of document.querySelectorAll('input[name="token"]')){input.value=/^[a-f0-9]{64}$/.test(token)?token:'';input.form.querySelector('button').disabled=!input.value;}}
+import {t,errorText,initializePresentation} from './presentation.js';
+initializePresentation();
+function capture(){if(document.querySelector('[data-auth-react]'))return;const parameters=new URLSearchParams(location.hash.slice(1));if(!parameters.has('token')){for(const input of document.querySelectorAll('input[name="token"]'))if(!input.value)input.form.querySelector('button').disabled=true;return;}const token=parameters.get('token')??'';history.replaceState(null,'',location.pathname);for(const input of document.querySelectorAll('input[name="token"]')){input.value=/^[a-f0-9]{64}$/.test(token)?token:'';input.form.querySelector('button').disabled=!input.value;}}
 capture();addEventListener('hashchange',capture);
-for(const form of document.querySelectorAll('form[data-account-action]')){
-  form.addEventListener('submit',async event=>{
-    event.preventDefault();const button=form.querySelector('button'),notice=document.querySelector('[data-account-notice]');button.disabled=true;
-    try{const payload=Object.fromEntries(new FormData(form));const response=await fetch(form.dataset.accountAction,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRF-Token':payload._token,Accept:'application/json'},body:JSON.stringify(payload)});const result=await response.json();if(!response.ok)throw new Error(result.error?.message??'Please try again.');notice.textContent=result.message;
-      if(form.dataset.accountAction==='/auth/password/reset')location.assign('/login');
-      else if(form.dataset.accountAction==='/auth/email/verify')location.assign('/dashboard');
-      if(result.csrf)for(const input of document.querySelectorAll('input[name="_token"]'))input.value=result.csrf;
-      const output=document.querySelector('[data-account-output]');if(output&&(result.setup||result.recovery_codes))output.textContent=JSON.stringify(result.setup??result.recovery_codes,null,2);
-      if(result.authorization_url)location.assign(result.authorization_url);else if(result.redirect)location.assign(result.redirect);
-    }catch(error){notice.textContent=error.message;notice.setAttribute('role','alert');}finally{button.disabled=false;}
-  });
+function feedback(message,error=false,form=null){const notice=document.querySelector('[data-account-notice]');if(!notice)return;notice.textContent=message;notice.setAttribute('role',error?'alert':'status');notice.setAttribute('tabindex','-1');if(error){notice.focus();if(form)form.setAttribute('aria-describedby',notice.id);}}
+function busy(form,value){form?.setAttribute('aria-busy',String(value));for(const button of form?.querySelectorAll('button')??[])button.disabled=value;}
+async function post(path,payload){let csrf=payload._token;if(!csrf){const session=await fetch('/auth/session',{credentials:'same-origin'});if(!session.ok)throw new Error(t('Unable to open your session.'));csrf=(await session.json()).csrf;}const response=await fetch(path,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf,Accept:'application/json'},body:JSON.stringify(payload)});const result=await response.json();if(!response.ok)throw new Error(errorText(result.error));return result;}
+function navigate(path,provider=false){const url=new URL(path,location.origin);if(provider?(url.protocol!=='https:'||url.username||url.password):url.origin!==location.origin)throw new Error(t('Please try again.'));location.assign(url.href);}
+const passkeySupported=Boolean(window.PublicKeyCredential&&navigator.credentials&&isSecureContext);
+if(passkeySupported)for(const item of document.querySelectorAll('[data-passkey-login],[data-passkey-enroll]'))item.hidden=false;
+function decode(value){return Uint8Array.from(atob(value.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));}
+function encode(value){return btoa(String.fromCharCode(...new Uint8Array(value))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
+async function passkey(kind,payload,form){
+  if(!passkeySupported)return;busy(form,true);const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);
+  try{const options=(await post(`/auth/passkeys/${kind}/options`,kind==='register'?payload:{})).publicKey;options.challenge=decode(options.challenge);if(options.user)options.user.id=decode(options.user.id);for(const item of options.excludeCredentials??options.allowCredentials??[])item.id=decode(item.id);
+    const key=kind==='register'?await navigator.credentials.create({publicKey:options,signal:controller.signal}):await navigator.credentials.get({publicKey:options,signal:controller.signal});
+    const response={clientDataJSON:encode(key.response.clientDataJSON)};if(kind==='register'){response.attestationObject=encode(key.response.attestationObject);response.transports=key.response.getTransports?.()??[];}else{response.authenticatorData=encode(key.response.authenticatorData);response.signature=encode(key.response.signature);response.userHandle=key.response.userHandle?encode(key.response.userHandle):null;}
+    const credential={id:key.id,rawId:encode(key.rawId),type:key.type,response,clientExtensionResults:key.getClientExtensionResults()};const result=await post(`/auth/passkeys/${kind}/finish`,kind==='register'?{credential}:{credential,code:payload.code??''});navigate(result.redirect);
+  }catch(error){feedback(error.name==='NotAllowedError'||error.name==='AbortError'?t('Passkey request was cancelled or unavailable.'):error.message,true,form);}finally{clearTimeout(timer);busy(form,false);}
 }
+document.addEventListener('click',event=>{const button=event.target.closest('[data-passkey-login]');if(!button)return;event.preventDefault();const form=button.closest('section')?.querySelector('form');passkey('login',{code:document.querySelector('input[name="code"]')?.value??''},form);});
+document.addEventListener('submit',async event=>{
+  const form=event.target;if(form.matches('[data-passkey-enroll]')){event.preventDefault();passkey('register',Object.fromEntries(new FormData(form)),form);return;}
+  if(!form.matches('[data-account-action],[data-account-export]'))return;event.preventDefault();busy(form,true);
+  try{const result=await post(form.dataset.accountAction??form.action,Object.fromEntries(new FormData(form)));
+    if(form.matches('[data-account-export]')){const url=URL.createObjectURL(new Blob([JSON.stringify(result,null,2)],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download='corevia-account-export.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);return;}
+    feedback(t(result.message??''));if(result.csrf)for(const input of document.querySelectorAll('input[name="_token"]'))input.value=result.csrf;
+    const output=document.querySelector('[data-account-output]');if(output&&(result.setup||result.recovery_codes))output.textContent=JSON.stringify(result.setup??result.recovery_codes,null,2);
+    if(result.operation_id){const container=form.closest('.auth-settings');if(container){const section=document.createElement('section'),heading=document.createElement('h1'),message=document.createElement('p'),link=document.createElement('a');heading.textContent=t('Delete account');heading.tabIndex=-1;message.textContent=t('Erasure reference: :operation',{operation:result.operation_id});message.setAttribute('role','status');link.href='/login';link.textContent=t('Back to sign in');section.append(heading,message,link);for(const input of container.querySelectorAll('input[type="password"]'))input.value='';container.replaceChildren(section);heading.focus();}return;}
+    if(form.dataset.accountAction==='/auth/password/reset')navigate('/login');else if(form.dataset.accountAction==='/auth/email/verify')navigate('/dashboard');else if(result.authorization_url)navigate(result.authorization_url,true);else if(result.redirect)navigate(result.redirect);
+  }catch(error){feedback(error.message,true,form);}finally{busy(form,false);}
+});

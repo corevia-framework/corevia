@@ -13,6 +13,8 @@ final class ReleaseReadiness
     }
     public static function report(string $root):array
     {
+        if(is_file($root.'/docs/v4/acceptance.json')){return V4ReleaseReadiness::report($root);}
+        if(!is_file($root.'/docs/v3/acceptance.json')){return ['ready'=>false,'target'=>\Corevia\Core\Version::VERSION,'published'=>false,'checks'=>['source_release_plan_present'=>false],'deferred_checks'=>[],'evidence_kind'=>'Run release checks from the framework source checkout; detached apps need application-specific acceptance.'];}
         $plan=json_decode(file_get_contents($root.'/docs/v3/acceptance.json'),true,32,JSON_THROW_ON_ERROR);$deferred=$plan['deferred_checks']??[];
         foreach($deferred as $id=>$detail){if(!in_array($id,['real_oauth','docker_image'],true)||!is_array($detail)||($detail['status']??null)!=='deferred'||!is_string($detail['reason']??null)||trim($detail['reason'])===''||in_array($id,$plan['external_checks'],true)){throw new \LogicException('Invalid or conflicting optional-check deferral.');}}
         $file=$root.'/storage/v3-verification.json';$evidence=is_file($file)&&filesize($file)<=65536?json_decode(file_get_contents($file),true,32,JSON_THROW_ON_ERROR):[];

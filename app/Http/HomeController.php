@@ -9,7 +9,8 @@ final readonly class HomeController
     public function __construct(private View $view,private Router $router,private DatabaseManager $database){}
     private function page(Request $request,string $title,string $template,array $data=[],int $status=200):Response
     {
-        $shared=['route'=>$this->router->url(...),'csrf'=>$request->attributes['csrf_token'] ?? '',...$data];
+        $shared=['route'=>$this->router->url(...),'csrf'=>$request->attributes['csrf_token'] ?? '',
+            'hasAuth'=>in_array('/login',array_column($this->router->routes(),'path'),true),...$data];
         $content=$this->view->render($template,$shared);
         return Response::html($this->view->render('layout',['title'=>$title,'content'=>$content,'path'=>$request->path,...$shared]),$status)->withHeaders([
             'Content-Security-Policy'=>"default-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
@@ -18,6 +19,7 @@ final readonly class HomeController
         ]);
     }
     public function index(Request $request):Response{return $this->page($request,'Build with Corevia','welcome');}
+    public function workspace(Request $request):Response{return $this->page($request,'Your workspace','workspace');}
     public function guide(Request $request):Response{return $this->page($request,'Your first route','guide',['routes'=>$this->router->routes()]);}
     public function database(Request $request):Response{return $this->page($request,'Connect your data','database',['connections'=>$this->database->configured()]);}
     public function hello(Request $request,string $name):Response{return $this->page($request,'Hello, '.$name,'hello',['name'=>$name]);}

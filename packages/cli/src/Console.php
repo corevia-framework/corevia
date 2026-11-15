@@ -6,7 +6,7 @@ namespace Corevia\Cli;
 
 use Corevia\Realtime\{Server, SocketBroadcaster};
 use Corevia\Core\{ConfigRepository, JobQueue, Version};
-use Corevia\Core\{ApplicationArtifact,CanonicalJson};
+use Corevia\Core\{ApplicationArtifact,CanonicalJson,FrameworkResources};
 use Corevia\Protocol\{ContractGenerator,ContractManifest};
 use Corevia\Persistence\{DatabaseManager,SqlConnection,SqlRunStore};
 
@@ -27,13 +27,66 @@ final readonly class Console
             }
         }
         try {
-            if($command==='starter:ai'){$this->print((new AiStarterInstaller($this->basePath))->install($options['path']??$this->basePath,isset($options['dry-run'])));return 0;}
+            if(in_array($command,['migration:status','migration:up','migration:down'],true)){
+                if(array_diff(array_keys($options),['connection','directory','steps'])){throw new \InvalidArgumentException('Unknown migration option.');}
+                $configuration=ConfigRepository::load($this->basePath.'/config/settings',getenv('APP_ENV')?:'development');
+                $manager=new DatabaseManager($configuration->get('database',[]));
+                try{
+                    $runner=new \Corevia\Persistence\MigrationRunner($manager->sql($options['connection']??null));$directory=$options['directory']??$this->basePath.'/database/migrations';
+                    $result=match($command){'migration:status'=>$runner->status($directory),'migration:up'=>$runner->up($directory),default=>$runner->down($directory,filter_var($options['steps']??1,FILTER_VALIDATE_INT)?:throw new \InvalidArgumentException('Invalid rollback count.'))};
+                    $this->print($result);return 0;
+                }finally{$manager->disconnect();}
+            }
+            if($command==='openapi:export'){
+                $bootstrap=require $this->basePath.'/config/runtime.php';$runtime=$bootstrap($this->basePath);
+                try{$this->print(\Corevia\Http\OpenApi::generate($runtime['router'],$options['title']??'Application API',$options['version']??'1.0.0'));return 0;}finally{$runtime['app']->shutdown();}
+            }
+            if($command==='app:upgrade'){
+                if(array_diff(array_keys($options),['from','output','runtime-path','offline','dry-run'])){throw new \InvalidArgumentException('Unknown staged upgrade option.');}
+                $this->print(ApplicationUpgrade::stage($options['from']??$this->basePath,$options['output']??throw new \InvalidArgumentException('Provide --output for a separate replacement.'),$options['runtime-path']??FrameworkResources::root(),isset($options['offline']),isset($options['dry-run'])));return 0;
+            }
+            if($command==='app:new'){
+                if(array_diff(array_keys($options),['features','stack','database','dry-run','runtime-path'])){throw new \InvalidArgumentException('Unknown application installer option.');}
+                $this->print(ApplicationInstaller::create($argv[2]??throw new \InvalidArgumentException('Provide a new application directory.'),explode(',',$options['features']??'web'),$options['stack']??'bootstrap',$options['database']??'json',isset($options['dry-run']),$options['runtime-path']??null));return 0;
+            }
+            if($command==='extension:check'){
+                $path=$argv[2]??throw new \InvalidArgumentException('Provide an extension catalog JSON file.');
+                $wire=file_get_contents($path,false,null,0,262145);if($wire===false||strlen($wire)>262144){throw new \InvalidArgumentException('Extension catalog exceeds its size limit.');}
+                $catalog=json_decode($wire,true,64,JSON_THROW_ON_ERROR);
+                if(!is_array($catalog)){throw new \InvalidArgumentException('Extension catalog must be an object keyed by ID.');}
+                $this->print(FeatureResolver::resolve(isset($options['features'])?explode(',',$options['features']):array_keys($catalog),$catalog));return 0;
+            }
+            if($command==='starter:upgrade'){
+                if(array_diff(array_keys($options),['path'])){throw new \InvalidArgumentException('Only --path is supported; starter upgrades are preview-only.');}
+                $this->print(StarterUpgradePlanner::plan($options['path']??$this->basePath));return 0;
+            }
+            if($command==='hosting:prepare'){
+                if(array_diff(array_keys($options),['target','output','dry-run'])){throw new \InvalidArgumentException('Unknown hosting recipe option.');}
+                $this->print(HostingPreset::prepare($this->basePath,$options['target']??'shared',$options['output']??'hosting-preview',isset($options['dry-run'])));return 0;
+            }
+            if($command==='hosting:check'){
+                if(array_diff(array_keys($options),['target','requirements','public-path'])){throw new \InvalidArgumentException('Unknown hosting diagnostic option.');}
+                $policy=[];
+                if(isset($options['requirements'])){
+                    $path=$options['requirements'];
+                    if(!is_file($path)||!is_readable($path)||filesize($path)>65536){throw new \InvalidArgumentException('Hosting requirements must be a readable JSON file up to 64KiB.');}
+                    $wire=file_get_contents($path,false,null,0,65537);
+                    if($wire===false||strlen($wire)>65536){throw new \InvalidArgumentException('Hosting requirements exceed the readable size limit.');}
+                    $value=json_decode($wire,false,32,JSON_THROW_ON_ERROR);
+                    if(!$value instanceof \stdClass){throw new \InvalidArgumentException('Hosting requirements must be a JSON object.');}
+                    $policy=json_decode($wire,true,32,JSON_THROW_ON_ERROR);
+                }
+                $report=HostingInspector::inspect($this->basePath,$options['target']??'shared',$policy,$options['public-path']??null);
+                $this->print($report);return $report['blocked']?1:0;
+            }
+            if($command==='starter:ai'){$this->print((new AiStarterInstaller(FrameworkResources::root()))->install($options['path']??$this->basePath,isset($options['dry-run'])));return 0;}
             if($command==='release:check'){$report=ReleaseReadiness::report($this->basePath);$this->print($report);return $report['ready']?0:1;}
             if($command==='deploy:check'){
                 $auth=is_file($this->basePath.'/config/auth.php')?require $this->basePath.'/config/auth.php':[];$ai=is_file($this->basePath.'/config/ai.php')?require $this->basePath.'/config/ai.php':[];
                 $report=DeploymentInspector::inspect($this->basePath,$auth,$ai,isset($options['multi-host']));$this->print($report);return $report['ready']?0:1;
             }
             if(in_array($command,['coordination:migrate','queue:status','queue:dispatch','queue:work'],true)){
+                if($command==='queue:work'&&array_diff(array_keys($options),['once','max','budget-ms'])){throw new \InvalidArgumentException('Unknown queue worker option.');}
                 $config=ConfigRepository::load($this->basePath.'/config/settings',getenv('APP_ENV')?:'development');$manager=new DatabaseManager($config->get('database',[]));$queue=new \Corevia\Persistence\SqlCoordinator($manager->sql($config->get('queue.connection')),$config->get('queue.prefix','cv_work'));
                 try{
                     if($command==='coordination:migrate'){$queue->migrate();$this->print(['migrated'=>true]);}
@@ -41,7 +94,7 @@ final readonly class Console
                     elseif($command==='queue:dispatch'){
                         if(!isset($options['idempotent'])){throw new \InvalidArgumentException('Explicit --idempotent is required for automatic retry.');}$file=$options['input']??throw new \InvalidArgumentException('Provide --input=private-json-file.');if(!is_file($file)||filesize($file)>1048576){throw new \InvalidArgumentException('Input must be a JSON file <=1 MiB.');}$input=json_decode(file_get_contents($file),true,64,JSON_THROW_ON_ERROR);if(!is_array($input)){throw new \InvalidArgumentException('Input must be an object or array.');}$this->print(['job_id'=>$queue->dispatch($argv[2]??'', $input,true,$queue->clock())]);
                     }else{
-                        $scopes=new \Corevia\Core\ScopeManager();$handlers=require $this->basePath.'/routes/jobs.php';if(is_callable($handlers)){$handlers=$handlers($queue,$scopes);}$maximum=isset($options['once'])?1:filter_var($options['max']??100,FILTER_VALIDATE_INT);if($maximum===false||$maximum<1||$maximum>1000){throw new \InvalidArgumentException('Choose --once or --max=1..1000.');}$worker=new \Corevia\Core\JobWorker($queue,$scopes,$handlers);$results=[];for($index=0;$index<$maximum;$index++){$result=$worker->once();if($result['status']==='empty'){break;}$results[]=$result;}$this->print(['processed'=>$results]);
+                        $scopes=new \Corevia\Core\ScopeManager();$handlers=require $this->basePath.'/routes/jobs.php';if(is_callable($handlers)){$handlers=$handlers($queue,$scopes);}$maximum=isset($options['once'])?1:filter_var($options['max']??100,FILTER_VALIDATE_INT);if($maximum===false||$maximum<1||$maximum>1000){throw new \InvalidArgumentException('Choose --once or --max=1..1000.');}$worker=new \Corevia\Core\JobWorker($queue,$scopes,$handlers);$budget=isset($options['budget-ms'])?filter_var($options['budget-ms'],FILTER_VALIDATE_INT):null;if($budget===false){throw new \InvalidArgumentException('Invalid --budget-ms.');}$this->print(WorkerLoop::run(fn()=>$worker->once(),$maximum,$budget));
                     }
                 }finally{$manager->disconnect();}return 0;
             }
@@ -73,7 +126,7 @@ final readonly class Console
                 if(isset($options['show'])){$name=$options['show'];if(!preg_match('/^[a-f0-9]{32}\.json$/D',$name) || !isset($records[$name])){throw new \InvalidArgumentException('Choose a file listed by auth:outbox.');}$data=json_decode(file_get_contents($directory.'/'.$name),true,32,JSON_THROW_ON_ERROR);if($data['expires']<=time()){throw new \LogicException('This preview link has expired. Request another link.');}$this->print($data);}
                 else{$this->print(array_values($records));}return 0;
             }
-            if($command==='starter:auth'){$this->print((new StarterInstaller($this->basePath))->install($options['stack']??'bootstrap',$options['path']??$this->basePath,isset($options['dry-run']),isset($options['check'])));return 0;}
+            if($command==='starter:auth'){$this->print((new StarterInstaller(FrameworkResources::root()))->install($options['stack']??'bootstrap',$options['path']??$this->basePath,isset($options['dry-run']),isset($options['check'])));return 0;}
             if($command==='profile:list'){$this->print(\Corevia\Core\RuntimeProfile::presets());return 0;}
             if($command==='profile:show'){$bootstrap=require $this->basePath.'/config/runtime.php';$runtime=$bootstrap($this->basePath);$app=$runtime['app'];$this->print($app->runtimeProfile());return 0;}
             if ($command === 'contract:compile') {
@@ -133,10 +186,15 @@ final readonly class Console
                 return 0;
             }
             if ($command === 'test') {
-                $status=0;
-                foreach (['tests/run.php','tests/v2/kernel.php','tests/v2/flows.php','tests/v2/protocol.php','tests/v2/tooling.php','tests/v2/upgrade.php','tests/v2/diagnostics.php','tests/v2/security.php','tests/features/databases.php','tests/features/web.php','tests/v3/composition.php','tests/v3/scopes.php','tests/v3/units.php','tests/v3/artifact-boot.php','tests/v3/contracts.php','tests/v3/profiles.php','tests/v3/auth.php','tests/v3/auth-storage.php','tests/v3/auth-recovery.php','tests/v3/identity.php','tests/v3/mail.php','tests/v3/adapters.php','tests/v3/distributed.php','tests/v3/ai.php','tests/v3/services.php','tests/v3/release.php','tests/v3/operations.php'] as $test) {
+                $status=0;$found=false;
+                foreach (['tests/run.php','tests/v2/kernel.php','tests/v2/flows.php','tests/v2/protocol.php','tests/v2/tooling.php','tests/v2/upgrade.php','tests/v2/diagnostics.php','tests/v2/security.php','tests/features/databases.php','tests/features/web.php','tests/v3/composition.php','tests/v3/scopes.php','tests/v3/units.php','tests/v3/artifact-boot.php','tests/v3/contracts.php','tests/v3/profiles.php','tests/v3/auth.php','tests/v3/auth-storage.php','tests/v3/auth-recovery.php','tests/v3/identity.php','tests/v3/mail.php','tests/v3/adapters.php','tests/v3/distributed.php','tests/v3/ai.php','tests/v3/services.php','tests/v3/release.php','tests/v3/operations.php','tests/v4/hosting-presets.php','tests/v4/workers.php','tests/v4/data.php','tests/v4/application-toolkit.php','tests/v4/api.php','tests/v4/catalog.php','tests/v4/tenants.php','tests/v4/reliability.php','tests/v4/webhooks.php','tests/v4/error-privacy.php','tests/v4/observability.php','tests/v4/cancellation.php','tests/v4/scheduler.php','tests/v4/resilience.php','tests/v4/connected.php','tests/v4/sync.php','tests/v4/ai-platform.php','tests/v4/knowledge.php','tests/v4/tools.php','tests/v4/human-tool-review.php','tests/v4/audit.php','tests/v4/service-accounts.php','tests/v4/account-lifecycle.php','tests/v4/organization-sso.php','tests/v4/passkey-storage.php'] as $test) {
+                    if(!is_file($this->basePath.'/'.$test)){
+                        if(is_dir($this->basePath.'/packages/core/src')){throw new \LogicException('Missing framework test entry point: '.$test);}
+                        continue;
+                    }$found=true;
                     passthru(escapeshellarg(PHP_BINARY).' '.escapeshellarg($this->basePath.'/'.$test),$code); if ($code!==0) { $status=1; }
                 }
+                if(!$found){throw new \LogicException('No test entry point found. Add tests/run.php to your application.');}
                 return $status;
             }
             if ($command === 'update:check') {
@@ -144,11 +202,17 @@ final readonly class Console
                 passthru('composer outdated --direct --format=json --working-dir='.escapeshellarg($this->basePath),$code); return $code;
             }
             if ($command === 'help') {
+                echo "migration:status | migration:up | migration:down [--connection=name --directory=database/migrations --steps=1]\nopenapi:export [--title=name --version=1.0.0]\n";
+                echo "app:upgrade --from=application --output=new-directory --runtime-path=package [--dry-run | --offline]\n";
+                echo "app:new <new-directory> [--features=web|api|auth,ai --stack=bootstrap|tailwind|react --database=json|sqlite|mysql|pgsql|mongodb --runtime-path=package-directory --dry-run]\nextension:check <catalog.json> [--features=id,id]\n";
+                echo "starter:upgrade [--path=existing-application] (read-only auth-starter upgrade preview)\n";
+                echo "hosting:prepare [--target=shared|vps|aws|azure --output=new-relative-storage-directory --dry-run]\n";
+                echo "hosting:check [--target=shared|vps|aws|azure --requirements=private.json --public-path=path]\n";
                 echo "auth:migrate | auth:outbox [--show=private-preview-file.json]\n";
                 echo "auth:roles --email=address --set=admin[,editor] [--tenant=id] (empty --set revokes roles)\n";
                 echo "mail:migrate | mail:status | mail:work [--once | --max=100]\n";
                 echo "starter:ai [--path=app --dry-run] | deploy:check [--multi-host]\n";
-                echo "coordination:migrate | queue:status | queue:dispatch <task> --input=file --idempotent | queue:work [--once | --max=100]\n";
+                echo "coordination:migrate | queue:status | queue:dispatch <task> --input=file --idempotent | queue:work [--once | --max=100] [--budget-ms=20000]\n";
                 echo "starter:auth [--stack=bootstrap|tailwind|react --path=existing-project --dry-run --check]\n";
                 echo "profile:list | profile:show (COREVIA_PROFILE=web|api|worker|realtime|ai|full)\n";
                 echo "V3 foundations (unreleased): app:graph | app:compile | app:verify | app:inspect [--output=path --key-file=path]\ncontract:compile <manifest.json> [--output=directory --check]\n";

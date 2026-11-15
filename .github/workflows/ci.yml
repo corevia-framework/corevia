@@ -52,6 +52,8 @@ jobs:
       - run: php -n tests/v3/operations.php
       - run: php -n tests/v3/services.php
       - run: php -n tests/v3/release.php
+      - run: php tests/v4/release.php
+      - run: python tests/v4/mobile-proxy.py --output=storage/ci-mobile-proxy
       - run: node tests/v3/smtp.mjs
       - run: node tests/v3/http-client.mjs
       - run: node tests/v3/ai-sdk.mjs
@@ -84,6 +86,31 @@ jobs:
         env:
           PYTHON: python
       - run: python tests/v2/install.py
+      - run: python tests/v4/phase-b.py
+      - run: php -n tests/v4/features.php
+      - run: python tools/v4-inventory.py
+      - run: php -n tests/v4/hosting.php
+      - run: php -n tests/v4/upgrades.php
+      - run: php tests/v4/data.php
+      - run: php -n tests/v4/application-toolkit.php
+      - run: php -n tests/v4/api.php
+      - run: php tests/v4/catalog.php
+      - run: php tests/v4/tenants.php
+      - run: python tests/v4/cancel-http.py
+      - run: python tests/v4/cross-runtime.py
+      - run: python tests/v4/outbound-http.py
+      - run: php tests/v4/observability.php
+      - run: php tests/v4/webhooks.php
+      - run: php tests/v4/reliability.php
+      - run: php tests/v4/ai-platform.php
+      - run: php tests/v4/knowledge.php
+      - run: php tests/v4/tools.php
+      - run: php tests/v4/human-tool-review.php
+      - run: php tests/v4/sync.php
+      - run: php tests/v4/connected.php
+      - run: python tests/v4/concurrency.py
+      - run: python tests/v4/compatibility.py
+      - run: python tests/v4/persistence.py
       - run: python tests/v2/history.py
       - run: python tools/v3-upgrade-verify.py
   auth-starters:
@@ -107,6 +134,8 @@ jobs:
       - run: node node_modules/playwright-core/cli.js install --with-deps chromium
         working-directory: tools
       - run: node tests/v3/auth-browser.mjs
+        env:
+          COREVIA_AUTH_A11Y: '1'
       - run: node tests/v3/auth-browser.mjs
         env:
           COREVIA_AUTH_SQL: '1'
@@ -116,6 +145,23 @@ jobs:
       - run: node tests/v3/ai-browser.mjs
         env:
           PYTHON: python
+          COREVIA_AI_A11Y: '1'
+          COREVIA_AI_STACK: bootstrap
+      - run: node tests/v3/ai-browser.mjs
+        env:
+          PYTHON: python
+          COREVIA_AI_A11Y: '1'
+          COREVIA_AI_STACK: tailwind
+      - run: node tests/v3/ai-browser.mjs
+        env:
+          PYTHON: python
+          COREVIA_AI_A11Y: '1'
+          COREVIA_AI_STACK: react
+      - run: node tests/v4/workspace-browser.mjs .
+      - run: composer install --working-dir=tests/v4/passkey-dependencies --no-interaction --no-scripts --no-plugins --prefer-dist
+      - run: composer validate --working-dir=tests/v4/passkey-dependencies --strict
+      - run: composer audit --working-dir=tests/v4/passkey-dependencies --locked
+      - run: node tests/v4/passkey-browser.mjs
   dart:
     runs-on: ubuntu-latest
     steps:
@@ -123,6 +169,17 @@ jobs:
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: stable
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_sqlite
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
       - run: dart analyze
         working-directory: sdk/dart
       - run: dart analyze contracts/generated/dart
@@ -132,6 +189,9 @@ jobs:
         working-directory: sdk/dart
       - run: dart run test/io.dart
         working-directory: sdk/dart
+      - run: dart run test/sync.dart
+        working-directory: sdk/dart
+      - run: python tests/v4/sync-http.py
   databases:
     runs-on: ubuntu-latest
     services:
@@ -184,9 +244,19 @@ jobs:
       - run: php tests/v3/distributed.php
         env:
           COREVIA_DB_TESTS: '1'
+      - run: php tests/v4/service-contracts.php
+        env:
+          COREVIA_DB_TESTS: '1'
   container:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.validate_docker }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: docker build -f deploy/Dockerfile -t corevia-v3-ci .
+      - run: docker build -f deploy/Dockerfile -t corevia-v4-ci .
+      - run: test "$(docker run --rm --entrypoint id corevia-v4-ci -u)" != "0"
+      - run: >-
+          docker run --rm --entrypoint php corevia-v4-ci -r
+          'if (!in_array("mysql", PDO::getAvailableDrivers(), true) || !in_array("pgsql", PDO::getAvailableDrivers(), true) || !is_writable("storage")) { exit(1); } echo "PASS SQL drivers and writable private storage\n";'
+      - run: docker run --rm --entrypoint php corevia-v4-ci -n tests/v2/kernel.php
+      - run: docker run --rm --entrypoint php corevia-v4-ci -n tests/v2/flows.php
+      - run: docker run --rm --entrypoint php-fpm corevia-v4-ci -t
