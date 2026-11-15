@@ -252,4 +252,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: docker build -f deploy/Dockerfile -t corevia-v3-ci .
+      - run: docker build -f deploy/Dockerfile -t corevia-v4-ci .
+      - run: test "$(docker run --rm --entrypoint id corevia-v4-ci -u)" != "0"
+      - run: >-
+          docker run --rm --entrypoint php corevia-v4-ci -r
+          'if (!in_array("mysql", PDO::getAvailableDrivers(), true) || !in_array("pgsql", PDO::getAvailableDrivers(), true) || !is_writable("storage")) { exit(1); } echo "PASS SQL drivers and writable private storage\n";'
+      - run: docker run --rm --entrypoint php corevia-v4-ci -n tests/v2/kernel.php
+      - run: docker run --rm --entrypoint php corevia-v4-ci -n tests/v2/flows.php
+      - run: docker run --rm --entrypoint php-fpm corevia-v4-ci -t

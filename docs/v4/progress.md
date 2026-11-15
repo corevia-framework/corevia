@@ -1,5 +1,7 @@
 # V4 implementation progress
 
+Current release scope is defined in the [V4.0 release notes](release.md), [20-workstream review](final-review.md) and [explicit deferred-target guide](optional-validation.md). The dated entries below preserve development history; earlier pending/local-only statements do not override the current release disposition.
+
 Updated 2026-11-09 (Asia/Karachi). Work is local on `develop/v4`. No V4 push, registry publication, tag, release or deployment is included in this increment.
 
 Work has started across the next five phases (C-G). The database-free welcome/workspace has V4 responsive navigation, themes and an honest empty state. All three auth kits now have responsive V4 layouts, themes and English/Urdu/Arabic presentation with RTL support; native React account management passes its SQLite/MFA/provider/accessibility browser checks. The common AI view now passes multilingual/theme/streaming/cancellation checks in all three starter installations. Existing generated application files are preserved.
