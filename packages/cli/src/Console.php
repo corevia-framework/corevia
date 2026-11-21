@@ -299,10 +299,10 @@ final readonly class Console
                     echo "Realtime stop acknowledged.\n";
                     break;
                 case 'doctor':
-                    if($profile=$app->runtimeProfile()){
+                    if(($profile=$app->runtimeProfile())!==null || !class_exists(\PDO::class) || !in_array('sqlite',\PDO::getAvailableDrivers(),true)){
                         $ok=PHP_VERSION_ID>=80200 && extension_loaded('json') && is_writable($runtime['storage']);
                         foreach($app->registry->health() as $health){$ok=$ok && $health['status']==='healthy';}
-                        $this->print(['profile'=>$profile->name,'features'=>$profile->features,'healthy'=>$ok,'run_store'=>$app->config->get('runtime.run_store','json'),'modules'=>$app->registry->health()]);return $ok?0:1;
+                        $this->print(['profile'=>$profile?->name??'web','features'=>$profile?->features??['http','views'],'healthy'=>$ok,'run_store'=>$app->config->get('runtime.run_store','json'),'modules'=>$app->registry->health()]);return $ok?0:1;
                     }
                     $ok = true;
                     echo 'PHP version                  ' . PHP_VERSION . (PHP_VERSION_ID >= 80200 ? ' OK' : ' FAIL') . PHP_EOL;

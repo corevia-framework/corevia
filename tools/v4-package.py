@@ -10,7 +10,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 GIT = ['git', '-c', 'safe.directory=' + ROOT.as_posix()]
 RUNTIME_NAME = 'corevia-framework/runtime'
-VERSION = '4.0.0'
+VERSION = '4.0.1'
 
 
 def canonical(value):

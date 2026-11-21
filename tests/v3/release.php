@@ -28,6 +28,11 @@ try{
     $resolved=realpath($root);$normalize=static fn(string $path):string=>strtolower(str_replace('\\','/',$path));
     if($resolved===false||!str_starts_with($normalize($resolved).'/',rtrim($normalize($storage),'/').'/release-gate-')||is_link($root)){throw new RuntimeException('Unsafe release fixture cleanup.');}
     $files=new RecursiveIteratorIterator(new RecursiveDirectoryIterator($resolved,FilesystemIterator::SKIP_DOTS),RecursiveIteratorIterator::CHILD_FIRST);
-    foreach($files as $file){if($file->isDir()&&!$file->isLink()){rmdir($file->getPathname());}else{chmod($file->getPathname(),0600);unlink($file->getPathname());}}unset($files,$file);gc_collect_cycles();
+    // Close recursive directory handles before removing directories on Windows.
+    $entries=[];foreach($files as $file){$entries[]=[$file->getPathname(),$file->isDir()&&!$file->isLink()];}unset($files,$file);gc_collect_cycles();
+    foreach($entries as [$path,$directory]){
+        if($directory){$removed=false;for($attempt=0;$attempt<10;$attempt++){if(@rmdir($path)){$removed=true;break;}usleep(100000);}if(!$removed){throw new RuntimeException('Cannot remove private release fixture subdirectory.');}}
+        else{chmod($path,0600);unlink($path);}
+    }
     $removed=false;for($attempt=0;$attempt<10;$attempt++){if(@rmdir($resolved)){$removed=true;break;}usleep(100000);}if(!$removed){throw new RuntimeException('Cannot remove private release fixture directory.');}
 }

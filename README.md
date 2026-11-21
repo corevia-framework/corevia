@@ -1,6 +1,6 @@
 <p align="center"><img src="docs/brand/corevia-logo.png" width="180" alt="Corevia logo"></p>
 
-# Corevia 4.0
+# Corevia 4.0.1
 
 A modular PHP 8.2+ framework for web applications, APIs, durable workflows, multi-tenant services and optional Python/AI and mobile integrations. Start without a database, Node.js, Python, Redis or Docker; enable only the capabilities your application needs.
 
@@ -14,10 +14,22 @@ The PHP core has no third-party runtime dependencies. CVP/1 and CVP/2 remain sup
 
 **Requirements:** PHP 8.2+ with JSON. The starter needs no database, Node.js, Python, Redis, or Docker.
 
-Download the [V4 source ZIP](https://github.com/corevia-framework/corevia/archive/refs/tags/v4.0.0.zip), extract it, and open a terminal in the extracted project directory. Or clone the V4 release:
+Once `corevia-framework/corevia` is published on Packagist, create an application with:
 
 ```sh
-git clone --branch v4.0.0 https://github.com/corevia-framework/corevia.git myapp
+composer create-project corevia-framework/corevia myapp "^4.0"
+cd myapp
+php corevia doctor
+php corevia route:list
+php corevia serve
+```
+
+This release prepares Packagist compatibility; registration and publication are separate maintainer actions. Until publication, use the source ZIP or Git installation below. Composer infers stable versions from Git tags; no custom repository is needed after Packagist publication.
+
+Download the [V4.0.1 source ZIP](https://github.com/corevia-framework/corevia/archive/refs/tags/v4.0.1.zip) after release publication, extract it, and open a terminal in the extracted project directory. Or clone the release:
+
+```sh
+git clone --branch v4.0.1 https://github.com/corevia-framework/corevia.git myapp
 cd myapp
 composer install
 php corevia serve
@@ -25,9 +37,11 @@ php corevia serve
 
 Open **http://127.0.0.1:8081**. Composer is recommended; the included loader also lets you start directly with `php corevia serve` when Composer is unavailable. Each fresh installation creates its own private signing key and runtime files on first use.
 
+The development server is for local use. In production, point the document root at `public/` and give the PHP process write access to private `storage/`; do not make the whole application world-writable. Configure settings through process environment variables and `config/settings/`. `.env.example` documents the variables; copying it to `.env` does not load them automatically. No database migration, account creation, email delivery or application hook runs during Composer installation.
+
 Build your application in `app/`, `routes/web.php`, `resources/views/`, `public/assets/`, and `config/settings/`. The `packages/` directory contains the framework and should normally stay unchanged. `.gitignore` excludes local/generated data; it does not prevent people from modifying files in their own copy.
 
-Read [Getting started](docs/getting-started.md), the [web guide](docs/v2/web.md), and the [database guide](docs/v2/databases.md). This repository supports download/clone installation; its Composer package names have not yet been published on Packagist.
+Read [Getting started](docs/getting-started.md), the [web guide](docs/v2/web.md), and the [database guide](docs/v2/databases.md). The root project bundles all modules, SDKs, starter assets, examples and CLI test support. The optional split runtime/application distribution remains available separately; it is not required by the root project's Composer installation.
 
 For a separate task tutorial, use the [database-free learning project](test-project/README.md). Run `php test-project/console.php serve` and open http://127.0.0.1:8091 to create tasks and inspect each flow step. Its [database guide](test-project/DATABASE.md) explains how to switch task storage to PDO/MySQL later.
 
@@ -244,4 +258,4 @@ Generators refuse existing files and require PascalCase names. Generated actions
 
 MIT licensed. Contributions should preserve package boundaries, restrictive defaults and cross-language tests.
 
-Read the [foundation guide](docs/v3/foundations.md), [architecture checks](docs/v3/architecture.md), [production acceptance](docs/v3/production-readiness.md) and [progress record](docs/v3/progress.md). Framework/SDK metadata is 3.0.0; protocol versions remain CVP/1 and CVP/2. PHP, JS, Python and Dart package-registry publication is separate from this GitHub source distribution.
+Read the historical [V3 foundation guide](docs/v3/foundations.md), [architecture checks](docs/v3/architecture.md), [production acceptance](docs/v3/production-readiness.md) and [progress record](docs/v3/progress.md). The current PHP framework version is 4.0.1; unchanged JS, Python and Dart SDK metadata remains 4.0.0. Protocol versions remain CVP/1 and CVP/2. Package-registry publication is separate from GitHub source publication.
