@@ -66,6 +66,7 @@ def main():
         ('composer-validate', composer_command + ['validate', '--strict'], {}),
         ('php-lint', composer_command + ['lint'], {}),
         ('php-regression', composer_command + ['test'], {}),
+        ('root-composer-project', [sys.executable, 'tests/v4/composer-project.py'], {}),
         ('v4-release-gates', [php, 'tests/v4/release.php'], {}),
         ('sqlite-concurrency', [sys.executable, 'tests/v4/concurrency.py'], {}),
         ('live-remote-cancellation', [sys.executable, 'tests/v4/cancel-http.py'], {}),
@@ -97,7 +98,7 @@ def main():
         browser_app = browser_package / 'application'
         checks.extend([
             ('workspace-package', [sys.executable, 'tools/v4-package.py', '--output=' + str(browser_package)], {}),
-            ('workspace-install', composer_command + ['--working-dir=' + str(browser_app), 'install', '--no-interaction', '--no-scripts', '--no-plugins'], {'COMPOSER_ROOT_VERSION': '4.0.0'}),
+            ('workspace-install', composer_command + ['--working-dir=' + str(browser_app), 'install', '--no-interaction', '--no-scripts', '--no-plugins'], {'COMPOSER_ROOT_VERSION': '4.0.1'}),
             ('workspace-browser', ['node', 'tests/v4/workspace-browser.mjs', str(browser_app)], {}),
         ])
     if args.services:

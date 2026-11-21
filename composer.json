@@ -4,11 +4,106 @@
   "type": "project",
   "license": "MIT",
   "homepage": "https://github.com/corevia-framework/corevia",
-  "support": {"issues": "https://github.com/corevia-framework/corevia/issues", "source": "https://github.com/corevia-framework/corevia"},
-  "archive": {"exclude": ["/.github", "/CODEX.md", "/docs/implementation.md", "/docs/validation.md", "/docs/v2/phases.md", "/docs/v2/release.md"]},
-  "require": {"php": ">=8.2", "ext-json": "*"},
-  "suggest": {"ext-pdo": "Required only for optional SQL adapters", "ext-pdo_sqlite": "SQLite connections and the checkout demonstration", "ext-pdo_mysql": "MySQL/MariaDB connections", "ext-pdo_pgsql": "PostgreSQL connections", "ext-mongodb": "Optional MongoDB document storage", "ext-openssl": "Optional MFA, encrypted mail delivery and SMTP TLS"},
-  "autoload": {"psr-4":{"Corevia\\Core\\":"packages/core/src/","Corevia\\Auth\\":"packages/auth/src/","Corevia\\Http\\":"packages/http/src/","Corevia\\Protocol\\":"packages/protocol/src/","Corevia\\Persistence\\":"packages/persistence-pdo/src/","Corevia\\Realtime\\":"packages/realtime/src/","Corevia\\Cli\\":"packages/cli/src/","App\\":"app/","Corevia\\Ai\\":"packages/ai/src/","Corevia\\Testing\\":"packages/testing/src/"}},
-  "scripts": {"test": "@php corevia test", "lint": "@php tests/lint.php"},
-  "bin": ["corevia"]
+  "support": {
+    "issues": "https://github.com/corevia-framework/corevia/issues",
+    "source": "https://github.com/corevia-framework/corevia"
+  },
+  "archive": {
+    "exclude": [
+      "/.github",
+      "/.git",
+      "/.codex",
+      "/.agents",
+      "/.claude",
+      "/.idea",
+      "/.vscode",
+      "/.aws",
+      "/.azure",
+      "/.gcloud",
+      "/CODEX.md",
+      "**/.ssh",
+      "**/.acceptance",
+      "/docs/implementation.md",
+      "/docs/validation.md",
+      "/docs/v2/phases.md",
+      "/docs/v2/release.md",
+      "/local-v3-acceptance",
+      "/vendor",
+      "**/vendor",
+      "**/node_modules",
+      "**/__pycache__",
+      "**/.dart_tool",
+      "**/.pytest_cache",
+      "**/.phpunit.cache",
+      "/storage/*",
+      "!/storage/.gitkeep",
+      "/test-project/storage/*",
+      "!/test-project/storage/.gitkeep",
+      "/build",
+      "/dist",
+      "/coverage",
+      "**/.env",
+      "**/.env.*",
+      "!/.env.example",
+      "**/auth.json",
+      "**/.npmrc",
+      "**/.pypirc",
+      "**/.netrc",
+      "**/*.pem",
+      "**/*.key",
+      "**/*.secret",
+      "**/*.p12",
+      "**/*.pfx",
+      "**/*.p8",
+      "**/*.keystore",
+      "**/*.log",
+      "**/*.pid",
+      "**/*.tmp",
+      "**/*.pyc",
+      "**/*.sqlite",
+      "**/*.sqlite3",
+      "**/*.sqlite-wal",
+      "**/*.sqlite-shm",
+      "**/*.sqlite3-wal",
+      "**/*.sqlite3-shm",
+      "**/*.db",
+      "**/*.db-wal",
+      "**/*.db-shm",
+      "**/.DS_Store",
+      "**/Thumbs.db"
+    ]
+  },
+  "require": {
+    "php": ">=8.2",
+    "ext-json": "*"
+  },
+  "suggest": {
+    "ext-pdo": "Required only for optional SQL adapters",
+    "ext-pdo_sqlite": "SQLite connections and the checkout demonstration",
+    "ext-pdo_mysql": "MySQL/MariaDB connections",
+    "ext-pdo_pgsql": "PostgreSQL connections",
+    "ext-mongodb": "Optional MongoDB document storage",
+    "ext-openssl": "Optional MFA, encrypted mail delivery and SMTP TLS"
+  },
+  "autoload": {
+    "psr-4": {
+      "Corevia\\Core\\": "packages/core/src/",
+      "Corevia\\Auth\\": "packages/auth/src/",
+      "Corevia\\Http\\": "packages/http/src/",
+      "Corevia\\Protocol\\": "packages/protocol/src/",
+      "Corevia\\Persistence\\": "packages/persistence-pdo/src/",
+      "Corevia\\Realtime\\": "packages/realtime/src/",
+      "Corevia\\Cli\\": "packages/cli/src/",
+      "App\\": "app/",
+      "Corevia\\Ai\\": "packages/ai/src/",
+      "Corevia\\Testing\\": "packages/testing/src/"
+    }
+  },
+  "scripts": {
+    "test": "@php corevia test",
+    "lint": "@php tests/lint.php"
+  },
+  "bin": [
+    "corevia"
+  ]
 }

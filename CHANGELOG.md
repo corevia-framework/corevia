@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.0.1 - 21 November 2026
+
+- Prepare the existing `corevia-framework/corevia` project for Composer/Packagist installation without adding runtime dependencies or changing framework APIs.
+- Exclude local credentials, generated storage, dependency caches and machine-specific files from Composer and Git distribution archives while retaining modules, SDKs, protocols, starters and CLI test support.
+- Add offline root-project `create-project` regression coverage for Composer and Git ZIPs, strict PSR-4 autoloading, configuration, CLI commands, writable storage and database-free HTTP; include it in the PHP 8.2/8.3/8.4 CI matrix.
+- Document Composer installation and post-installation configuration, and correct the README's stale current-release V3 metadata statement while preserving historical V3 guides.
+- Align PHP framework and optional split-package build metadata to 4.0.1; unchanged language SDKs retain their own 4.0.0 versions.
+- Preserve the CLI executable bit in Git archives and close test-fixture directory handles before cleanup on Windows.
+- Fix `doctor` incorrectly requiring SQLite when the installed project has bootstrapped the supported database-free web starter.
+
 ## 4.0.0 - 15 November 2026
 
 - Add versioned runtime/application ZIPs, feature composition, non-destructive staged upgrades and explicit extension compatibility.

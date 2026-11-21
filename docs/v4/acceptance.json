@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "target": "4.0.0",
+  "target": "4.0.1",
   "reviews": {
     "scope_review": true,
     "security_boundary_review": true,
@@ -9,6 +9,7 @@
   },
   "required_checks": [
     "composer-validate",
+    "root-composer-project",
     "php-lint",
     "php-regression",
     "v4-release-gates",
